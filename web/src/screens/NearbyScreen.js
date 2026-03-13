@@ -4,6 +4,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import CategoryChip from "../components/CategoryChip";
 import PlaceCard from "../components/PlaceCard";
 import PageCard from "../components/PageCard";
+import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { setCategory, clearCategory } from "../store/slices/placesSlice";
@@ -42,9 +43,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   text: {
     ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: spacing.xl,
   },
 });

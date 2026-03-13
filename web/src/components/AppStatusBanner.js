@@ -12,14 +12,16 @@ export default function AppStatusBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: colors.clay,
+    backgroundColor: colors.accent,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: 10,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   text: {
-    color: colors.deepBrown,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
   },

@@ -33,30 +33,41 @@ export default function ReviewsListScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    borderRadius: 20,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
+    boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.04)",
   },
   name: {
-    ...typography.subheading,
+    ...typography.h3,
+    color: colors.text,
   },
   meta: {
     ...typography.body,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   body: {
     ...typography.body,
+    color: colors.text,
+    lineHeight: 22,
     marginTop: spacing.xs,
   },
   sentiment: {
     ...typography.body,
-    marginTop: spacing.xs,
-    color: colors.leaf,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: spacing.sm,
+    color: colors.success,
   },
   text: {
     ...typography.body,
-    marginBottom: spacing.md,
+    textAlign: "center",
+    color: colors.textSecondary,
+    marginVertical: spacing.xl,
   },
 });

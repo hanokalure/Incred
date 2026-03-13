@@ -43,28 +43,34 @@ export default function ItineraryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   title: {
-    ...typography.heading,
-    marginBottom: spacing.md,
+    ...typography.h1,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   text: {
     ...typography.body,
-    marginBottom: spacing.lg,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
   },
   label: {
     ...typography.body,
+    fontWeight: "600",
+    color: colors.text,
     marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderRadius: 16,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
+    color: colors.text,
   },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
   },
 });

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
+import { colors } from "../theme/colors";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -25,35 +26,40 @@ export default function PlaceDetailScreen({ navigation, route }) {
       <Text style={styles.section}>Photos</Text>
       <PhotoPlaceholder label="Place photos (coming soon)" />
 
-      <PrimaryButton label={isSaved ? "Remove from Saved" : "Save Place"} onPress={() => dispatch(toggleSaved(placeId))} />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Add to Itinerary" onPress={() => navigation.navigate("DayPlan")} variant="ghost" />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Get Directions" onPress={() => navigation.navigate("Map")} variant="ghost" />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Read Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId })} variant="ghost" />
+      <View style={styles.buttonContainer}>
+        <PrimaryButton label={isSaved ? "Remove from Saved" : "Save Place"} onPress={() => dispatch(toggleSaved(placeId))} />
+        <PrimaryButton label="Add to Itinerary" onPress={() => navigation.navigate("DayPlan")} variant="ghost" />
+        <PrimaryButton label="Get Directions" onPress={() => navigation.navigate("Map")} variant="ghost" />
+        <PrimaryButton label="Read Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId })} variant="ghost" />
+      </View>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
   title: {
-    ...typography.heading,
-    marginBottom: spacing.sm,
+    ...typography.h1,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   meta: {
     ...typography.body,
-    marginBottom: spacing.md,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
   },
   desc: {
     ...typography.body,
-    marginBottom: spacing.md,
+    color: colors.text,
+    lineHeight: 24,
+    marginBottom: spacing.xl,
   },
   section: {
-    ...typography.subheading,
-    marginBottom: spacing.sm,
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
-  spacer: {
-    height: spacing.sm,
+  buttonContainer: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
 });

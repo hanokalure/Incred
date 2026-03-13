@@ -71,15 +71,18 @@ export default function ReviewSubmitScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   label: {
     ...typography.body,
+    fontWeight: "600",
+    color: colors.text,
     marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderRadius: 16,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
+    color: colors.text,
   },
   textArea: {
     height: 120,
@@ -87,6 +90,9 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...typography.body,
-    marginBottom: spacing.md,
+    fontSize: 14,
+    color: colors.success,
+    fontWeight: "700",
+    marginBottom: spacing.lg,
   },
 });

@@ -26,15 +26,16 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
-    backgroundColor: colors.clay,
+    backgroundColor: colors.border,
     borderRadius: 10,
   },
   backText: {
-    color: colors.deepBrown,
+    color: colors.textSecondary,
     fontWeight: "600",
     fontSize: 12,
   },
   title: {
-    ...typography.heading,
+    ...typography.h3,
+    color: colors.text,
   },
 });

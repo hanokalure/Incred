@@ -1,4 +1,7 @@
-import { Text, TextInput, StyleSheet } from "react-native";
+import { useState } from "react";
+import { Text, TextInput, StyleSheet, View } from "react-native";
+import { useDispatch } from "react-redux";
+import { login } from "../store/slices/authSlice";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -6,13 +9,37 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
 
 export default function LoginScreen({ navigation }) {
+  const dispatch = useDispatch();
+  const [email, setEmail] = useState("");
+
+  const handleLogin = () => {
+    const role = email.toLowerCase().endsWith("@admin.com") ? "admin" : "user";
+    dispatch(login({ user: { email }, role }));
+    // Navigation will be handled by RootNavigator based on state
+  };
+
   return (
     <PageCard scroll={false} contentStyle={styles.center}>
       <Text style={styles.title}>Welcome Back</Text>
       <Text style={styles.subtitle}>Sign in to continue your Karnataka journey.</Text>
-      <TextInput placeholder="Email" placeholderTextColor={colors.charcoal} style={styles.input} />
-      <TextInput placeholder="Password" placeholderTextColor={colors.charcoal} secureTextEntry style={styles.input} />
-      <PrimaryButton label="Login" onPress={() => navigation.replace("MainTabs")} />
+
+      <TextInput
+        placeholder="Email (use @admin.com for admin)"
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Password"
+        placeholderTextColor={colors.textMuted}
+        secureTextEntry
+        style={styles.input}
+      />
+
+      <PrimaryButton label="Login" onPress={handleLogin} />
+
       <Text style={styles.helper}>New here?</Text>
       <PrimaryButton label="Create account" onPress={() => navigation.navigate("Register")} variant="ghost" />
     </PageCard>
@@ -23,27 +50,43 @@ const styles = StyleSheet.create({
   center: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: colors.surface,
+    padding: spacing.xl * 1.5,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.05)",
   },
   title: {
-    ...typography.heading,
-    marginBottom: spacing.sm,
+    ...typography.h1,
+    textAlign: "center",
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
-    marginBottom: spacing.lg,
+    textAlign: "center",
+    marginBottom: spacing.xl,
+    color: colors.textSecondary,
   },
   input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
+    color: colors.text,
   },
   helper: {
-    marginTop: spacing.md,
+    marginTop: spacing.xl,
     marginBottom: spacing.xs,
-    color: colors.deepBrown,
+    color: colors.textMuted,
     fontSize: 12,
+    textAlign: "center",
   },
 });

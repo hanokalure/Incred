@@ -1,8 +1,10 @@
 import { Text, StyleSheet } from "react-native";
+import { colors } from "../theme/colors";
 import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PlaceCard from "../components/PlaceCard";
 import PageCard from "../components/PageCard";
+import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 
 export default function SavedListScreen({ navigation }) {
@@ -27,5 +29,8 @@ export default function SavedListScreen({ navigation }) {
 const styles = StyleSheet.create({
   text: {
     ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: spacing.xl,
   },
 });

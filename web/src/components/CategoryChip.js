@@ -15,21 +15,25 @@ export default function CategoryChip({ label, selected, onPress }) {
 
 const styles = StyleSheet.create({
   chip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: 18,
-    backgroundColor: colors.clay,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 25,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginRight: spacing.sm,
   },
   selected: {
-    backgroundColor: colors.saffron,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   text: {
-    color: colors.deepBrown,
+    color: colors.textSecondary,
     fontWeight: "600",
-    fontSize: 13,
+    fontSize: 14,
   },
   textSelected: {
-    color: colors.white,
+    color: colors.text,
+    fontWeight: "700",
   },
 });

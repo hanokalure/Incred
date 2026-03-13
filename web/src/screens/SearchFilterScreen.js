@@ -6,6 +6,7 @@ import PlaceCard from "../components/PlaceCard";
 import PageCard from "../components/PageCard";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
+import { colors } from "../theme/colors";
 import { setCategory, clearCategory } from "../store/slices/placesSlice";
 
 export default function SearchFilterScreen({ navigation }) {
@@ -42,14 +43,17 @@ export default function SearchFilterScreen({ navigation }) {
 const styles = StyleSheet.create({
   helper: {
     ...typography.body,
+    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   text: {
     ...typography.body,
+    color: colors.textSecondary,
   },
 });

@@ -3,6 +3,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import PageCard from "../components/PageCard";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
+import { colors } from "../theme/colors";
 
 export default function DayPlanScreen({ navigation }) {
   return (
@@ -19,6 +20,12 @@ export default function DayPlanScreen({ navigation }) {
 const styles = StyleSheet.create({
   item: {
     ...typography.body,
-    marginBottom: spacing.sm,
+    color: colors.text,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

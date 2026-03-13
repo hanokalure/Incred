@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
+import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
@@ -21,10 +22,11 @@ export default function ProfileScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   title: {
-    ...typography.heading,
-    marginBottom: spacing.lg,
+    ...typography.h1,
+    color: colors.text,
+    marginBottom: spacing.xl,
   },
-  spacer: {
-    height: spacing.sm,
+  container: {
+    gap: spacing.md,
   },
 });

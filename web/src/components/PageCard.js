@@ -1,4 +1,4 @@
-import { View, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet, Platform } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 
@@ -23,25 +23,34 @@ export default function PageCard({ children, scroll = true, contentStyle, cardSt
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: colors.ivory,
+    backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
+    padding: spacing.xl,
     alignItems: "center",
     justifyContent: "flex-start",
   },
   card: {
     width: "100%",
-    maxWidth: 980,
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    padding: spacing.lg,
+    maxWidth: 1100,
+    backgroundColor: colors.elevated,
+    borderRadius: 24,
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.clay,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 4,
+    borderColor: colors.border,
+    ...Platform.select({
+      web: {
+        boxShadow: "0px 12px 32px rgba(0, 0, 0, 0.05)",
+      },
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.05,
+        shadowRadius: 32,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
 });

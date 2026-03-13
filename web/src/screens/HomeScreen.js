@@ -1,120 +1,163 @@
-import { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import CategoryChip from "../components/CategoryChip";
 import SectionHeader from "../components/SectionHeader";
-import PlaceCard from "../components/PlaceCard";
-import PrimaryButton from "../components/PrimaryButton";
-import AppStatusBanner from "../components/AppStatusBanner";
 import PageCard from "../components/PageCard";
-import { loadRecommendations } from "../store/slices/recommendationsSlice";
+import PlaceCard from "../components/PlaceCard";
 
 export default function HomeScreen({ navigation }) {
-  const dispatch = useDispatch();
-  const categories = useSelector((state) => state.places.categories);
-  const featured = useSelector((state) => state.places.featured);
-  const allPlaces = useSelector((state) => state.places.places);
-  const recommendedIds = useSelector((state) => state.recommendations.recommended);
-  const recStatus = useSelector((state) => state.recommendations.status);
-  const recommended = allPlaces.filter((p) => recommendedIds.includes(p.id));
+  const { role } = useSelector(state => state.auth);
+  const featured = useSelector(state => state.places.featured);
 
-  useEffect(() => {
-    dispatch(
-      loadRecommendations({
-        user_id: "demo",
-        lat: 12.9716,
-        lng: 77.5946,
-        saved_place_ids: [],
-        ratings: [],
-        categories: [],
-      })
+  if (role === "admin") {
+    const stats = [
+      { label: "Total Places", value: "128", trend: "+12 this week" },
+      { label: "Pending Approvals", value: "24", trend: "High priority", alert: true },
+      { label: "Active Users", value: "1.2k", trend: "+5% vs last month" },
+      { label: "Total Reviews", value: "4.8k", trend: "86% positive" },
+    ];
+
+    return (
+      <PageCard>
+        <View style={styles.header}>
+          <Text style={styles.title}>Admin Overview</Text>
+          <Text style={styles.subtitle}>Track app performance and manage local content.</Text>
+        </View>
+
+        <View style={styles.statsGrid}>
+          {stats.map((stat, i) => (
+            <View key={i} style={[styles.statCard, stat.alert && styles.statAlert]}>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={[styles.statTrend, stat.alert && styles.statTrendAlert]}>{stat.trend}</Text>
+            </View>
+          ))}
+        </View>
+
+        <SectionHeader title="Recent Submissions" action="Approve All" />
+        <View style={styles.tablePlaceholder}>
+          <Text style={styles.placeholderText}>Submission list component will be loaded here...</Text>
+        </View>
+      </PageCard>
     );
-  }, [dispatch]);
+  }
 
+  // User Home View
   return (
     <PageCard>
-      <AppStatusBanner />
-      <Text style={styles.title}>Explore</Text>
-      <Text style={styles.subtitle}>Handpicked local experiences near you</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Namaste, Explorer</Text>
+        <Text style={styles.subtitle}>Discover the soul of Karnataka through local experiences.</Text>
+      </View>
 
-      <SectionHeader title="Recommended for You" />
-      {recStatus === "loading" ? (
-        <Text style={styles.text}>Loading recommendations...</Text>
-      ) : recStatus === "failed" ? (
-        <Text style={styles.text}>Recommendations unavailable. Check AI service.</Text>
-      ) : (
-        recommended.map((p) => (
-          <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
-        ))
-      )}
-
-      <SectionHeader title="Categories" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.row}>
-        {categories.map((c) => (
-          <CategoryChip key={c} label={c} />
+      <SectionHeader title="Featured Discoveries" action="Show all" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredRow}>
+        {featured.map((p) => (
+          <View key={p.id} style={styles.featuredCardWrap}>
+            <PlaceCard name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
+          </View>
         ))}
       </ScrollView>
 
-      <View style={styles.section}>
-        <SectionHeader title="Nearby Discoveries" action="View all" />
-        {featured.map((p) => (
-          <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
-        ))}
-        <PrimaryButton label="Open Nearby Discoveries" onPress={() => navigation.navigate("Nearby")} />
-      </View>
-
-      <View style={styles.mapCard}>
-        <Text style={styles.mapTitle}>Interactive Map</Text>
-        <Text style={styles.mapText}>Explore with live map markers.</Text>
-        <View style={styles.mapActions}>
-          <PrimaryButton label="Open Map" onPress={() => navigation.navigate("Map")} />
-          <View style={styles.spacer} />
-          <PrimaryButton label="Place Detail" onPress={() => navigation.navigate("PlaceDetail")} variant="ghost" />
-          <View style={styles.spacer} />
-          <PrimaryButton label="Suggest a Place" onPress={() => navigation.navigate("SubmitPlace")} variant="ghost" />
-        </View>
+      <View style={styles.promoCard}>
+        <Text style={styles.promoTitle}>AI Itinerary Guide</Text>
+        <Text style={styles.promoText}>Let our AI plan your perfect Karnataka weekend getaway based on your interests.</Text>
       </View>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    marginBottom: spacing.xl,
+  },
   title: {
-    ...typography.heading,
+    ...typography.h1,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
-    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+    color: colors.textSecondary,
   },
-  row: {
-    marginBottom: spacing.lg,
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  section: {
-    marginTop: spacing.lg,
+  statCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  mapCard: {
-    backgroundColor: colors.sky,
-    padding: spacing.lg,
-    borderRadius: 18,
-    marginTop: spacing.lg,
+  statAlert: {
+    backgroundColor: colors.accent,
+    borderColor: colors.primary,
   },
-  mapTitle: {
-    ...typography.subheading,
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
-  mapText: {
+  statValue: {
+    ...typography.h1,
+    fontSize: 36,
+    color: colors.text,
+  },
+  statTrend: {
     ...typography.body,
+    fontSize: 12,
     marginTop: spacing.sm,
+    color: colors.success,
+    fontWeight: "600",
   },
-  mapActions: {
-    marginTop: spacing.md,
+  statTrendAlert: {
+    color: colors.secondary,
   },
-  spacer: {
-    height: spacing.sm,
+  tablePlaceholder: {
+    height: 300,
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    borderStyle: "dashed",
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  text: {
+  placeholderText: {
     ...typography.body,
+    color: colors.textMuted,
+  },
+  featuredRow: {
+    marginLeft: -spacing.md,
+    paddingLeft: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  featuredCardWrap: {
+    width: 320,
+    marginRight: spacing.lg,
+  },
+  promoCard: {
+    backgroundColor: colors.primary,
+    padding: spacing.xl,
+    borderRadius: 24,
+    marginTop: spacing.lg,
+  },
+  promoTitle: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  promoText: {
+    ...typography.body,
+    color: colors.text,
+    marginTop: spacing.sm,
+    opacity: 0.9,
   },
 });

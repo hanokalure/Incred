@@ -1,4 +1,5 @@
 import { Text, StyleSheet } from "react-native";
+import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
@@ -16,11 +17,13 @@ export default function ListingsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   title: {
-    ...typography.heading,
-    marginBottom: spacing.md,
+    ...typography.h1,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   text: {
     ...typography.body,
-    marginBottom: spacing.lg,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
   },
 });

@@ -32,10 +32,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    ...typography.heading,
+    ...typography.h1,
+    color: colors.text,
   },
   subtitle: {
     marginTop: 8,
-    color: colors.deepBrown,
+    color: colors.textSecondary,
+    ...typography.body,
   },
 });
