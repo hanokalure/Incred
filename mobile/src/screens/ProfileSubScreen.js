@@ -4,6 +4,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import ScreenHeader from "../components/ScreenHeader";
+import PageCard from "../components/PageCard";
 
 export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
@@ -47,18 +48,18 @@ export default function ProfileSubScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+    <PageCard>
       <ScreenHeader title={title} onBack={() => navigation.goBack()} />
-      {renderBody()}
-    </View>
+      <View style={styles.content}>
+        {renderBody()}
+      </View>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-    padding: spacing.lg,
+  content: {
+    marginTop: spacing.md,
   },
   item: {
     ...typography.body,

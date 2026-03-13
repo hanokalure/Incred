@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import CategoryChip from "../components/CategoryChip";
 import PlaceCard from "../components/PlaceCard";
+import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -17,7 +18,7 @@ export default function NearbyScreen({ navigation }) {
   const filtered = selected === "All" ? places : places.filter((p) => p.category === selected);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <PageCard>
       <ScreenHeader title="Nearby Discoveries" onBack={() => navigation.goBack()} />
 
       <View style={styles.row}>
@@ -43,22 +44,16 @@ export default function NearbyScreen({ navigation }) {
           <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
         ))
       )}
-    </ScrollView>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-  },
-  content: {
-    padding: spacing.lg,
-  },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
   text: {
     ...typography.body,

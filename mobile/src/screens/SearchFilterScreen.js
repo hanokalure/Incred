@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import CategoryChip from "../components/CategoryChip";
 import PlaceCard from "../components/PlaceCard";
+import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -17,9 +18,9 @@ export default function SearchFilterScreen({ navigation }) {
   const filtered = selected === "All" ? places : places.filter((p) => p.category === selected);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ScreenHeader title="Search & Filter" onBack={() => navigation.goBack()} />
-      <Text style={styles.helper}>Select a category to filter listings.</Text>
+    <PageCard>
+      <ScreenHeader title="Discover" onBack={() => navigation.goBack()} />
+      <Text style={styles.helper}>Find the best local spots and hidden gems across Karnataka.</Text>
 
       <View style={styles.row}>
         <CategoryChip
@@ -38,34 +39,37 @@ export default function SearchFilterScreen({ navigation }) {
       </View>
 
       {filtered.length === 0 ? (
-        <Text style={styles.text}>No places found in this category.</Text>
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>No places found in this category.</Text>
+        </View>
       ) : (
         filtered.map((p) => (
           <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
         ))
       )}
-    </ScrollView>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-  },
-  content: {
-    padding: spacing.lg,
-  },
   helper: {
     ...typography.body,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    color: colors.textSecondary,
   },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  text: {
+  empty: {
+    marginTop: spacing.xl,
+    alignItems: "center",
+  },
+  emptyText: {
     ...typography.body,
+    color: colors.textMuted,
+    textAlign: "center",
   },
 });

@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -8,7 +9,7 @@ export default function ScreenHeader({ title, onBack }) {
     <View style={styles.row}>
       {onBack ? (
         <Pressable onPress={onBack} style={styles.back}>
-          <Text style={styles.backText}>Back</Text>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
       ) : null}
       <Text style={styles.title}>{title}</Text>
@@ -23,16 +24,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   back: {
-    marginRight: spacing.md,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.clay,
-    borderRadius: 10,
-  },
-  backText: {
-    color: colors.deepBrown,
-    fontWeight: "600",
-    fontSize: 12,
+    marginRight: spacing.sm,
+    marginLeft: -spacing.xs,
+    padding: spacing.xs,
   },
   title: {
     ...typography.heading,

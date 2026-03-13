@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PlaceCard from "../components/PlaceCard";
+import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -12,28 +13,31 @@ export default function SavedListScreen({ navigation }) {
   const savedPlaces = places.filter((p) => savedIds.includes(p.id));
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ScreenHeader title="Saved Places List" onBack={() => navigation.goBack()} />
+    <PageCard>
+      <ScreenHeader title="Saved Collections" onBack={() => navigation.goBack()} />
       {savedPlaces.length === 0 ? (
-        <Text style={styles.text}>No saved places yet.</Text>
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>You haven't saved any places yet. Start exploring to build your collection!</Text>
+        </View>
       ) : (
         savedPlaces.map((p) => (
           <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
         ))
       )}
-    </ScrollView>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
+  empty: {
+    marginTop: spacing.xl,
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
   },
-  content: {
-    padding: spacing.lg,
-  },
-  text: {
+  emptyText: {
     ...typography.body,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

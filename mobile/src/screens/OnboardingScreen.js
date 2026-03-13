@@ -19,17 +19,18 @@ export default function OnboardingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.ivory,
-    padding: spacing.lg,
+    backgroundColor: colors.background,
+    padding: spacing.xl,
     justifyContent: "center",
   },
   title: {
-    ...typography.heading,
+    ...typography.h1,
     marginBottom: spacing.md,
   },
   subtitle: {
     ...typography.body,
-    lineHeight: 20,
+    lineHeight: 24,
     marginBottom: spacing.xl,
+    color: colors.textSecondary,
   },
 });

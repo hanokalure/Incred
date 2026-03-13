@@ -8,60 +8,83 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { toggleSaved } from "../store/slices/savedSlice";
 
+import PageCard from "../components/PageCard";
+
 export default function PlaceDetailScreen({ navigation, route }) {
   const placeId = route?.params?.id || "p3";
   const dispatch = useDispatch();
   const isSaved = useSelector((state) => state.saved.saved.includes(placeId));
 
   return (
-    <View style={styles.container}>
+    <PageCard>
       <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
-      <Text style={styles.title}>Mysuru Silk House</Text>
-      <Text style={styles.meta}>Category: Shops • Rating: 4.5</Text>
-      <Text style={styles.desc}>
-        Family-run silk store with heritage craftsmanship and curated textiles.
-      </Text>
 
-      <Text style={styles.section}>Photos</Text>
-      <PhotoPlaceholder label="Place photos (coming soon)" />
+      <View style={styles.hero}>
+        <PhotoPlaceholder label="Heritage Crafts & Silk" />
+      </View>
+
+      <View style={styles.info}>
+        <Text style={styles.title}>Mysuru Silk House</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.category}>Shops</Text>
+          <Text style={styles.dot}>•</Text>
+          <Text style={styles.rating}>★ 4.5</Text>
+        </View>
+        <Text style={styles.desc}>
+          Family-run silk store with heritage craftsmanship and curated textiles. Experience the rich tapestry of Karnataka's weaving traditions.
+        </Text>
+      </View>
 
       <PrimaryButton
-        label={isSaved ? "Remove from Saved" : "Save Place"}
+        label={isSaved ? "Remove from Saved" : "Save to Collection"}
         onPress={() => dispatch(toggleSaved(placeId))}
       />
       <View style={styles.spacer} />
-      <PrimaryButton label="Add to Itinerary" onPress={() => navigation.navigate("DayPlan")} variant="ghost" />
-      <View style={styles.spacer} />
       <PrimaryButton label="Get Directions" onPress={() => navigation.navigate("Map")} variant="ghost" />
       <View style={styles.spacer} />
-      <PrimaryButton label="Read Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId })} variant="ghost" />
-    </View>
+      <PrimaryButton label="Read Guest Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId })} variant="ghost" />
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-    padding: spacing.lg,
+  hero: {
+    height: 250,
+    marginVertical: spacing.lg,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  info: {
+    marginBottom: spacing.xl,
   },
   title: {
-    ...typography.heading,
-    marginBottom: spacing.sm,
+    ...typography.h1,
+    fontSize: 28,
   },
-  meta: {
-    ...typography.body,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.xs,
     marginBottom: spacing.md,
+  },
+  category: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    letterSpacing: 0,
+  },
+  dot: {
+    marginHorizontal: spacing.sm,
+    color: colors.textMuted,
+  },
+  rating: {
+    ...typography.h3,
+    color: colors.primary,
   },
   desc: {
     ...typography.body,
-    marginBottom: spacing.md,
-  },
-  section: {
-    ...typography.subheading,
-    marginBottom: spacing.sm,
+    lineHeight: 24,
   },
   spacer: {
-    height: spacing.sm,
+    height: spacing.md,
   },
 });

@@ -1,10 +1,26 @@
 export const colors = {
-  ivory: "#F7F2E8",
-  saffron: "#F39C12",
-  deepBrown: "#3E2A1D",
-  clay: "#D7B89A",
-  leaf: "#3D6B4C",
-  sky: "#CFE8F5",
-  white: "#FFFFFF",
-  charcoal: "#2D2A26",
+  // Brand Colors
+  primary: "#FFD700", // Karnataka Gold
+  secondary: "#CE1126", // Crimson Accent
+
+  // Premium Light Palette
+  background: "#F8F9FA", // Very light gray background
+  surface: "#FFFFFF",     // White surface for cards
+  elevated: "#FFFFFF",
+
+  // Text Colors
+  text: "#1A1A1A",        // Deep charcoal for clarity
+  textSecondary: "#495057", // Medium gray
+  textMuted: "#ADB5BD",     // Disabled/Muted text
+
+  // Semantic Colors
+  success: "#2ECC71",
+  error: "#E74C3C",
+  warning: "#F1C40F",
+  info: "#3498DB",
+
+  // UI Elements
+  accent: "#FFF9E6",      // Very soft gold tint for highlights
+  border: "#E9ECEF",      // Light border color
+  shadow: "rgba(0, 0, 0, 0.05)",
 };

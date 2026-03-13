@@ -21,23 +21,26 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.ivory,
+    backgroundColor: colors.background,
     padding: spacing.lg,
     justifyContent: "center",
   },
   title: {
-    ...typography.heading,
+    ...typography.h1,
     marginBottom: spacing.lg,
+    textAlign: "center",
   },
   input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
+    ...typography.body,
+    color: colors.text,
   },
   spacer: {
-    height: spacing.md,
+    height: spacing.sm,
   },
 });

@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
+import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -46,35 +47,35 @@ export default function ReviewSubmitScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+    <PageCard>
       <ScreenHeader title="Write a Review" onBack={() => navigation.goBack()} />
-      <Text style={styles.label}>Rating (1-5)</Text>
-      <TextInput
-        value={rating}
-        onChangeText={setRating}
-        keyboardType="numeric"
-        style={styles.input}
-      />
-      <Text style={styles.label}>Your review</Text>
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        style={[styles.input, styles.textArea]}
-        multiline
-      />
-      <Text style={styles.label}>Upload photos</Text>
-      <PhotoPlaceholder label="Add photos (coming soon)" />
-      {sentimentLabel ? <Text style={styles.hint}>Sentiment: {sentimentLabel}</Text> : null}
-      <PrimaryButton label={status === "loading" ? "Analyzing..." : "Submit Review"} onPress={onSubmit} />
-    </View>
+      <View style={styles.content}>
+        <Text style={styles.label}>Rating (1-5)</Text>
+        <TextInput
+          value={rating}
+          onChangeText={setRating}
+          keyboardType="numeric"
+          style={styles.input}
+        />
+        <Text style={styles.label}>Your review</Text>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          style={[styles.input, styles.textArea]}
+          multiline
+        />
+        <Text style={styles.label}>Upload photos</Text>
+        <PhotoPlaceholder label="Add photos (coming soon)" />
+        {sentimentLabel ? <Text style={styles.hint}>Sentiment: {sentimentLabel}</Text> : null}
+        <PrimaryButton label={status === "loading" ? "Analyzing..." : "Submit Review"} onPress={onSubmit} />
+      </View>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-    padding: spacing.lg,
+  content: {
+    marginTop: spacing.md,
   },
   label: {
     ...typography.body,

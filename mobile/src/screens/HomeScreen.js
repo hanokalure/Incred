@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, StatusBar } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
@@ -8,17 +8,38 @@ import CategoryChip from "../components/CategoryChip";
 import SectionHeader from "../components/SectionHeader";
 import PlaceCard from "../components/PlaceCard";
 import PrimaryButton from "../components/PrimaryButton";
-import AppStatusBanner from "../components/AppStatusBanner";
 import { loadRecommendations } from "../store/slices/recommendationsSlice";
+
+import PageCard from "../components/PageCard";
 
 export default function HomeScreen({ navigation }) {
   const dispatch = useDispatch();
+  const language = useSelector((state) => state.lang.language);
   const categories = useSelector((state) => state.places.categories);
   const featured = useSelector((state) => state.places.featured);
   const allPlaces = useSelector((state) => state.places.places);
   const recommendedIds = useSelector((state) => state.recommendations.recommended);
   const recStatus = useSelector((state) => state.recommendations.status);
   const recommended = allPlaces.filter((p) => recommendedIds.includes(p.id));
+
+  const t = {
+    en: {
+      greeting: "Namaste,",
+      explorer: "Explorer",
+      subtitle: "Discover the soul of Karnataka through local experiences.",
+      categories: "Top Categories",
+      curated: "Curated for You",
+      showAll: "Show all",
+    },
+    kn: {
+      greeting: "ನಮಸ್ಕಾರ,",
+      explorer: "ಅನ್ವೇಷಕ",
+      subtitle: "ಸ್ಥಳೀಯ ಅನುಭವಗಳ ಮೂಲಕ ಕರ್ನಾಟಕದ ಆತ್ಮವನ್ನು ಅನ್ವೇಷಿಸಿ.",
+      categories: "ಪ್ರಮುಖ ವರ್ಗಗಳು",
+      curated: "ನಿಮಗಾಗಿ ಆಯ್ದವುಗಳು",
+      showAll: "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ",
+    }
+  }[language];
 
   useEffect(() => {
     dispatch(
@@ -34,93 +55,121 @@ export default function HomeScreen({ navigation }) {
   }, [dispatch]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <AppStatusBanner />
-      <Text style={styles.title}>Home / Explore</Text>
-      <Text style={styles.subtitle}>Handpicked local experiences near you</Text>
+    <PageCard hideHeader={false}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <Text style={styles.title}>{t.greeting}{'\n'}{t.explorer}</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
+      </View>
 
-      <SectionHeader title="Recommended for You" />
-      {recStatus === "loading" ? (
-        <Text style={styles.text}>Loading recommendations...</Text>
-      ) : recStatus === "failed" ? (
-        <Text style={styles.text}>Recommendations unavailable. Check AI service.</Text>
-      ) : (
-        recommended.map((p) => (
-          <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
-        ))
-      )}
-
-      <SectionHeader title="Categories" />
+      <SectionHeader title={t.categories} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.row}>
         {categories.map((c) => (
           <CategoryChip key={c} label={c} />
         ))}
       </ScrollView>
 
-      <View style={styles.section}>
-        <SectionHeader title="Nearby Discoveries" action="View all" />
+      <SectionHeader
+        title={t.curated}
+        action={t.showAll}
+        onActionPress={() => navigation.navigate("Discover")}
+      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredRow}>
         {featured.map((p) => (
-          <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
+          <View key={p.id} style={styles.featuredCardWrap}>
+            <PlaceCard name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
+          </View>
         ))}
-        <PrimaryButton label="Open Nearby Discoveries" onPress={() => navigation.navigate("Nearby")} />
-      </View>
+      </ScrollView>
 
-      <View style={styles.mapCard}>
-        <Text style={styles.mapTitle}>Interactive Map</Text>
-        <Text style={styles.mapText}>Explore with live map markers.</Text>
-        <View style={styles.mapActions}>
-          <PrimaryButton label="Open Map" onPress={() => navigation.navigate("Map")} />
-          <View style={styles.spacer} />
-          <PrimaryButton label="Place Detail" onPress={() => navigation.navigate("PlaceDetail")} variant="ghost" />
-          <View style={styles.spacer} />
-          <PrimaryButton label="Suggest a Place" onPress={() => navigation.navigate("SubmitPlace")} variant="ghost" />
+      <View style={styles.promoCard}>
+        <View style={styles.promoContent}>
+          <Text style={styles.promoTitle}>AI Guide</Text>
+          <Text style={styles.promoText}>Let AI plan your perfect weekend getaway based on your interests.</Text>
+          <PrimaryButton
+            label="Interactive Map"
+            onPress={() => navigation.navigate("Map")}
+            style={styles.promoBtn}
+          />
         </View>
       </View>
-    </ScrollView>
+
+      <SectionHeader title="Recently Added" />
+      {featured.slice(0, 3).map((p) => (
+        <PlaceCard key={p.id} name={p.name} category={p.category} distance={p.distance} rating={p.rating} />
+      ))}
+
+      <PrimaryButton
+        label="Browse All Places"
+        onPress={() => navigation.navigate("Discover")}
+        variant="ghost"
+      />
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.ivory,
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  header: {
+    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
   title: {
-    ...typography.heading,
+    ...typography.h1,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
-    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+    color: colors.textSecondary,
+    maxWidth: "90%",
   },
   row: {
-    marginBottom: spacing.lg,
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  section: {
-    marginTop: spacing.lg,
+  featuredRow: {
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  mapCard: {
-    backgroundColor: colors.sky,
+  featuredCardWrap: {
+    width: 260,
+    marginRight: spacing.sm,
+  },
+  promoCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 24,
     padding: spacing.lg,
-    borderRadius: 18,
-    marginTop: spacing.lg,
+    marginVertical: spacing.lg,
+    overflow: "hidden",
   },
-  mapTitle: {
-    ...typography.subheading,
+  promoTitle: {
+    ...typography.h2,
+    color: colors.text,
   },
-  mapText: {
+  promoText: {
     ...typography.body,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+    color: colors.text,
+    opacity: 0.9,
   },
-  mapActions: {
-    marginTop: spacing.md,
+  promoBtn: {
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
   },
-  spacer: {
-    height: spacing.sm,
-  },
-  text: {
-    ...typography.body,
+  footerSpacer: {
+    height: 40,
   },
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,6 +10,8 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { setCategory, clearCategory } from "../store/slices/placesSlice";
+
+import PageCard from "../components/PageCard";
 
 export default function MapScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -52,11 +54,15 @@ export default function MapScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <PageCard scroll={false} cardStyle={styles.cardOverride}>
       <ScreenHeader title="Interactive Map" onBack={() => navigation.goBack()} />
 
       <View style={styles.mapWrap}>
-        <MapView style={styles.map} region={region}>
+        <MapView
+          style={styles.map}
+          region={region}
+          showsUserLocation={true}
+        >
           {filtered.map((m, idx) => (
             <Marker
               key={m.id}
@@ -84,7 +90,7 @@ export default function MapScreen({ navigation }) {
       </View>
 
       {selectedPlace ? (
-        <View style={styles.card}>
+        <View style={styles.placeCard}>
           <Text style={styles.name}>{selectedPlace.name}</Text>
           <Text style={styles.meta}>{selectedPlace.category} • {selectedPlace.distance} km</Text>
           <PrimaryButton
@@ -93,74 +99,104 @@ export default function MapScreen({ navigation }) {
           />
           <View style={styles.spacer} />
           <PrimaryButton label="Get Directions" onPress={buildRoute} variant="ghost" />
-        </View>
-      ) : null}
 
-      {routeInfo ? (
-        <View style={styles.routeCard}>
-          <Text style={styles.routeTitle}>Route Summary</Text>
-          <Text style={styles.meta}>Distance: {routeInfo.distance}</Text>
-          <Text style={styles.meta}>ETA: {routeInfo.eta}</Text>
-          <Text style={styles.note}>{routeInfo.note}</Text>
-          <View style={styles.spacer} />
-          <PrimaryButton label="Start Navigation (Placeholder)" onPress={() => {}} />
+          {routeInfo && (
+            <View style={styles.routeInfo}>
+              <Text style={styles.routeTitle}>Optimal Route</Text>
+              <Text style={styles.meta}>ETA: {routeInfo.eta} ({routeInfo.distance})</Text>
+            </View>
+          )}
         </View>
       ) : null}
-    </View>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ivory,
-    padding: spacing.lg,
+  cardOverride: {
+    padding: 0,
   },
   mapWrap: {
-    height: 260,
-    borderRadius: 16,
+    flex: 1,
+    borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.clay,
-    marginBottom: spacing.lg,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   map: {
     flex: 1,
   },
   section: {
-    ...typography.subheading,
-    marginBottom: spacing.sm,
+    ...typography.h2,
+    fontSize: 20,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
   },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  card: {
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderRadius: 12,
-  },
-  routeCard: {
-    backgroundColor: colors.sky,
-    padding: spacing.md,
-    borderRadius: 12,
-    marginTop: spacing.md,
+  placeCard: {
+    position: "absolute",
+    bottom: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   name: {
-    ...typography.subheading,
+    ...typography.h3,
+    color: colors.text,
   },
   meta: {
     ...typography.body,
-    marginBottom: spacing.xs,
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 2,
+    marginBottom: spacing.md,
+  },
+  routeInfo: {
+    backgroundColor: colors.accent,
+    padding: spacing.md,
+    borderRadius: 16,
+    marginTop: spacing.md,
   },
   routeTitle: {
-    ...typography.subheading,
-    marginBottom: spacing.xs,
-  },
-  note: {
-    ...typography.body,
-    color: colors.deepBrown,
+    ...typography.h3,
+    fontSize: 16,
+    marginBottom: 4,
   },
   spacer: {
     height: spacing.sm,
