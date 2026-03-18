@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, Image, Alert, Linking } from "react-native";
 import { colors } from "../theme/colors";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -10,23 +10,13 @@ import { typography } from "../theme/typography";
 import { fetchPlaceDetails } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl } from "../services/mediaUrl";
+import { getPlaceCategoryLabel } from "../constants/placeCategories";
 
 export default function PlaceDetailScreen({ navigation, route }) {
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
   const [place, setPlace] = useState(null);
   const [favoriteId, setFavoriteId] = useState(null);
-
-  const categoryLabel = (value) => {
-    const mapping = {
-      restaurant: "Food",
-      stay: "Stay",
-      generational_shop: "Shops",
-      hidden_gem: "Hidden Gems",
-      tourist_place: "Tourist",
-    };
-    return mapping[value] || value;
-  };
 
   useEffect(() => {
     if (!placeId) return;
@@ -35,7 +25,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
       .catch(() => setPlace(null));
     fetchSavedPlaces()
       .then((favorites) => {
-        const match = (favorites || []).find((f) => f.place_id === placeId);
+        const match = (favorites || []).find((f) => Number(f.place_id) === Number(placeId));
         setFavoriteId(match ? match.id : null);
       })
       .catch(() => setFavoriteId(null));
@@ -48,12 +38,12 @@ export default function PlaceDetailScreen({ navigation, route }) {
         await removeSavedPlace(favoriteId);
         // Re-fetch to keep state consistent with server.
         const favorites = await fetchSavedPlaces();
-        const match = (favorites || []).find((f) => f.place_id === placeId);
+        const match = (favorites || []).find((f) => Number(f.place_id) === Number(placeId));
         setFavoriteId(match ? match.id : null);
       } else {
         await savePlace(placeId);
         const favorites = await fetchSavedPlaces();
-        const match = (favorites || []).find((f) => f.place_id === placeId);
+        const match = (favorites || []).find((f) => Number(f.place_id) === Number(placeId));
         setFavoriteId(match ? match.id : true);
       }
     } catch (e) {
@@ -62,12 +52,40 @@ export default function PlaceDetailScreen({ navigation, route }) {
     }
   };
 
+  const openDirections = () => {
+    if (!place?.latitude || !place?.longitude) {
+      Alert.alert("Directions", "No coordinates available for this place yet.");
+      return;
+    }
+    const destination = `${place.latitude},${place.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+    Linking.openURL(url);
+  };
+
+  const handleAddToItinerary = async () => {
+    if (!place?.district_id) {
+      Alert.alert("Itinerary", "District is missing for this place.");
+      return;
+    }
+    try {
+      const { generateItinerary } = await import("../services/itinerariesApi");
+      const res = await generateItinerary({
+        district_id: place.district_id,
+        days: 1,
+        categories: place.category ? [place.category] : null,
+      });
+      navigation.navigate("DayPlan", { plan: res?.plan, district_id: place.district_id });
+    } catch (e) {
+      Alert.alert("Itinerary", e?.message || "Unable to add to itinerary.");
+    }
+  };
+
   return (
     <PageCard>
       <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
       <Text style={styles.title}>{place?.name || "Place Details"}</Text>
       <Text style={styles.meta}>
-        Category: {categoryLabel(place?.category)} • Rating: {place?.avg_rating ?? "—"}
+        Category: {getPlaceCategoryLabel(place?.category)} • Rating: {place?.avg_rating ?? "—"}
       </Text>
       {place?.address ? <Text style={styles.address}>{place.address}</Text> : null}
       <Text style={styles.desc}>
@@ -114,8 +132,8 @@ export default function PlaceDetailScreen({ navigation, route }) {
           label={favoriteId ? "Remove from Saved" : "Save Place"}
           onPress={handleToggleSaved}
         />
-        <PrimaryButton label="Add to Itinerary" onPress={() => navigation.navigate("DayPlan")} variant="ghost" />
-        <PrimaryButton label="Get Directions" onPress={() => navigation.navigate("Map")} variant="ghost" />
+        <PrimaryButton label="Add to Itinerary" onPress={handleAddToItinerary} variant="ghost" />
+        <PrimaryButton label="Get Directions" onPress={openDirections} variant="ghost" />
         <PrimaryButton label="Read Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
       </View>
     </PageCard>

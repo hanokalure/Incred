@@ -21,6 +21,11 @@ export default function LoginScreen({ navigation }) {
     setStatus("loading");
     setError("");
     try {
+      if (!email.trim() || !password) {
+        setError("Please enter email and password.");
+        setStatus("idle");
+        return;
+      }
       const data = await loginApi({ email, password });
       setAuthToken(data.access_token);
       dispatch(login({ user: data.user, role: data.user.role, token: data.access_token }));

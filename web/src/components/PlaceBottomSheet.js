@@ -5,6 +5,7 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "./PrimaryButton";
 import { toDisplayImageUrl } from "../services/mediaUrl";
+import { getPlaceCategoryLabel } from "../constants/placeCategories";
 
 export default function PlaceBottomSheet({
   place,
@@ -32,7 +33,7 @@ export default function PlaceBottomSheet({
 
         <View style={styles.headerRow}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{place.category}</Text>
+            <Text style={styles.badgeText}>{getPlaceCategoryLabel(place.category)}</Text>
           </View>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Text style={styles.closeText}>×</Text>
@@ -187,4 +188,3 @@ const styles = StyleSheet.create({
     height: spacing.md,
   },
 });
-

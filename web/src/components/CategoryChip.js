@@ -2,13 +2,26 @@ import { Pressable, Text, StyleSheet } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 
-export default function CategoryChip({ label, selected, onPress }) {
+export default function CategoryChip({ label, selected, onPress, disabled = false }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, selected && styles.selected]}
+      disabled={disabled}
+      style={[
+        styles.chip,
+        selected && styles.selected,
+        disabled && styles.disabled,
+      ]}
     >
-      <Text style={[styles.text, selected && styles.textSelected]}>{label}</Text>
+      <Text
+        style={[
+          styles.text,
+          selected && styles.textSelected,
+          disabled && styles.textDisabled,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -27,6 +40,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  disabled: {
+    opacity: 0.45,
+  },
   text: {
     color: colors.textSecondary,
     fontWeight: "600",
@@ -35,5 +51,8 @@ const styles = StyleSheet.create({
   textSelected: {
     color: colors.text,
     fontWeight: "700",
+  },
+  textDisabled: {
+    color: colors.textSecondary,
   },
 });

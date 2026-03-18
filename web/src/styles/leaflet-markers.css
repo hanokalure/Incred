@@ -1,0 +1,67 @@
+.ik-pin {
+  width: 34px;
+  height: 34px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #0b1220;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.32);
+  position: relative;
+  transform: translateY(-4px);
+}
+
+.ik-pin-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(11, 18, 32, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+}
+
+.ik-pin::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-right: 2px solid rgba(255, 255, 255, 0.85);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.85);
+  transform: translateX(-50%) rotate(45deg);
+  border-bottom-right-radius: 4px;
+  box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.18);
+}
+
+.ik-you {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #22c55e;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 20px rgba(34, 197, 94, 0.4);
+  position: relative;
+}
+
+.ik-you::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  animation: ikPulse 1.6s ease-out infinite;
+}
+
+@keyframes ikPulse {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}

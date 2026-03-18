@@ -4,7 +4,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 
-export default function PlaceCard({ name, category, distance, rating, imageUrl, onPress }) {
+export default function PlaceCard({ name, category, distance, rating, imageUrl, onPress, hideDistance = false }) {
   const [imageFailed, setImageFailed] = useState(false);
   const distanceLabel =
     distance === null || distance === undefined || distance === ""
@@ -40,7 +40,7 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
         </View>
         <Text style={styles.name}>{name}</Text>
         <View style={styles.footer}>
-          <Text style={styles.meta}>{distanceLabel}</Text>
+          <Text style={styles.meta}>{hideDistance ? "" : distanceLabel}</Text>
           <View style={styles.ratingContainer}>
             <Text style={styles.ratingText}>★ {ratingLabel}</Text>
           </View>

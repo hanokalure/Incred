@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
@@ -9,27 +9,45 @@ import PageCard from "../components/PageCard";
 import PlaceCard from "../components/PlaceCard";
 import { fetchPlaces } from "../services/placesApi";
 import { toDisplayImageUrl } from "../services/mediaUrl";
+import { haversineKm } from "../utils/geo";
+import { getBrowserLocation } from "../utils/browserLocation";
+import { getPlaceCategoryLabel } from "../constants/placeCategories";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function HomeScreen({ navigation }) {
-  const { role } = useSelector(state => state.auth);
+  const { role, user } = useSelector(state => state.auth);
+  const { t } = useLanguage();
   const [featured, setFeatured] = useState([]);
-
-  const categoryLabel = (value) => {
-    const mapping = {
-      restaurant: "Food",
-      stay: "Stay",
-      generational_shop: "Shops",
-      hidden_gem: "Hidden Gems",
-      tourist_place: "Tourist",
-    };
-    return mapping[value] || value;
-  };
+  const [userLocation, setUserLocation] = useState(null);
+  const [locError, setLocError] = useState("");
 
   useEffect(() => {
     fetchPlaces()
       .then((data) => setFeatured((data || []).slice(0, 6)))
       .catch(() => setFeatured([]));
   }, []);
+
+  const resolveLocation = () => {
+    setLocError("");
+    getBrowserLocation()
+      .then((coords) => setUserLocation(coords))
+      .catch((err) => setLocError(err?.message || "Unable to get location."));
+  };
+
+  useEffect(() => {
+    resolveLocation();
+  }, []);
+
+  const featuredWithDistance = useMemo(() => {
+    if (!userLocation) return featured;
+    return featured.map((p) => {
+      const km = haversineKm(
+        { latitude: userLocation.latitude, longitude: userLocation.longitude },
+        { latitude: p.latitude, longitude: p.longitude }
+      );
+      return { ...p, distance: km ? Number(km.toFixed(1)) : null };
+    });
+  }, [featured, userLocation]);
 
   if (role === "admin") {
     const stats = [
@@ -68,17 +86,27 @@ export default function HomeScreen({ navigation }) {
   return (
     <PageCard>
       <View style={styles.header}>
-        <Text style={styles.title}>Namaste, Explorer</Text>
-        <Text style={styles.subtitle}>Discover the soul of Karnataka through local experiences.</Text>
+        <Text style={styles.title}>{t("greeting")}, {user?.name || "Explorer"}</Text>
+        <Text style={styles.subtitle}>{t("greetingSubtitle")}</Text>
+        <Pressable onPress={resolveLocation} style={styles.locationBtn}>
+          <Text style={styles.locationText}>
+            {userLocation ? t("locationActive") : t("useMyLocation")}
+          </Text>
+        </Pressable>
+        {locError ? <Text style={styles.locationError}>{locError}</Text> : null}
       </View>
 
-      <SectionHeader title="Featured Discoveries" action="Show all" />
+      <SectionHeader
+        title={t("featuredDiscoveries")}
+        action={t("showAll")}
+        onActionPress={() => navigation.navigate("Discover")}
+      />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredRow}>
-        {featured.map((p) => (
+        {featuredWithDistance.map((p) => (
           <View key={p.id} style={styles.featuredCardWrap}>
             <PlaceCard
               name={p.name}
-              category={categoryLabel(p.category)}
+              category={getPlaceCategoryLabel(p.category)}
               distance={p.distance}
               rating={p.avg_rating ?? p.rating}
               imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
@@ -89,8 +117,8 @@ export default function HomeScreen({ navigation }) {
       </ScrollView>
 
       <View style={styles.promoCard}>
-        <Text style={styles.promoTitle}>AI Itinerary Guide</Text>
-        <Text style={styles.promoText}>Let our AI plan your perfect Karnataka weekend getaway based on your interests.</Text>
+        <Text style={styles.promoTitle}>{t("aiGuideTitle")}</Text>
+        <Text style={styles.promoText}>{t("aiGuideText")}</Text>
       </View>
     </PageCard>
   );
@@ -108,6 +136,26 @@ const styles = StyleSheet.create({
     ...typography.body,
     marginTop: spacing.xs,
     color: colors.textSecondary,
+  },
+  locationBtn: {
+    alignSelf: "flex-start",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  locationText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  locationError: {
+    marginTop: spacing.sm,
+    color: colors.error || "#C0392B",
+    fontSize: 12,
   },
   statsGrid: {
     flexDirection: "row",

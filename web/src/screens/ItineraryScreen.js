@@ -1,42 +1,93 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
-import { useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import CategoryChip from "../components/CategoryChip";
 import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
+import { generateItinerary } from "../services/itinerariesApi";
+import { fetchDistricts } from "../services/districtsApi";
+import SelectField from "../components/SelectField";
+import { PLACE_CATEGORY_OPTIONS } from "../constants/placeCategories";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function ItineraryScreen({ navigation }) {
-  const categories = useSelector((state) => state.places.categories);
+  const { t } = useLanguage();
   const [selected, setSelected] = useState([]);
-  const [hours, setHours] = useState("6");
-  const [distance, setDistance] = useState("25");
+  const [days, setDays] = useState("1");
+  const [districts, setDistricts] = useState([]);
+  const [districtId, setDistrictId] = useState(null);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("idle");
 
   const toggle = (c) => {
     setSelected((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   };
 
+  useEffect(() => {
+    fetchDistricts()
+      .then((data) => setDistricts(data || []))
+      .catch(() => setDistricts([]));
+  }, []);
+
+  const districtOptions = (districts || []).map((d) => ({ label: d.name, value: d.id }));
+
+  const handleGenerate = async () => {
+    setStatus("loading");
+    setError("");
+    try {
+      if (!districtId) {
+        setError(t("pickDistrictError"));
+        setStatus("idle");
+        return;
+      }
+      const res = await generateItinerary({
+        district_id: Number(districtId),
+        days: Math.max(1, Number(days) || 1),
+        categories: selected.length ? selected : null,
+      });
+      navigation.navigate("DayPlan", { plan: res?.plan, district_id: districtId });
+    } catch (e) {
+      setError(e?.message || "Unable to generate itinerary.");
+    } finally {
+      setStatus("idle");
+    }
+  };
+
   return (
     <PageCard>
-      <Text style={styles.title}>AI Itinerary</Text>
-      <Text style={styles.text}>Choose preferences to generate your day plan.</Text>
+      <Text style={styles.title}>{t("itineraryTitle")}</Text>
+      <Text style={styles.text}>{t("itinerarySubtitle")}</Text>
 
-      <Text style={styles.label}>Available hours</Text>
-      <TextInput value={hours} onChangeText={setHours} keyboardType="numeric" style={styles.input} />
+      <SelectField
+        label="District"
+        placeholder={t("chooseDistrict")}
+        value={districtId}
+        options={districtOptions}
+        onChange={setDistrictId}
+      />
 
-      <Text style={styles.label}>Max distance (km)</Text>
-      <TextInput value={distance} onChangeText={setDistance} keyboardType="numeric" style={styles.input} />
+      <Text style={styles.label}>{t("howManyDays")}</Text>
+      <TextInput value={days} onChangeText={setDays} keyboardType="numeric" style={styles.input} />
 
-      <Text style={styles.label}>Preferred categories</Text>
+      <Text style={styles.label}>{t("preferredCategories")}</Text>
       <View style={styles.row}>
-        {categories.map((c) => (
-          <CategoryChip key={c} label={c} selected={selected.includes(c)} onPress={() => toggle(c)} />
+        {PLACE_CATEGORY_OPTIONS.map((c) => (
+          <CategoryChip
+            key={c.value}
+            label={c.label}
+            selected={selected.includes(c.value)}
+            onPress={() => toggle(c.value)}
+          />
         ))}
       </View>
 
-      <PrimaryButton label="Generate Day Plan" onPress={() => navigation.navigate("DayPlan")} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton
+        label={status === "loading" ? t("generatingPlan") : t("generatePlan")}
+        onPress={handleGenerate}
+      />
     </PageCard>
   );
 }
@@ -72,5 +123,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  error: {
+    color: colors.error || "#C0392B",
+    marginBottom: spacing.md,
   },
 });

@@ -9,20 +9,10 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { toDisplayImageUrl } from "../services/mediaUrl";
+import { getPlaceCategoryLabel } from "../constants/placeCategories";
 
 export default function SavedListScreen({ navigation }) {
   const [savedPlaces, setSavedPlaces] = useState([]);
-
-  const categoryLabel = (value) => {
-    const mapping = {
-      restaurant: "Food",
-      stay: "Stay",
-      generational_shop: "Shops",
-      hidden_gem: "Hidden Gems",
-      tourist_place: "Tourist",
-    };
-    return mapping[value] || value;
-  };
 
   const load = useCallback(async () => {
       try {
@@ -53,11 +43,11 @@ export default function SavedListScreen({ navigation }) {
           <PlaceCard
             key={p.id}
             name={p.name}
-            category={categoryLabel(p.category)}
-            distance={p.distance}
+            category={getPlaceCategoryLabel(p.category)}
             rating={p.avg_rating ?? p.rating}
             imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
-            onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
+            hideDistance
+            onPress={() => navigation.navigate("PlaceDetail", { id: p.id, sourceSection: "Saved" })}
           />
         ))
       )}

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { Text, TextInput, StyleSheet, View, ScrollView } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Text, TextInput, StyleSheet, View, ScrollView, Alert } from "react-native";
 import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import PageCard from "../components/PageCard";
+import SelectField from "../components/SelectField";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -40,22 +41,21 @@ export default function SubmitPlaceScreen({ navigation }) {
       .catch(() => setDistricts([]));
   }, []);
 
-  const normalizeCategory = (value) => {
-    const v = value.trim().toLowerCase();
-    const mapping = {
-      food: "restaurant",
-      restaurant: "restaurant",
-      stay: "stay",
-      shops: "generational_shop",
-      shop: "generational_shop",
-      "generational shop": "generational_shop",
-      tourist: "tourist_place",
-      "tourist place": "tourist_place",
-      "hidden gem": "hidden_gem",
-      hidden: "hidden_gem",
-    };
-    return mapping[v] || v;
-  };
+  const categoryOptions = useMemo(
+    () => [
+      { label: "Restaurant", value: "restaurant" },
+      { label: "Generational Shop", value: "generational_shop" },
+      { label: "Tourist Place", value: "tourist_place" },
+      { label: "Hidden Gem", value: "hidden_gem" },
+      { label: "Stay", value: "stay" },
+    ],
+    []
+  );
+
+  const districtOptions = useMemo(
+    () => (districts || []).map((d) => ({ label: d.name, value: d.id })),
+    [districts]
+  );
 
   const handleSubmit = async () => {
     setStatus("loading");
@@ -67,11 +67,10 @@ export default function SubmitPlaceScreen({ navigation }) {
         return;
       }
 
-      const normalizedCategory = normalizeCategory(category);
       const payload = {
         name,
         district_id: Number(districtId),
-        category: normalizedCategory,
+        category,
         description,
         address,
         latitude: latitude ? Number(latitude) : null,
@@ -79,7 +78,7 @@ export default function SubmitPlaceScreen({ navigation }) {
         image_urls: imageUrl ? [imageUrl] : [],
       };
 
-      if (normalizedCategory === "restaurant") {
+      if (category === "restaurant") {
         payload.restaurant_details = {
           cuisine: cuisine || null,
           price_range: priceRange || null,
@@ -87,7 +86,7 @@ export default function SubmitPlaceScreen({ navigation }) {
         };
       }
 
-      if (normalizedCategory === "stay") {
+      if (category === "stay") {
         payload.stay_details = {
           stay_type: stayType || null,
           price_per_night: pricePerNight ? Number(pricePerNight) : null,
@@ -97,9 +96,8 @@ export default function SubmitPlaceScreen({ navigation }) {
         };
       }
 
-      await submitPlace({
-        ...payload,
-      });
+      await submitPlace({ ...payload });
+      Alert.alert("Place Added", "Your place has been saved.");
       navigation.goBack();
     } catch (e) {
       setError(e.message || "Failed to submit place");
@@ -111,14 +109,18 @@ export default function SubmitPlaceScreen({ navigation }) {
   const onFileChange = (e) => {
     const selected = e?.target?.files?.[0] || null;
     setFile(selected);
+    if (selected) {
+      uploadImage(selected);
+    }
   };
 
-  const uploadImage = async () => {
-    if (!file) return;
+  const uploadImage = async (fileOverride) => {
+    const f = fileOverride || file;
+    if (!f) return;
     setUploadStatus("uploading");
     setError("");
     try {
-      const res = await uploadPlaceImage(file);
+      const res = await uploadPlaceImage(f);
       setImageUrl(res.public_url);
     } catch (e) {
       setError(e.message || "Upload failed");
@@ -162,19 +164,20 @@ export default function SubmitPlaceScreen({ navigation }) {
       <ScrollView>
         <Text style={styles.label}>Place name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
-        <Text style={styles.label}>Category</Text>
-        <TextInput value={category} onChangeText={setCategory} style={styles.input} placeholder="restaurant, stay, etc" />
-        <Text style={styles.label}>District</Text>
-        <View style={styles.row}>
-          {districts.map((d) => (
-            <PrimaryButton
-              key={d.id}
-              label={d.name}
-              onPress={() => setDistrictId(d.id)}
-              variant={districtId === d.id ? "primary" : "ghost"}
-            />
-          ))}
-        </View>
+        <SelectField
+          label="Category"
+          placeholder="Choose category"
+          value={category}
+          options={categoryOptions}
+          onChange={setCategory}
+        />
+        <SelectField
+          label="District"
+          placeholder="Choose district"
+          value={districtId}
+          options={districtOptions}
+          onChange={setDistrictId}
+        />
         <Text style={styles.label}>Address</Text>
         <TextInput value={address} onChangeText={setAddress} style={styles.input} />
         <Text style={styles.label}>Latitude</Text>
@@ -192,7 +195,7 @@ export default function SubmitPlaceScreen({ navigation }) {
           placeholderTextColor={colors.charcoal}
         />
 
-        {normalizeCategory(category) === "restaurant" ? (
+        {category === "restaurant" ? (
           <>
             <Text style={styles.label}>Cuisine</Text>
             <TextInput value={cuisine} onChangeText={setCuisine} style={styles.input} />
@@ -203,7 +206,7 @@ export default function SubmitPlaceScreen({ navigation }) {
           </>
         ) : null}
 
-        {normalizeCategory(category) === "stay" ? (
+        {category === "stay" ? (
           <>
             <Text style={styles.label}>Stay Type</Text>
             <TextInput value={stayType} onChangeText={setStayType} style={styles.input} />
@@ -214,16 +217,12 @@ export default function SubmitPlaceScreen({ navigation }) {
           </>
         ) : null}
 
-        <Text style={styles.label}>Upload photos</Text>
-        <PhotoPlaceholder label="Add photos (coming soon)" />
+        <Text style={styles.label}>Photo (optional)</Text>
+        <PhotoPlaceholder label="Select a photo (optional)" />
         <View style={styles.fileRow}>
           <input type="file" onChange={onFileChange} />
         </View>
-        <PrimaryButton
-          label={uploadStatus === "uploading" ? "Uploading..." : "Upload Photo"}
-          onPress={uploadImage}
-          variant="ghost"
-        />
+        {uploadStatus === "uploading" ? <Text style={styles.helper}>Uploading photo…</Text> : null}
         {imageUrl ? <Text style={styles.helper}>Uploaded: {imageUrl}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <PrimaryButton

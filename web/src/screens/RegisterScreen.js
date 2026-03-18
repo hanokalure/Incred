@@ -22,6 +22,11 @@ export default function RegisterScreen({ navigation }) {
     setStatus("loading");
     setError("");
     try {
+      if (!name.trim() || !email.trim() || !password) {
+        setError("Please fill name, email, and password.");
+        setStatus("idle");
+        return;
+      }
       const data = await signup({ name, email, password });
       if (data?.access_token) {
         setAuthToken(data.access_token);
