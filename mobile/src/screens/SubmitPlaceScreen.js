@@ -14,6 +14,7 @@ import { submitPlace } from "../services/placesApi";
 import { getAuthProfile } from "../services/authStore";
 import { uploadPlaceImage } from "../services/uploadsApi";
 import { fetchDistricts } from "../services/districtsApi";
+import { detectPlaceFromGoogleMapsLink } from "../services/locationDetectApi";
 
 export default function SubmitPlaceScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -30,6 +31,8 @@ export default function SubmitPlaceScreen({ navigation }) {
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [googleMapsLink, setGoogleMapsLink] = useState("");
+  const [detectStatus, setDetectStatus] = useState("idle");
   const [districts, setDistricts] = useState([]);
   const [cuisine, setCuisine] = useState("");
   const [priceRange, setPriceRange] = useState("");
@@ -177,6 +180,32 @@ export default function SubmitPlaceScreen({ navigation }) {
     }
   };
 
+  const detectFromMapsLink = async () => {
+    setDetectStatus("loading");
+    setError("");
+    try {
+      const detected = await detectPlaceFromGoogleMapsLink(googleMapsLink);
+      setLatitude(detected.latitude ? String(detected.latitude) : "");
+      setLongitude(detected.longitude ? String(detected.longitude) : "");
+      setAddress(detected.address || "");
+      if (detected.districtId) {
+        setDistrictId(detected.districtId);
+      } else if (detected.district_id) {
+        setDistrictId(detected.district_id);
+      }
+      if (detected.name && !name.trim()) {
+        setName(detected.name);
+      }
+      if (!detected.districtId && !detected.district_id) {
+        setError("Location found, but district could not be matched automatically. Please choose it manually.");
+      }
+    } catch (e) {
+      setError(e.message || "Could not detect details from the Google Maps link.");
+    } finally {
+      setDetectStatus("idle");
+    }
+  };
+
   if (role && role !== "admin") {
     return (
       <PageCard>
@@ -192,6 +221,21 @@ export default function SubmitPlaceScreen({ navigation }) {
       <ScrollView style={styles.content}>
         <Text style={styles.label}>Place name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
+        <Text style={styles.label}>Google Maps Link</Text>
+        <TextInput
+          value={googleMapsLink}
+          onChangeText={setGoogleMapsLink}
+          style={styles.input}
+          placeholder="Paste Google Maps place link"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+        />
+        <PrimaryButton
+          label={detectStatus === "loading" ? "Detecting..." : "Detect From Link"}
+          onPress={detectFromMapsLink}
+          variant="ghost"
+        />
+        <Text style={styles.helper}>We will try to fill address, district, latitude, and longitude from the link.</Text>
         <SelectField
           label="Category"
           placeholder="Choose category"
@@ -275,12 +319,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.clay,
+    borderColor: colors.border,
   },
   textArea: {
     height: 110,

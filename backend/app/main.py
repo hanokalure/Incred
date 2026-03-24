@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import auth, districts, places, reviews, favorites, itineraries, uploads, files
+from .routers import auth, districts, places, reviews, favorites, itineraries, uploads, files, admin
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(itineraries.router, tags=["Itineraries"])
     app.include_router(uploads.router, tags=["Uploads"])
     app.include_router(files.router, tags=["Files"])
+    app.include_router(admin.router)
 
     return app
 

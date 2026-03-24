@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 from fastapi import HTTPException, status
+from postgrest.exceptions import APIError
 
 from ..database import supabase_anon, supabase_admin
 
@@ -53,7 +54,30 @@ def create_place(payload: Dict[str, Any]) -> Dict[str, Any]:
     elif isinstance(image_urls, str):
         payload["image_urls"] = [image_urls]
 
-    place_result = supabase_admin.table("places").insert(payload).execute()
+    try:
+        place_result = supabase_admin.table("places").insert(payload).execute()
+    except APIError as e:
+        payload_error = e.args[0] if e.args else {}
+        code = payload_error.get("code") if isinstance(payload_error, dict) else None
+        message = payload_error.get("message") if isinstance(payload_error, dict) else str(e)
+
+        # If the serial sequence drifts, recover by explicitly choosing the next id.
+        if code == "23505" and 'places_pkey' in (message or ''):
+            max_id_result = (
+                supabase_admin.table("places")
+                .select("id")
+                .order("id", desc=True)
+                .limit(1)
+                .execute()
+            )
+            max_id = 0
+            if max_id_result and max_id_result.data:
+                max_id = int(max_id_result.data[0]["id"])
+            retry_payload = {**payload, "id": max_id + 1}
+            place_result = supabase_admin.table("places").insert(retry_payload).execute()
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
     if not place_result or not place_result.data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Place creation failed")
 

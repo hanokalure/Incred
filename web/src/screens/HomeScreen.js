@@ -13,19 +13,34 @@ import { haversineKm } from "../utils/geo";
 import { getBrowserLocation } from "../utils/browserLocation";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 import { useLanguage } from "../context/LanguageContext";
+import { fetchAdminDashboard } from "../services/adminApi";
 
 export default function HomeScreen({ navigation }) {
   const { role, user } = useSelector(state => state.auth);
   const { t } = useLanguage();
   const [featured, setFeatured] = useState([]);
+  const [adminDashboard, setAdminDashboard] = useState(null);
+  const [adminError, setAdminError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [locError, setLocError] = useState("");
 
   useEffect(() => {
+    if (role === "admin") {
+      fetchAdminDashboard()
+        .then((data) => {
+          setAdminDashboard(data);
+          setAdminError("");
+        })
+        .catch((err) => {
+          setAdminDashboard(null);
+          setAdminError(err?.message || "Unable to load admin dashboard.");
+        });
+      return;
+    }
     fetchPlaces()
       .then((data) => setFeatured((data || []).slice(0, 6)))
       .catch(() => setFeatured([]));
-  }, []);
+  }, [role]);
 
   const resolveLocation = () => {
     setLocError("");
@@ -51,11 +66,12 @@ export default function HomeScreen({ navigation }) {
 
   if (role === "admin") {
     const stats = [
-      { label: "Total Places", value: "128", trend: "+12 this week" },
-      { label: "Pending Approvals", value: "24", trend: "High priority", alert: true },
-      { label: "Active Users", value: "1.2k", trend: "+5% vs last month" },
-      { label: "Total Reviews", value: "4.8k", trend: "86% positive" },
+      { label: "Total Places", value: adminDashboard?.stats?.total_places ?? "—" },
+      { label: "Total Users", value: adminDashboard?.stats?.total_users ?? "—" },
+      { label: "Total Reviews", value: adminDashboard?.stats?.total_reviews ?? "—" },
+      { label: "Itineraries Built", value: adminDashboard?.stats?.total_itineraries ?? "—" },
     ];
+    const recentPlaces = adminDashboard?.recent_places || [];
 
     return (
       <PageCard>
@@ -66,18 +82,33 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.statsGrid}>
           {stats.map((stat, i) => (
-            <View key={i} style={[styles.statCard, stat.alert && styles.statAlert]}>
+            <View key={i} style={styles.statCard}>
               <Text style={styles.statLabel}>{stat.label}</Text>
               <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={[styles.statTrend, stat.alert && styles.statTrendAlert]}>{stat.trend}</Text>
             </View>
           ))}
         </View>
 
-        <SectionHeader title="Recent Submissions" action="Approve All" />
-        <View style={styles.tablePlaceholder}>
-          <Text style={styles.placeholderText}>Submission list component will be loaded here...</Text>
-        </View>
+        <SectionHeader title="Recent Places" action="Manage Places" onActionPress={() => navigation.navigate("Listings")} />
+        {adminError ? <Text style={styles.locationError}>{adminError}</Text> : null}
+        {!adminError && recentPlaces.length === 0 ? (
+          <View style={styles.tablePlaceholder}>
+            <Text style={styles.placeholderText}>No places found in the database yet.</Text>
+          </View>
+        ) : (
+          <View style={styles.adminRecentList}>
+            {recentPlaces.map((place) => (
+              <View key={place.id} style={styles.recentCard}>
+                <Text style={styles.recentTitle}>{place.name}</Text>
+                <Text style={styles.recentMeta}>{getPlaceCategoryLabel(place.category)}</Text>
+                {place.address ? <Text style={styles.recentMeta}>{place.address}</Text> : null}
+                <Pressable onPress={() => navigation.navigate("PlaceDetail", { id: place.id })}>
+                  <Text style={styles.recentLink}>Open place</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
       </PageCard>
     );
   }
@@ -172,10 +203,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  statAlert: {
-    backgroundColor: colors.accent,
-    borderColor: colors.primary,
-  },
   statLabel: {
     ...typography.caption,
     color: colors.textSecondary,
@@ -185,16 +212,6 @@ const styles = StyleSheet.create({
     ...typography.h1,
     fontSize: 36,
     color: colors.text,
-  },
-  statTrend: {
-    ...typography.body,
-    fontSize: 12,
-    marginTop: spacing.sm,
-    color: colors.success,
-    fontWeight: "600",
-  },
-  statTrendAlert: {
-    color: colors.secondary,
   },
   tablePlaceholder: {
     height: 300,
@@ -209,6 +226,32 @@ const styles = StyleSheet.create({
   placeholderText: {
     ...typography.body,
     color: colors.textMuted,
+  },
+  adminRecentList: {
+    gap: spacing.md,
+  },
+  recentCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  recentTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  recentMeta: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  recentLink: {
+    ...typography.body,
+    color: colors.secondary,
+    fontWeight: "700",
+    marginTop: spacing.sm,
   },
   featuredRow: {
     marginLeft: -spacing.md,

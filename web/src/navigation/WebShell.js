@@ -165,12 +165,10 @@ export default function WebShell() {
               ))}
             </View>
           ) : null}
-          {role !== "admin" ? (
-            <Pressable onPress={() => go("Profile")} style={styles.profileBtn}>
-              <Ionicons name="person-circle-outline" size={26} color={colors.text} />
-              {user?.name ? <Text style={styles.profileName}>{user.name.split(" ")[0]}</Text> : null}
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => go("Profile")} style={styles.profileBtn}>
+            <Ionicons name="person-circle-outline" size={26} color={colors.text} />
+            {user?.name ? <Text style={styles.profileName}>{user.name.split(" ")[0]}</Text> : null}
+          </Pressable>
         </View>
       </View>
 
@@ -215,6 +213,7 @@ export default function WebShell() {
                     <Stack.Screen name="Analytics" component={AnalyticsScreen} />
                     <Stack.Screen name="Users" component={UsersScreen} />
                     <Stack.Screen name="Settings" component={SettingsScreen} />
+                    <Stack.Screen name="Profile" component={ProfileScreen} />
                   </>
                 ) : (
                   <>

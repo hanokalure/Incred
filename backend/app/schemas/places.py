@@ -51,6 +51,18 @@ class PlaceUpdate(BaseModel):
     stay_details: Optional[StayDetailsIn] = None
 
 
+class PlaceDetectRequest(BaseModel):
+    google_maps_link: str = Field(min_length=1, max_length=2000)
+
+
+class PlaceDetectOut(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    district_id: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
 class PlaceOut(PlaceBase):
     id: int
     avg_rating: Optional[float] = None
