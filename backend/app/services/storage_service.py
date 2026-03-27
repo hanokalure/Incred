@@ -2,13 +2,16 @@ import mimetypes
 import uuid
 from typing import Tuple
 
+import boto3
 from fastapi import UploadFile, HTTPException, status
-
-from ..database import supabase_admin
 from ..config import settings
 
-
-BUCKET_NAME = "place-images"
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_REGION,
+)
 
 
 def _guess_extension(filename: str, content_type: str | None) -> str:
@@ -21,34 +24,40 @@ def _guess_extension(filename: str, content_type: str | None) -> str:
     return "jpg"
 
 
-def _public_url(path: str) -> str:
-    return f"{settings.SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{path}"
+def _object_key(filename: str, content_type: str | None, media_type: str) -> str:
+    ext = _guess_extension(filename, content_type)
+    base_folder = settings.AWS_S3_BASE_FOLDER.strip("/") or "places"
+    return f"{base_folder}/{media_type}/{uuid.uuid4().hex}.{ext}"
 
 
-def upload_place_image(file: UploadFile) -> Tuple[str, str]:
+def _upload_place_media(file: UploadFile, media_type: str) -> Tuple[str, str]:
     if not file:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is required")
 
-    ext = _guess_extension(file.filename or "", file.content_type)
-    object_path = f"places/{uuid.uuid4().hex}.{ext}"
+    object_path = _object_key(file.filename or "", file.content_type, media_type)
 
     data = file.file.read()
     if not data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
 
-    res = supabase_admin.storage.from_(BUCKET_NAME).upload(
-        object_path,
-        data,
-        {"content-type": file.content_type or "image/jpeg"},
-    )
+    try:
+        s3_client.put_object(
+            Bucket=settings.AWS_S3_BUCKET,
+            Key=object_path,
+            Body=data,
+            ContentType=file.content_type or "image/jpeg",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
-    error = None
-    if hasattr(res, "error"):
-        error = res.error
-    elif isinstance(res, dict):
-        error = res.get("error")
+    # We store the object key in the database and let the frontend convert it
+    # into our backend proxy URL for display.
+    return object_path, object_path
 
-    if error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error))
 
-    return object_path, _public_url(object_path)
+def upload_place_image(file: UploadFile) -> Tuple[str, str]:
+    return _upload_place_media(file, "images")
+
+
+def upload_place_video(file: UploadFile) -> Tuple[str, str]:
+    return _upload_place_media(file, "videos")

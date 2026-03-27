@@ -43,3 +43,7 @@ export function toDisplayImageUrl(imageUrl) {
   if (objectPath) return toProxyPlaceImageUrl(objectPath);
   return imageUrl;
 }
+
+export function toDisplayMediaUrl(mediaUrl) {
+  return toDisplayImageUrl(mediaUrl);
+}

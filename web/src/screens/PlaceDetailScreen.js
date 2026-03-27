@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Image, Alert, Linking } from "react-native";
+import { View, Text, StyleSheet, Image, Alert, Linking, Platform } from "react-native";
 import { colors } from "../theme/colors";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -9,7 +9,7 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchPlaceDetails } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 
 export default function PlaceDetailScreen({ navigation, route }) {
@@ -127,6 +127,28 @@ export default function PlaceDetailScreen({ navigation, route }) {
         <PhotoPlaceholder label="Place photos (coming soon)" />
       )}
 
+      <Text style={styles.section}>Videos</Text>
+      {place?.video_urls?.length ? (
+        <View style={styles.videoList}>
+          {place.video_urls.map((videoUrl, index) => (
+            <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
+              {Platform.OS === "web" ? (
+                <video
+                  controls
+                  playsInline
+                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+                  src={toDisplayMediaUrl(videoUrl)}
+                />
+              ) : (
+                <Text style={styles.detailsText}>Video available: {videoUrl}</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <PhotoPlaceholder label="No videos added yet" />
+      )}
+
       <View style={styles.buttonContainer}>
         <PrimaryButton
           label={favoriteId ? "Remove from Saved" : "Save Place"}
@@ -178,6 +200,19 @@ const styles = StyleSheet.create({
   heroImage: {
     width: "100%",
     height: "100%",
+  },
+  videoList: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  videoWrap: {
+    width: "100%",
+    height: 240,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   buttonContainer: {
     gap: spacing.md,

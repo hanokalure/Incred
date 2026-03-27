@@ -43,7 +43,7 @@ def list_favorite_places(user_id: str) -> List[Dict[str, Any]]:
     """
     result = (
         supabase_admin.table("favorites")
-        .select("place:places(id,name,district_id,category,description,address,latitude,longitude,image_urls,avg_rating)")
+        .select("place:places(id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating)")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()

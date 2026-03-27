@@ -31,6 +31,7 @@ class PlaceBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class PlaceCreate(PlaceBase):
@@ -47,6 +48,7 @@ class PlaceUpdate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
     restaurant_details: Optional[RestaurantDetailsIn] = None
     stay_details: Optional[StayDetailsIn] = None
 

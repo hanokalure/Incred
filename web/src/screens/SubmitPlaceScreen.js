@@ -10,7 +10,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { submitPlace } from "../services/placesApi";
-import { uploadPlaceImage } from "../services/uploadsApi";
+import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import { fetchDistricts } from "../services/districtsApi";
 import { detectPlaceFromGoogleMapsLink } from "../services/locationDetectApi";
 
@@ -24,7 +24,9 @@ export default function SubmitPlaceScreen({ navigation }) {
   const [error, setError] = useState("");
   const [file, setFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [videoUrls, setVideoUrls] = useState([]);
   const [uploadStatus, setUploadStatus] = useState("idle");
+  const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -79,6 +81,7 @@ export default function SubmitPlaceScreen({ navigation }) {
         latitude: latitude ? Number(latitude) : null,
         longitude: longitude ? Number(longitude) : null,
         image_urls: imageUrl ? [imageUrl] : [],
+        video_urls: videoUrls.length ? videoUrls : [],
       };
 
       if (category === "restaurant") {
@@ -129,6 +132,25 @@ export default function SubmitPlaceScreen({ navigation }) {
       setError(e.message || "Upload failed");
     } finally {
       setUploadStatus("idle");
+    }
+  };
+
+  const onVideoChange = async (e) => {
+    const files = Array.from(e?.target?.files || []);
+    if (!files.length) return;
+    setVideoUploadStatus("uploading");
+    setError("");
+    try {
+      const uploaded = [];
+      for (const video of files) {
+        const res = await uploadPlaceVideo(video);
+        uploaded.push(res.public_url);
+      }
+      setVideoUrls(uploaded);
+    } catch (e) {
+      setError(e.message || "Video upload failed");
+    } finally {
+      setVideoUploadStatus("idle");
     }
   };
 
@@ -263,10 +285,16 @@ export default function SubmitPlaceScreen({ navigation }) {
         <Text style={styles.label}>Photo (optional)</Text>
         <PhotoPlaceholder label="Select a photo (optional)" />
         <View style={styles.fileRow}>
-          <input type="file" onChange={onFileChange} />
+          <input type="file" accept="image/*" onChange={onFileChange} />
         </View>
         {uploadStatus === "uploading" ? <Text style={styles.helper}>Uploading photo…</Text> : null}
         {imageUrl ? <Text style={styles.helper}>Uploaded: {imageUrl}</Text> : null}
+        <Text style={styles.label}>Videos (optional)</Text>
+        <View style={styles.fileRow}>
+          <input type="file" accept="video/*" multiple onChange={onVideoChange} />
+        </View>
+        {videoUploadStatus === "uploading" ? <Text style={styles.helper}>Uploading videos…</Text> : null}
+        {videoUrls.length ? <Text style={styles.helper}>Uploaded videos: {videoUrls.length}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <PrimaryButton
           label={status === "loading" ? "Submitting..." : "Submit Place"}

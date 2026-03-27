@@ -15,14 +15,14 @@ ALLOWED_CATEGORIES = {
 
 
 def list_places(district_id: Optional[int] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
-    query = supabase_anon.table("places").select("id,name,district_id,category,description,address,latitude,longitude,image_urls,avg_rating")
+    query = supabase_anon.table("places").select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating")
 
     if district_id is not None:
         query = query.eq("district_id", district_id)
     if category is not None:
         query = query.eq("category", category)
 
-    result = query.order("name").execute()
+    result = query.order("id", desc=True).execute()
     return result.data or []
 
 
@@ -30,7 +30,7 @@ def get_place(place_id: int) -> Dict[str, Any]:
     # Include nested details if present (via FK place_id)
     result = (
         supabase_anon.table("places")
-        .select("id,name,district_id,category,description,address,latitude,longitude,image_urls,avg_rating,restaurant_details(*),stay_details(*)")
+        .select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,restaurant_details(*),stay_details(*)")
         .eq("id", place_id)
         .single()
         .execute()
@@ -53,6 +53,12 @@ def create_place(payload: Dict[str, Any]) -> Dict[str, Any]:
         payload.pop("image_urls", None)
     elif isinstance(image_urls, str):
         payload["image_urls"] = [image_urls]
+
+    video_urls = payload.get("video_urls")
+    if video_urls is None:
+        payload.pop("video_urls", None)
+    elif isinstance(video_urls, str):
+        payload["video_urls"] = [video_urls]
 
     try:
         place_result = supabase_admin.table("places").insert(payload).execute()
@@ -106,6 +112,12 @@ def update_place(place_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
         payload.pop("image_urls", None)
     elif isinstance(image_urls, str):
         payload["image_urls"] = [image_urls]
+
+    video_urls = payload.get("video_urls")
+    if "video_urls" in payload and video_urls is None:
+        payload.pop("video_urls", None)
+    elif isinstance(video_urls, str):
+        payload["video_urls"] = [video_urls]
 
     result = supabase_admin.table("places").update(payload).eq("id", place_id).execute()
     if not result or not result.data:
