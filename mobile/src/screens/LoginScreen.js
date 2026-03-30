@@ -18,13 +18,12 @@ export default function LoginScreen({ navigation }) {
     setError("");
     try {
       const data = await login({ email, password });
+      const normalizedRole = String(data?.user?.role || "user").trim().toLowerCase();
       await setAuthToken(data.access_token);
-      await setAuthProfile(data.user || null);
-      if (data.user?.role === "admin") {
-        navigation.replace("SubmitPlace");
-      } else {
-        navigation.replace("MainTabs");
-      }
+      await setAuthProfile(data.user ? { ...data.user, role: normalizedRole } : null);
+      // Always land users on the main experience after login.
+      // Admins can still access "Add Place" from Profile.
+      navigation.replace("MainTabs");
     } catch (e) {
       setError(e.message || "Login failed");
     } finally {

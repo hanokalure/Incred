@@ -20,8 +20,9 @@ export default function RegisterScreen({ navigation }) {
     try {
       const data = await signup({ name, email, password });
       if (data?.access_token) {
+        const normalizedRole = String(data?.user?.role || "user").trim().toLowerCase();
         await setAuthToken(data.access_token);
-        await setAuthProfile(data.user || null);
+        await setAuthProfile(data.user ? { ...data.user, role: normalizedRole } : null);
         navigation.replace("MainTabs");
       } else {
         navigation.goBack();

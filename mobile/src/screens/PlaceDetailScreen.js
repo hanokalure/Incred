@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Image, Alert, Platform } from "react-native";
+import { Video, ResizeMode } from "expo-av";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
@@ -114,7 +115,15 @@ export default function PlaceDetailScreen({ navigation, route }) {
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <Text style={styles.videoFallback}>Video available</Text>
+                <Video
+                  source={{ uri: toDisplayMediaUrl(videoUrl) }}
+                  style={styles.nativeVideo}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                  shouldPlay
+                  isLooping
+                  isMuted
+                />
               )}
             </View>
           ))}
@@ -225,6 +234,10 @@ const styles = StyleSheet.create({
   videoFallback: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  nativeVideo: {
+    width: "100%",
+    height: "100%",
   },
   title: {
     ...typography.h1,

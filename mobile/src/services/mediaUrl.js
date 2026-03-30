@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { getApiBaseUrl } from "./runtimeConfig";
+
+const API_BASE_URL = getApiBaseUrl();
 
 function toProxyPlaceImageUrl(objectPath) {
   if (!objectPath) return objectPath;

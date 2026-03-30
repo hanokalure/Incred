@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Platform, Image, Pressable } from "react-native";
+import { Video, ResizeMode } from "expo-av";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -12,8 +13,10 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
       ? "Distance unknown"
       : `${distance} km away`;
   const ratingLabel = rating === null || rating === undefined ? "—" : rating;
-  const showImage = !!imageUrl && !imageFailed;
-  const showVideo = !showImage && !!videoUrl && !videoFailed;
+  const isVideoLike = (url) => /\.(mp4|mov|m4v|webm|avi|mkv)(\?|$)/i.test(String(url || ""));
+  const effectiveVideoUrl = videoUrl || (isVideoLike(imageUrl) ? imageUrl : null);
+  const showImage = !!imageUrl && !isVideoLike(imageUrl) && !imageFailed;
+  const showVideo = !showImage && !!effectiveVideoUrl && !videoFailed;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={styles.card}>
@@ -30,7 +33,7 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
           />
         ) : showVideo && Platform.OS === "web" ? (
           <video
-            src={videoUrl}
+            src={effectiveVideoUrl}
             muted
             autoPlay
             loop
@@ -39,13 +42,20 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : showVideo ? (
-          <View style={styles.imageFallback}>
-            <Text style={styles.imageFallbackText}>Video available</Text>
-          </View>
+          <Video
+            source={{ uri: effectiveVideoUrl }}
+            style={styles.video}
+            resizeMode={ResizeMode.COVER}
+            isLooping
+            shouldPlay
+            isMuted
+            onError={() => setVideoFailed(true)}
+            useNativeControls
+          />
         ) : (
           <View style={styles.imageFallback}>
             <Text style={styles.imageFallbackText}>
-              {imageUrl ? "Image unavailable" : videoUrl ? "Video unavailable" : "No image"}
+              {imageUrl ? "Image unavailable" : effectiveVideoUrl ? "Video unavailable" : "No image"}
             </Text>
           </View>
         )}
@@ -95,6 +105,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   image: {
+    width: "100%",
+    height: "100%",
+  },
+  video: {
     width: "100%",
     height: "100%",
   },

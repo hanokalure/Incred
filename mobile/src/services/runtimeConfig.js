@@ -1,0 +1,43 @@
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+
+function normalizeBaseUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function hostFromExpoRuntime() {
+  const hostUri =
+    Constants?.expoConfig?.hostUri ||
+    Constants?.expoGoConfig?.debuggerHost ||
+    Constants?.manifest?.debuggerHost ||
+    Constants?.manifest2?.extra?.expoGo?.debuggerHost ||
+    "";
+  if (!hostUri) return "";
+  return hostUri.split(":")[0];
+}
+
+export function getApiBaseUrls() {
+  const explicit = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
+  const urls = [];
+  const push = (url) => {
+    const normalized = normalizeBaseUrl(url);
+    if (!normalized) return;
+    if (!urls.includes(normalized)) urls.push(normalized);
+  };
+
+  if (explicit) push(explicit);
+
+  const host = hostFromExpoRuntime();
+  if (host) push(`http://${host}:8000`);
+
+  if (Platform.OS === "android") push("http://10.0.2.2:8000");
+  push("http://127.0.0.1:8000");
+  push("http://localhost:8000");
+
+  return urls;
+}
+
+export function getApiBaseUrl() {
+  const urls = getApiBaseUrls();
+  return urls[0] || "http://localhost:8000";
+}
