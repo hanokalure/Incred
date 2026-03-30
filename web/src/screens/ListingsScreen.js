@@ -9,7 +9,7 @@ import PageCard from "../components/PageCard";
 import PlaceCard from "../components/PlaceCard";
 import SelectField from "../components/SelectField";
 import { deletePlace, fetchPlaces, updatePlace } from "../services/placesApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { fetchDistricts } from "../services/districtsApi";
 
 export default function ListingsScreen({ navigation }) {
@@ -239,6 +239,7 @@ export default function ListingsScreen({ navigation }) {
               distance={p.distance}
               rating={p.avg_rating ?? p.rating}
               imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+              videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
               onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
             />
           ))}

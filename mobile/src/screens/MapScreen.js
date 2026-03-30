@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import Constants from "expo-constants";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import CategoryChip from "../components/CategoryChip";
@@ -28,18 +29,28 @@ export default function MapScreen({ navigation }) {
 
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
+  const [locationError, setLocationError] = useState("");
+
+  const mapsApiKey = Constants?.expoConfig?.extra?.googleMapsApiKey;
+  const hasGoogleMapsKey = !!mapsApiKey && !String(mapsApiKey).startsWith("YOUR_");
+
+  const requestLocation = async () => {
+    setLocationError("");
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setLocationError("Location permission is required to center map on your position.");
+      return;
+    }
+    const loc = await Location.getCurrentPositionAsync({});
+    setRegion((r) => ({
+      ...r,
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+    }));
+  };
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const loc = await Location.getCurrentPositionAsync({});
-      setRegion((r) => ({
-        ...r,
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      }));
-    })();
+    requestLocation().catch(() => setLocationError("Unable to access device location."));
   }, []);
 
   const filtered = selected === "All" ? places : places.filter((p) => p.category === selected);
@@ -80,6 +91,13 @@ export default function MapScreen({ navigation }) {
           ))}
         </MapView>
       </View>
+      {!hasGoogleMapsKey ? (
+        <Text style={styles.locationError}>
+          Google Maps API key is not configured (`mobile/app.json` still has placeholder).
+        </Text>
+      ) : null}
+      {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
+      <PrimaryButton label="Enable Location" onPress={() => requestLocation()} variant="ghost" />
 
       <Text style={styles.section}>Filter by Category</Text>
       <View style={styles.row}>
@@ -153,6 +171,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.xl,
+  },
+  locationError: {
+    ...typography.body,
+    color: colors.error,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
   },
   placeCard: {
     position: "absolute",

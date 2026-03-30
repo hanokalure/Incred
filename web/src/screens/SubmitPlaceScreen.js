@@ -25,6 +25,8 @@ export default function SubmitPlaceScreen({ navigation }) {
   const [file, setFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrls, setVideoUrls] = useState([]);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [videoPreviewUrls, setVideoPreviewUrls] = useState([]);
   const [uploadStatus, setUploadStatus] = useState("idle");
   const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
   const [address, setAddress] = useState("");
@@ -45,6 +47,13 @@ export default function SubmitPlaceScreen({ navigation }) {
       .then((data) => setDistricts(data || []))
       .catch(() => setDistricts([]));
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      videoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviewUrl, videoPreviewUrls]);
 
   const categoryOptions = useMemo(
     () => [
@@ -116,6 +125,8 @@ export default function SubmitPlaceScreen({ navigation }) {
     const selected = e?.target?.files?.[0] || null;
     setFile(selected);
     if (selected) {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(URL.createObjectURL(selected));
       uploadImage(selected);
     }
   };
@@ -138,6 +149,8 @@ export default function SubmitPlaceScreen({ navigation }) {
   const onVideoChange = async (e) => {
     const files = Array.from(e?.target?.files || []);
     if (!files.length) return;
+    videoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setVideoPreviewUrls(files.map((f) => URL.createObjectURL(f)));
     setVideoUploadStatus("uploading");
     setError("");
     try {
@@ -282,17 +295,38 @@ export default function SubmitPlaceScreen({ navigation }) {
           </>
         ) : null}
 
-        <Text style={styles.label}>Photo (optional)</Text>
-        <PhotoPlaceholder label="Select a photo (optional)" />
+        <Text style={styles.label}>Photo</Text>
+        {imagePreviewUrl ? (
+          <View style={styles.previewWrap}>
+            <img src={imagePreviewUrl} alt="Selected place media" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </View>
+        ) : (
+          <PhotoPlaceholder label="Select a photo" />
+        )}
         <View style={styles.fileRow}>
           <input type="file" accept="image/*" onChange={onFileChange} />
         </View>
         {uploadStatus === "uploading" ? <Text style={styles.helper}>Uploading photo…</Text> : null}
         {imageUrl ? <Text style={styles.helper}>Uploaded: {imageUrl}</Text> : null}
-        <Text style={styles.label}>Videos (optional)</Text>
+        <Text style={styles.label}>Videos</Text>
         <View style={styles.fileRow}>
           <input type="file" accept="video/*" multiple onChange={onVideoChange} />
         </View>
+        {videoPreviewUrls.length ? (
+          <View style={styles.videoPreviewRow}>
+            {videoPreviewUrls.map((url, index) => (
+              <View key={`${url}-${index}`} style={styles.videoPreview}>
+                <video
+                  src={url}
+                  controls
+                  muted
+                  playsInline
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
         {videoUploadStatus === "uploading" ? <Text style={styles.helper}>Uploading videos…</Text> : null}
         {videoUrls.length ? <Text style={styles.helper}>Uploaded videos: {videoUrls.length}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -339,5 +373,30 @@ const styles = StyleSheet.create({
   },
   fileRow: {
     marginBottom: spacing.md,
+  },
+  previewWrap: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  videoPreviewRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  videoPreview: {
+    width: 180,
+    height: 110,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
 });

@@ -8,7 +8,7 @@ import SectionHeader from "../components/SectionHeader";
 import PageCard from "../components/PageCard";
 import PlaceCard from "../components/PlaceCard";
 import { fetchPlaces } from "../services/placesApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { haversineKm } from "../utils/geo";
 import { getBrowserLocation } from "../utils/browserLocation";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
@@ -141,6 +141,7 @@ export default function HomeScreen({ navigation }) {
               distance={p.distance}
               rating={p.avg_rating ?? p.rating}
               imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+              videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
               onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
             />
           </View>

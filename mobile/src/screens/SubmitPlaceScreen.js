@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, Text, TextInput, StyleSheet, ScrollView, Alert, Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import ScreenHeader from "../components/ScreenHeader";
@@ -291,8 +291,14 @@ export default function SubmitPlaceScreen({ navigation }) {
           </>
         ) : null}
 
-        <Text style={styles.label}>Photo (optional)</Text>
-        <PhotoPlaceholder label="Select a photo (optional)" />
+        <Text style={styles.label}>Photo</Text>
+        {imageAsset?.uri || imageUrl ? (
+          <View style={styles.previewWrap}>
+            <Image source={{ uri: imageAsset?.uri || imageUrl }} style={styles.previewImage} resizeMode="cover" />
+          </View>
+        ) : (
+          <PhotoPlaceholder label="Select a photo" />
+        )}
         <PrimaryButton
           label={imageAsset ? "Select Another Photo" : "Select Photo"}
           onPress={pickImage}
@@ -345,6 +351,20 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.md,
+  },
+  previewWrap: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
   },
   text: {
     ...typography.body,

@@ -8,7 +8,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchSavedPlaceCards } from "../services/savedApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
 export default function SavedListScreen({ navigation }) {
   const [savedPlaces, setSavedPlaces] = useState([]);
@@ -48,6 +48,7 @@ export default function SavedListScreen({ navigation }) {
             distance={p.distance}
             rating={p.avg_rating ?? p.rating}
             imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+            videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
             onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
           />
         ))

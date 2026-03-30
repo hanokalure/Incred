@@ -4,6 +4,7 @@ import mimetypes
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import Response
+from starlette.responses import StreamingResponse
 
 from ..config import settings
 from ..database import supabase_admin
@@ -21,29 +22,49 @@ def get_place_image(object_path: str, request: Request):
 
     media_type, _ = mimetypes.guess_type(object_path)
     byte_range = request.headers.get("range")
+    if request.method == "HEAD":
+        try:
+            head = s3_client.head_object(Bucket=settings.AWS_S3_BUCKET, Key=object_path)
+            headers = {
+                "Cache-Control": "public, max-age=3600",
+                "Accept-Ranges": "bytes",
+            }
+            content_length = head.get("ContentLength")
+            if content_length is not None:
+                headers["Content-Length"] = str(content_length)
+            return Response(status_code=200, media_type=media_type or "application/octet-stream", headers=headers)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code")
+            if code in {"NoSuchKey", "404"}:
+                raise HTTPException(status_code=404, detail="Not found") from exc
+            logger.exception("S3 head failed for %s", object_path)
+            raise HTTPException(status_code=502, detail="Storage lookup failed") from exc
+        except Exception as exc:
+            logger.exception("S3 head failed for %s", object_path)
+            raise HTTPException(status_code=502, detail="Storage lookup failed") from exc
 
     try:
         kwargs = {"Bucket": settings.AWS_S3_BUCKET, "Key": object_path}
         if byte_range:
             kwargs["Range"] = byte_range
-        response = s3_client.get_object(**kwargs)
-        content = response["Body"].read()
+        s3_response = s3_client.get_object(**kwargs)
+        body = s3_response["Body"]
         headers = {
             "Cache-Control": "public, max-age=3600",
             "Accept-Ranges": "bytes",
         }
-        content_range = response.get("ContentRange")
-        content_length = response.get("ContentLength")
+        content_range = s3_response.get("ContentRange")
+        content_length = s3_response.get("ContentLength")
         if content_length is not None:
             headers["Content-Length"] = str(content_length)
         if content_range:
             headers["Content-Range"] = content_range
-            return Response(
-                content=content,
-                media_type=media_type or "application/octet-stream",
-                headers=headers,
-                status_code=206,
-            )
+        return StreamingResponse(
+            _iter_s3_body(body),
+            media_type=media_type or "application/octet-stream",
+            headers=headers,
+            status_code=206 if content_range else 200,
+        )
     except ClientError as exc:
         code = exc.response.get("Error", {}).get("Code")
         if code in {"NoSuchKey", "404"}:
@@ -66,6 +87,18 @@ def get_place_image(object_path: str, request: Request):
             "Content-Length": str(len(content)),
         },
     )
+
+
+def _iter_s3_body(body, chunk_size: int = 1024 * 1024):
+    try:
+        for chunk in body.iter_chunks(chunk_size):
+            if chunk:
+                yield chunk
+    finally:
+        try:
+            body.close()
+        except Exception:
+            pass
 
 
 def _download_legacy_supabase_image(object_path: str):

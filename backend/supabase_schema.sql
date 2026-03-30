@@ -42,6 +42,7 @@ create table if not exists public.places (
     latitude double precision,
     longitude double precision,
     image_urls text[],
+    video_urls text[],
     avg_rating numeric(3,2) default 0,
     created_at timestamptz not null default now()
 );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, Image, Alert, Platform } from "react-native";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
@@ -8,7 +8,7 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchPlaceDetails } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
 import PageCard from "../components/PageCard";
 
@@ -85,6 +85,44 @@ export default function PlaceDetailScreen({ navigation, route }) {
         )}
       </View>
 
+      {place?.image_urls?.length > 1 ? (
+        <>
+          <Text style={styles.section}>Photos</Text>
+          <View style={styles.gallery}>
+            {place.image_urls.slice(0, 3).map((imageUrl, index) => (
+              <View key={`${imageUrl}-${index}`} style={styles.galleryItem}>
+                <Image source={{ uri: toDisplayImageUrl(imageUrl) }} style={styles.galleryImage} resizeMode="cover" />
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      <Text style={styles.section}>Videos</Text>
+      {place?.video_urls?.length ? (
+        <View style={styles.videoList}>
+          {place.video_urls.slice(0, 3).map((videoUrl, index) => (
+            <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
+              {Platform.OS === "web" ? (
+                <video
+                  src={toDisplayMediaUrl(videoUrl)}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  controls
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <Text style={styles.videoFallback}>Video available</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <PhotoPlaceholder label="No videos added yet" />
+      )}
+
       <View style={styles.info}>
         <Text style={styles.title}>{place?.name || "Place Details"}</Text>
         <View style={styles.metaRow}>
@@ -146,6 +184,47 @@ const styles = StyleSheet.create({
   },
   info: {
     marginBottom: spacing.xl,
+  },
+  section: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  gallery: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  galleryItem: {
+    flex: 1,
+    height: 88,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  galleryImage: {
+    width: "100%",
+    height: "100%",
+  },
+  videoList: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  videoWrap: {
+    height: 170,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoFallback: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   title: {
     ...typography.h1,

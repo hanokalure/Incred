@@ -10,7 +10,7 @@ import PlaceCard from "../components/PlaceCard";
 import PrimaryButton from "../components/PrimaryButton";
 import { loadRecommendations } from "../store/slices/recommendationsSlice";
 import { fetchPlaces } from "../services/placesApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
 import PageCard from "../components/PageCard";
 
@@ -111,6 +111,7 @@ export default function HomeScreen({ navigation }) {
               distance={p.distance}
               rating={p.avg_rating ?? p.rating}
               imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+              videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
               onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
             />
           </View>
@@ -138,6 +139,7 @@ export default function HomeScreen({ navigation }) {
           distance={p.distance}
           rating={p.avg_rating ?? p.rating}
           imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+          videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
           onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
         />
       ))}

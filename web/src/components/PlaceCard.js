@@ -4,18 +4,21 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 
-export default function PlaceCard({ name, category, distance, rating, imageUrl, onPress, hideDistance = false }) {
+export default function PlaceCard({ name, category, distance, rating, imageUrl, videoUrl, onPress, hideDistance = false }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const distanceLabel =
     distance === null || distance === undefined || distance === ""
       ? "Distance unknown"
       : `${distance} km away`;
   const ratingLabel = rating === null || rating === undefined ? "—" : rating;
+  const showImage = !!imageUrl && !imageFailed;
+  const showVideo = !showImage && !!videoUrl && !videoFailed;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={styles.card}>
       <View style={styles.imageWrap}>
-        {imageUrl && !imageFailed ? (
+        {showImage ? (
           <Image
             source={{ uri: imageUrl }}
             style={styles.image}
@@ -26,10 +29,20 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
               setImageFailed(true);
             }}
           />
+        ) : showVideo ? (
+          <video
+            src={videoUrl}
+            muted
+            autoPlay
+            loop
+            playsInline
+            onError={() => setVideoFailed(true)}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         ) : (
           <View style={styles.imageFallback}>
             <Text style={styles.imageFallbackText}>
-              {imageUrl ? "Image unavailable" : "No image"}
+              {imageUrl ? "Image unavailable" : videoUrl ? "Video unavailable" : "No image"}
             </Text>
           </View>
         )}

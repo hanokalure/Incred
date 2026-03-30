@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Image, Platform } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "./PrimaryButton";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
+
+function buildPreviewMedia(place, limit = 3) {
+  const images = (place?.image_urls || []).map((url) => ({ type: "image", url }));
+  const videos = (place?.video_urls || []).map((url) => ({ type: "video", url }));
+  return [...images, ...videos].slice(0, limit);
+}
 
 export default function PlaceBottomSheet({
   place,
@@ -16,9 +22,20 @@ export default function PlaceBottomSheet({
   const [imageFailed, setImageFailed] = useState(false);
 
   const heroUrl = useMemo(() => {
-    const raw = place?.image_urls?.[0];
-    return raw ? toDisplayImageUrl(raw) : null;
+    const media = buildPreviewMedia(place, 1)[0];
+    if (!media) return null;
+    return {
+      type: media.type,
+      url: media.type === "image" ? toDisplayImageUrl(media.url) : toDisplayMediaUrl(media.url),
+    };
   }, [place]);
+  const gallery = useMemo(() => buildPreviewMedia(place, 3), [place]);
+  const photoCount = place?.image_urls?.length || 0;
+  const videoCount = place?.video_urls?.length || 0;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [place?.id]);
 
   if (!place) return null;
 
@@ -50,20 +67,61 @@ export default function PlaceBottomSheet({
           </Text>
         ) : null}
 
-        {heroUrl && !imageFailed ? (
+        <Text style={styles.mediaMeta}>
+          {photoCount} photo{photoCount === 1 ? "" : "s"} • {videoCount} video{videoCount === 1 ? "" : "s"}
+        </Text>
+
+        {heroUrl && !(heroUrl.type === "image" && imageFailed) ? (
           <View style={styles.heroWrap}>
-            <Image
-              source={{ uri: heroUrl }}
-              style={styles.hero}
-              resizeMode="contain"
-              onError={() => setImageFailed(true)}
-            />
+            {heroUrl.type === "image" ? (
+              <Image
+                source={{ uri: heroUrl.url }}
+                style={styles.hero}
+                resizeMode="contain"
+                onError={() => setImageFailed(true)}
+              />
+            ) : Platform.OS === "web" ? (
+              <video
+                src={heroUrl.url}
+                muted
+                autoPlay
+                loop
+                playsInline
+                controls
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+              />
+            ) : (
+              <Text style={styles.heroFallback}>Video available</Text>
+            )}
           </View>
         ) : (
           <View style={styles.heroWrap}>
             <Text style={styles.heroFallback}>No photo</Text>
           </View>
         )}
+
+        {gallery.length > 1 ? (
+          <View style={styles.strip}>
+            {gallery.slice(1).map((item, index) => (
+              <View key={`${item.url}-${index}`} style={styles.thumb}>
+                {item.type === "image" ? (
+                  <Image source={{ uri: toDisplayImageUrl(item.url) }} style={styles.thumbMedia} resizeMode="cover" />
+                ) : Platform.OS === "web" ? (
+                  <video
+                    src={toDisplayMediaUrl(item.url)}
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <Text style={styles.thumbFallback}>Video</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.actions}>
           <PrimaryButton label="Open Details" onPress={onOpenDetails} />
@@ -159,6 +217,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
+  mediaMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    fontWeight: "700",
+  },
   heroWrap: {
     height: 160,
     borderRadius: 16,
@@ -180,6 +246,31 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+  strip: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  thumb: {
+    flex: 1,
+    height: 72,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbMedia: {
+    width: "100%",
+    height: "100%",
+  },
+  thumbFallback: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
   },
   actions: {
     marginTop: spacing.sm,

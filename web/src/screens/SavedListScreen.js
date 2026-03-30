@@ -8,7 +8,7 @@ import PageCard from "../components/PageCard";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchSavedPlaceCards } from "../services/savedApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 
 export default function SavedListScreen({ navigation }) {
@@ -46,6 +46,7 @@ export default function SavedListScreen({ navigation }) {
             category={getPlaceCategoryLabel(p.category)}
             rating={p.avg_rating ?? p.rating}
             imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+            videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
             hideDistance
             onPress={() => navigation.navigate("PlaceDetail", { id: p.id, sourceSection: "Saved" })}
           />
