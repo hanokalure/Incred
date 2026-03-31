@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
@@ -16,6 +16,7 @@ export default function ListingsScreen({ navigation }) {
   const [form, setForm] = useState({ name: "", category: "", district_id: "", description: "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -84,11 +85,36 @@ export default function ListingsScreen({ navigation }) {
     }
   };
 
+  const visibleUserPlaces = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return places;
+    return (places || []).filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const category = (p.category || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      const addr = (p.address || "").toLowerCase();
+      return name.includes(q) || category.includes(q) || desc.includes(q) || addr.includes(q);
+    });
+  }, [places, query]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Listings / Discover</Text>
       <Text style={styles.text}>Browse curated places and businesses.</Text>
-      <PrimaryButton label="Search & Filter" onPress={() => navigation.navigate("SearchFilter")} />
+      {role === "admin" ? (
+        <PrimaryButton label="Search & Filter" onPress={() => navigation.navigate("SearchFilter")} />
+      ) : (
+        <View style={styles.searchPanel}>
+          <Text style={styles.searchTitle}>Discover Search</Text>
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by place, category, address..."
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+      )}
       <ScrollView style={styles.list}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {role === "admin"
@@ -138,7 +164,7 @@ export default function ListingsScreen({ navigation }) {
                 ) : null}
               </View>
             ))
-          : places.map((p) => (
+          : visibleUserPlaces.map((p) => (
               <PlaceCard
                 key={p.id}
                 name={p.name}
@@ -171,6 +197,27 @@ const styles = StyleSheet.create({
   },
   list: {
     marginTop: spacing.lg,
+  },
+  searchPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...typography.body,
+    color: colors.text,
   },
   adminCard: {
     backgroundColor: colors.surface,

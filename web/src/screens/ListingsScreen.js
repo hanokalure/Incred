@@ -93,6 +93,18 @@ export default function ListingsScreen({ navigation }) {
     });
   }, [places, query]);
 
+  const visibleUserPlaces = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return places;
+    return (places || []).filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const category = (p.category || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      const addr = (p.address || "").toLowerCase();
+      return name.includes(q) || category.includes(q) || desc.includes(q) || addr.includes(q);
+    });
+  }, [places, query]);
+
   const startEdit = (place) => {
     setEditingId(place.id);
     setForm({
@@ -230,8 +242,19 @@ export default function ListingsScreen({ navigation }) {
         </ScrollView>
         </>
       ) : (
+        <>
+          <View style={styles.userSearchPanel}>
+            <Text style={styles.filterTitle}>Discover Search</Text>
+            <TextInput
+              style={styles.search}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search by place, category, address..."
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
         <ScrollView style={styles.list}>
-          {places.map((p) => (
+          {visibleUserPlaces.map((p) => (
             <PlaceCard
               key={p.id}
               name={p.name}
@@ -244,6 +267,7 @@ export default function ListingsScreen({ navigation }) {
             />
           ))}
         </ScrollView>
+        </>
       )}
     </PageCard>
   );
@@ -264,6 +288,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   adminFilters: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.md,
+  },
+  userSearchPanel: {
     backgroundColor: colors.surface,
     borderRadius: 20,
     padding: spacing.lg,

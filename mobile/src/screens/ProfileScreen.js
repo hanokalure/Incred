@@ -35,10 +35,15 @@ export default function ProfileScreen({ navigation }) {
       <View style={styles.spacer} />
       <PrimaryButton label="Notifications" onPress={() => navigation.navigate("Notifications", { title: "Notifications" })} variant="ghost" />
 
+      <View style={styles.spacer} />
+      <PrimaryButton label="Add Place" onPress={() => navigation.navigate("SubmitPlace")} />
+      <View style={styles.spacer} />
+      <PrimaryButton label="My Submissions" onPress={() => navigation.navigate("MySubmissions")} variant="ghost" />
+
       {role === "admin" ? (
         <>
           <View style={styles.spacer} />
-          <PrimaryButton label="Add Place" onPress={() => navigation.navigate("SubmitPlace")} />
+          <PrimaryButton label="Place Approvals" onPress={() => navigation.navigate("PlaceApprovals")} variant="ghost" />
         </>
       ) : null}
 

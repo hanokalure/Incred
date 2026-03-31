@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -8,6 +8,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchReviews } from "../services/reviewsApi";
+import { toDisplayImageUrl } from "../services/mediaUrl";
 
 export default function ReviewsListScreen({ navigation, route }) {
   const placeParam = route?.params?.id;
@@ -32,9 +33,12 @@ export default function ReviewsListScreen({ navigation, route }) {
       ) : (
         reviews.map((r) => (
           <View key={r.id} style={styles.card}>
-            <Text style={styles.name}>{r.user || r.user_id || "Guest"}</Text>
+            <Text style={styles.name}>{r.user_name || r.user || "Guest"}</Text>
             <Text style={styles.meta}>Rating: {r.rating}</Text>
             <Text style={styles.body}>{r.text || r.comment || "(no text)"}</Text>
+            {r.image_url ? (
+              <Image source={{ uri: toDisplayImageUrl(r.image_url) }} style={styles.image} resizeMode="cover" />
+            ) : null}
             {r.sentiment_label ? <Text style={styles.sentiment}>Sentiment: {r.sentiment_label}</Text> : null}
           </View>
         ))
@@ -69,6 +73,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 22,
     marginTop: spacing.xs,
+  },
+  image: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    marginTop: spacing.sm,
   },
   sentiment: {
     ...typography.body,

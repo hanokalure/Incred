@@ -43,6 +43,11 @@ create table if not exists public.places (
     longitude double precision,
     image_urls text[],
     video_urls text[],
+    approval_status text not null default 'approved' check (approval_status in ('pending', 'approved', 'rejected')),
+    submitted_by uuid references public.users(id) on delete set null,
+    approved_by uuid references public.users(id) on delete set null,
+    approved_at timestamptz,
+    rejection_reason text,
     avg_rating numeric(3,2) default 0,
     created_at timestamptz not null default now()
 );
@@ -70,8 +75,12 @@ create table if not exists public.reviews (
     user_id uuid not null references public.users(id) on delete cascade,
     rating int not null check (rating between 1 and 5),
     comment text,
+    image_url text,
     created_at timestamptz not null default now()
 );
+
+alter table if exists public.reviews
+    add column if not exists image_url text;
 
 -- Favorites
 create table if not exists public.favorites (
@@ -112,8 +121,8 @@ alter table public.itineraries enable row level security;
 create policy if not exists "Public read districts" on public.districts
     for select using (true);
 
-create policy if not exists "Public read places" on public.places
-    for select using (true);
+create policy if not exists "Public read approved places" on public.places
+    for select using (approval_status = 'approved');
 
 create policy if not exists "Public read reviews" on public.reviews
     for select using (true);

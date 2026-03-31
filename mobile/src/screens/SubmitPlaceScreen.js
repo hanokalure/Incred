@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, Alert, Image } from "react-native";
+import { View, Text, TextInput, StyleSheet, ScrollView, Alert, Image, Linking } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import ScreenHeader from "../components/ScreenHeader";
@@ -111,7 +111,13 @@ export default function SubmitPlaceScreen({ navigation }) {
       await submitPlace({
         ...payload,
       });
-      Alert.alert("Place Added", "Your place has been saved.");
+      const isAdmin = role === "admin";
+      Alert.alert(
+        isAdmin ? "Place Added" : "Submission Received",
+        isAdmin
+          ? "Your place has been saved."
+          : "Thanks. Your place was submitted and will be listed after admin approval."
+      );
       navigation.goBack();
     } catch (e) {
       setError(e.message || "Failed to submit place");
@@ -143,23 +149,57 @@ export default function SubmitPlaceScreen({ navigation }) {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
-        setError("Location permission is required. Enable it in Settings and try again.");
+        setError("Location permission is blocked. Enable it in app settings and try again.");
+        Alert.alert(
+          "Location Permission Needed",
+          "Enable location access in app settings to use current location.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => Linking.openSettings(),
+            },
+          ]
+        );
         return;
       }
 
       const provider = await Location.getProviderStatusAsync();
       if (!provider.locationServicesEnabled) {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown?.coords) {
+          setLatitude(String(lastKnown.coords.latitude));
+          setLongitude(String(lastKnown.coords.longitude));
+          setError("GPS is off. Used your last known location.");
+          return;
+        }
         setError("Location services are turned off. Enable GPS/location services and try again.");
         return;
       }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLatitude(String(position.coords.latitude));
-      setLongitude(String(position.coords.longitude));
+      try {
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setLatitude(String(position.coords.latitude));
+        setLongitude(String(position.coords.longitude));
+      } catch (liveErr) {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown?.coords) {
+          setLatitude(String(lastKnown.coords.latitude));
+          setLongitude(String(lastKnown.coords.longitude));
+          setError("Live GPS unavailable. Used your last known location.");
+          return;
+        }
+        throw liveErr;
+      }
     } catch (e) {
-      setError(e?.message || "Unable to fetch location.");
+      const message = String(e?.message || "");
+      if (message.toLowerCase().includes("denied")) {
+        setError("Location permission denied. Enable it in app settings and try again.");
+      } else {
+        setError(message || "Unable to fetch location.");
+      }
     } finally {
       setLocStatus("idle");
     }
@@ -206,18 +246,9 @@ export default function SubmitPlaceScreen({ navigation }) {
     }
   };
 
-  if (role && role !== "admin") {
-    return (
-      <PageCard>
-        <ScreenHeader title="Admin Only" onBack={() => navigation.goBack()} />
-        <Text style={styles.text}>Only admins can add places.</Text>
-      </PageCard>
-    );
-  }
-
   return (
     <PageCard>
-      <ScreenHeader title="Add a Place" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Submit a Place" onBack={() => navigation.goBack()} />
       <ScrollView style={styles.content}>
         <Text style={styles.label}>Place name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
@@ -365,10 +396,5 @@ const styles = StyleSheet.create({
   previewImage: {
     width: "100%",
     height: "100%",
-  },
-  text: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.lg,
   },
 });

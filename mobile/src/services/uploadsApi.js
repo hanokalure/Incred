@@ -9,3 +9,13 @@ export const uploadPlaceImage = async (asset) => {
   });
   return apiUpload("/uploads/place-image", formData);
 };
+
+export const uploadReviewImage = async (asset) => {
+  const formData = new FormData();
+  formData.append("file", {
+    uri: asset.uri,
+    name: asset.fileName || asset.name || "review.jpg",
+    type: asset.mimeType || asset.type || "image/jpeg",
+  });
+  return apiUpload("/uploads/place-image", formData);
+};

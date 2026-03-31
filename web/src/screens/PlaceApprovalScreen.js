@@ -1,33 +1,92 @@
-import { View, Text, StyleSheet, FlatList } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, FlatList, TextInput } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PageCard from "../components/PageCard";
 import PrimaryButton from "../components/PrimaryButton";
+import { approvePlace, fetchPendingPlaces, rejectPlace } from "../services/placesApi";
 
-const PENDING_PLACES = [
-    { id: "s1", name: "Malnad Cafe", category: "Food", user: "abhishek_k", date: "2026-03-12" },
-    { id: "s2", name: "Agumbe View Point Shop", category: "Local Picks", user: "karnataka_traveler", date: "2026-03-11" },
-    { id: "s3", name: "Dharwad Pedha Original", category: "Shops", user: "sweet_tooth", date: "2026-03-10" },
-];
+const categoryLabel = (value) => {
+    const mapping = {
+        restaurant: "Food",
+        stay: "Stay",
+        generational_shop: "Shops",
+        hidden_gem: "Hidden Gems",
+        tourist_place: "Tourist",
+    };
+    return mapping[value] || value;
+};
 
 export default function PlaceApprovalScreen() {
+    const [pendingPlaces, setPendingPlaces] = useState([]);
+    const [status, setStatus] = useState("idle");
+    const [error, setError] = useState("");
+    const [rejectReasonById, setRejectReasonById] = useState({});
+
+    const loadPending = useCallback(() => {
+        fetchPendingPlaces()
+            .then((rows) => setPendingPlaces(rows || []))
+            .catch((e) => setError(e?.message || "Failed to load pending places"));
+    }, []);
+
+    useEffect(() => {
+        loadPending();
+    }, [loadPending]);
+
+    const handleApprove = async (id) => {
+        setStatus(`approve-${id}`);
+        setError("");
+        try {
+            await approvePlace(id);
+            loadPending();
+        } catch (e) {
+            setError(e?.message || "Approval failed");
+        } finally {
+            setStatus("idle");
+        }
+    };
+
+    const handleReject = async (id) => {
+        setStatus(`reject-${id}`);
+        setError("");
+        try {
+            await rejectPlace(id, rejectReasonById[id] || "");
+            loadPending();
+        } catch (e) {
+            setError(e?.message || "Rejection failed");
+        } finally {
+            setStatus("idle");
+        }
+    };
+
     const renderItem = ({ item }) => (
         <View style={styles.item}>
             <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>{item.category} • Submitted by @{item.user}</Text>
+                <Text style={styles.itemMeta}>
+                    {categoryLabel(item.category)} • District {item.district_id}
+                </Text>
+                <TextInput
+                    style={styles.input}
+                    value={rejectReasonById[item.id] || ""}
+                    onChangeText={(value) =>
+                        setRejectReasonById((prev) => ({ ...prev, [item.id]: value }))
+                    }
+                    placeholder="Optional rejection reason"
+                    placeholderTextColor={colors.textSecondary}
+                />
             </View>
             <View style={styles.actions}>
                 <PrimaryButton
-                    label="Approve"
-                    onPress={() => { }}
+                    label={status === `approve-${item.id}` ? "Approving..." : "Approve"}
+                    onPress={() => handleApprove(item.id)}
                     style={styles.actionBtn}
                 />
                 <View style={styles.spacer} />
                 <PrimaryButton
-                    label="Reject"
-                    onPress={() => { }}
+                    label={status === `reject-${item.id}` ? "Rejecting..." : "Reject"}
+                    onPress={() => handleReject(item.id)}
                     variant="ghost"
                     style={styles.actionBtn}
                 />
@@ -41,11 +100,15 @@ export default function PlaceApprovalScreen() {
                 <Text style={styles.title}>Place Approvals</Text>
                 <Text style={styles.subtitle}>Review and verify community-submitted discovery points.</Text>
             </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {pendingPlaces.length === 0 ? (
+                <Text style={styles.empty}>No pending submissions right now.</Text>
+            ) : null}
 
             <FlatList
-                data={PENDING_PLACES}
+                data={pendingPlaces}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => String(item.id)}
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
                 contentContainerStyle={styles.list}
             />
@@ -81,6 +144,16 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.textSecondary,
         marginTop: 4,
+        marginBottom: spacing.sm,
+    },
+    input: {
+        backgroundColor: colors.background,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        minWidth: 220,
     },
     actions: {
         flexDirection: "row",
@@ -96,5 +169,14 @@ const styles = StyleSheet.create({
     separator: {
         height: 1,
         backgroundColor: colors.border,
+    },
+    error: {
+        ...typography.body,
+        color: colors.error,
+        marginBottom: spacing.md,
+    },
+    empty: {
+        ...typography.body,
+        color: colors.textSecondary,
     },
 });

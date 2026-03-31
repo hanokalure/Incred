@@ -16,6 +16,7 @@ import PlaceDetailScreen from "../screens/PlaceDetailScreen";
 import ReviewsListScreen from "../screens/ReviewsListScreen";
 import ReviewSubmitScreen from "../screens/ReviewSubmitScreen";
 import SubmitPlaceScreen from "../screens/SubmitPlaceScreen";
+import MySubmissionsScreen from "../screens/MySubmissionsScreen";
 import ProfileSubScreen from "../screens/ProfileSubScreen";
 import PlaceApprovalScreen from "../screens/PlaceApprovalScreen";
 import AnalyticsScreen from "../screens/AnalyticsScreen";
@@ -41,6 +42,8 @@ const ROUTE_TO_SECTION = {
   Settings: "Settings",
   Explore: "Explore",
   Discover: "Discover",
+  SubmitPlace: "SubmitPlace",
+  MySubmissions: "MySubmissions",
   AI_Itinerary: "AI_Itinerary",
   Saved: "Saved",
   SavedList: "Saved",
@@ -67,6 +70,8 @@ export default function WebShell() {
   const userNav = [
     { key: "Explore", label: t("navExplore"), icon: "compass-outline" },
     { key: "Discover", label: t("navDiscover"), icon: "search-outline" },
+    { key: "SubmitPlace", label: t("navSubmitPlace"), icon: "add-circle-outline" },
+    { key: "MySubmissions", label: t("navMySubmissions"), icon: "clipboard-outline" },
     { key: "AI_Itinerary", label: t("navItinerary"), icon: "sparkles-outline" },
     { key: "Saved", label: t("navSaved"), icon: "bookmark-outline" },
     { key: "Map", label: t("navMap"), icon: "map-outline" },
@@ -219,6 +224,8 @@ export default function WebShell() {
                   <>
                     <Stack.Screen name="Explore" component={HomeScreen} />
                     <Stack.Screen name="Discover" component={ListingsScreen} />
+                    <Stack.Screen name="SubmitPlace" component={SubmitPlaceScreen} />
+                    <Stack.Screen name="MySubmissions" component={MySubmissionsScreen} />
                     <Stack.Screen name="AI_Itinerary" component={ItineraryScreen} />
                     <Stack.Screen name="Saved" component={SavedListScreen} />
                     <Stack.Screen name="Map" component={MapScreen} />

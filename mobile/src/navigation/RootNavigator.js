@@ -15,6 +15,8 @@ import PlaceDetailScreen from "../screens/PlaceDetailScreen";
 import ReviewsListScreen from "../screens/ReviewsListScreen";
 import ReviewSubmitScreen from "../screens/ReviewSubmitScreen";
 import SubmitPlaceScreen from "../screens/SubmitPlaceScreen";
+import PlaceApprovalScreen from "../screens/PlaceApprovalScreen";
+import MySubmissionsScreen from "../screens/MySubmissionsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +42,8 @@ export default function RootNavigator() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         <Stack.Screen name="SubmitPlace" component={SubmitPlaceScreen} />
+        <Stack.Screen name="MySubmissions" component={MySubmissionsScreen} />
+        <Stack.Screen name="PlaceApprovals" component={PlaceApprovalScreen} />
 
         <Stack.Screen name="ReviewsList" component={ReviewsListScreen} />
         <Stack.Screen name="ReviewSubmit" component={ReviewSubmitScreen} />

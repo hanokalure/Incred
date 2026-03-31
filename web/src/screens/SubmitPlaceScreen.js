@@ -13,6 +13,7 @@ import { submitPlace } from "../services/placesApi";
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import { fetchDistricts } from "../services/districtsApi";
 import { detectPlaceFromGoogleMapsLink } from "../services/locationDetectApi";
+import { getBrowserLocation } from "../utils/browserLocation";
 
 export default function SubmitPlaceScreen({ navigation }) {
   const role = useSelector((state) => state.auth.role);
@@ -29,6 +30,7 @@ export default function SubmitPlaceScreen({ navigation }) {
   const [videoPreviewUrls, setVideoPreviewUrls] = useState([]);
   const [uploadStatus, setUploadStatus] = useState("idle");
   const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
+  const [locStatus, setLocStatus] = useState("idle");
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -112,7 +114,13 @@ export default function SubmitPlaceScreen({ navigation }) {
       }
 
       await submitPlace({ ...payload });
-      Alert.alert("Place Added", "Your place has been saved.");
+      const isAdmin = role === "admin";
+      Alert.alert(
+        isAdmin ? "Place Added" : "Submission Received",
+        isAdmin
+          ? "Your place has been saved."
+          : "Thanks. Your place was submitted and will be listed after admin approval."
+      );
       navigation.goBack();
     } catch (e) {
       setError(e.message || "Failed to submit place");
@@ -167,24 +175,22 @@ export default function SubmitPlaceScreen({ navigation }) {
     }
   };
 
-  const useCurrentLocation = () => {
-    if (typeof window === "undefined") return;
-    if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
-      setError("Browser location requires HTTPS (or localhost). Open the web app on localhost or use HTTPS.");
-      return;
-    }
-    if (!navigator.geolocation) {
-      setError("Geolocation not supported in this browser.");
+  const useCurrentLocation = async () => {
+    setLocStatus("loading");
+    if (typeof window === "undefined") {
+      setLocStatus("idle");
       return;
     }
     setError("");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(String(pos.coords.latitude));
-        setLongitude(String(pos.coords.longitude));
-      },
-      (err) => setError(err?.message || "Unable to fetch location.")
-    );
+    try {
+      const location = await getBrowserLocation();
+      setLatitude(String(location.latitude));
+      setLongitude(String(location.longitude));
+    } catch (e) {
+      setError(e?.message || "Unable to fetch location.");
+    } finally {
+      setLocStatus("idle");
+    }
   };
 
   const detectFromMapsLink = async () => {
@@ -213,18 +219,9 @@ export default function SubmitPlaceScreen({ navigation }) {
     }
   };
 
-  if (role && role !== "admin") {
-    return (
-      <PageCard>
-        <ScreenHeader title="Admin Only" onBack={() => navigation.goBack()} />
-        <Text style={styles.helper}>Only admins can add places.</Text>
-      </PageCard>
-    );
-  }
-
   return (
     <PageCard>
-      <ScreenHeader title="Add a Place" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Submit a Place" onBack={() => navigation.goBack()} />
       <ScrollView>
         <Text style={styles.label}>Place name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
@@ -262,7 +259,11 @@ export default function SubmitPlaceScreen({ navigation }) {
         <TextInput value={latitude} onChangeText={setLatitude} style={styles.input} />
         <Text style={styles.label}>Longitude</Text>
         <TextInput value={longitude} onChangeText={setLongitude} style={styles.input} />
-        <PrimaryButton label="Use My Location" onPress={useCurrentLocation} variant="ghost" />
+        <PrimaryButton
+          label={locStatus === "loading" ? "Fetching..." : "Use My Location"}
+          onPress={useCurrentLocation}
+          variant="ghost"
+        />
         <Text style={styles.label}>Description</Text>
         <TextInput
           value={description}

@@ -22,5 +22,36 @@ def create_review(user_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def list_reviews(place_id: int) -> List[Dict[str, Any]]:
-    result = supabase_anon.table("reviews").select("id,place_id,user_id,rating,comment,created_at").eq("place_id", place_id).order("created_at", desc=True).execute()
-    return result.data or []
+    result = (
+        supabase_anon.table("reviews")
+        .select("id,place_id,user_id,rating,comment,image_url,created_at")
+        .eq("place_id", place_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    reviews = result.data or []
+    if not reviews:
+        return []
+
+    user_ids = list({review["user_id"] for review in reviews if review.get("user_id")})
+    users_result = (
+        supabase_admin.table("users")
+        .select("id,name,email")
+        .in_("id", user_ids)
+        .execute()
+        if user_ids
+        else None
+    )
+    user_name_by_id = {}
+    if users_result and users_result.data:
+        for user in users_result.data:
+            display_name = user.get("name")
+            if not display_name:
+                email = user.get("email") or ""
+                display_name = email.split("@")[0] if "@" in email else None
+            user_name_by_id[user["id"]] = display_name
+
+    for review in reviews:
+        review["user_name"] = user_name_by_id.get(review.get("user_id"))
+
+    return reviews

@@ -68,5 +68,15 @@ class PlaceDetectOut(BaseModel):
 class PlaceOut(PlaceBase):
     id: int
     avg_rating: Optional[float] = None
+    created_at: Optional[str] = None
+    approval_status: Optional[str] = None
+    submitted_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
+    rejection_reason: Optional[str] = None
     restaurant_details: Optional[RestaurantDetailsOut] = None
     stay_details: Optional[StayDetailsOut] = None
+
+
+class PlaceApprovalAction(BaseModel):
+    rejection_reason: Optional[str] = None
