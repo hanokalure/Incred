@@ -17,3 +17,8 @@ export const rejectPlace = (id, rejectionReason = "") =>
 export const fetchMySubmissions = () => apiGet("/places/my-submissions");
 export const updateMySubmission = (id, payload) => apiPut(`/places/${id}/my-submission`, payload);
 export const resubmitMySubmission = (id) => apiPost(`/places/${id}/resubmit`, {});
+export const submitPlacePhoto = (id, imageUrl) => apiPost(`/places/${id}/photo-submissions`, { image_url: imageUrl });
+export const fetchPendingPlacePhotoSubmissions = () => apiGet("/places/photo-submissions/pending");
+export const approvePlacePhotoSubmission = (id) => apiPost(`/places/photo-submissions/${id}/approve`, {});
+export const rejectPlacePhotoSubmission = (id, rejectionReason = "") =>
+  apiPost(`/places/photo-submissions/${id}/reject`, { rejection_reason: rejectionReason || null });

@@ -1,7 +1,16 @@
 from fastapi import APIRouter, Depends, Query
 from typing import List, Optional
 
-from ..schemas.places import PlaceOut, PlaceCreate, PlaceUpdate, PlaceDetectRequest, PlaceDetectOut, PlaceApprovalAction
+from ..schemas.places import (
+    PlaceOut,
+    PlaceCreate,
+    PlaceUpdate,
+    PlaceDetectRequest,
+    PlaceDetectOut,
+    PlaceApprovalAction,
+    PlacePhotoSubmissionCreate,
+    PlacePhotoSubmissionOut,
+)
 from ..services.place_service import (
     list_places,
     get_place,
@@ -14,6 +23,10 @@ from ..services.place_service import (
     list_my_submissions,
     update_my_submission,
     resubmit_my_submission,
+    submit_place_photo,
+    list_pending_place_photo_submissions,
+    approve_place_photo_submission,
+    reject_place_photo_submission,
 )
 from ..services.deps import require_admin, get_current_user
 from ..services.location_detect_service import detect_place_from_google_maps_link
@@ -44,6 +57,11 @@ def get_pending_places():
     return list_pending_places()
 
 
+@router.get("/photo-submissions/pending", response_model=List[PlacePhotoSubmissionOut], dependencies=[Depends(require_admin)])
+def get_pending_place_photo_submissions():
+    return list_pending_place_photo_submissions()
+
+
 @router.get("/my-submissions", response_model=List[PlaceOut])
 def get_my_submissions(user=Depends(get_current_user)):
     return list_my_submissions(user_id=user["id"])
@@ -69,6 +87,11 @@ def resubmit_my_submission_api(place_id: int, user=Depends(get_current_user)):
     return resubmit_my_submission(place_id, user_id=user["id"])
 
 
+@router.post("/{place_id}/photo-submissions", response_model=PlacePhotoSubmissionOut, status_code=201)
+def submit_place_photo_api(place_id: int, payload: PlacePhotoSubmissionCreate, user=Depends(get_current_user)):
+    return submit_place_photo(place_id, user_id=user["id"], image_url=payload.image_url)
+
+
 @router.delete("/{place_id}", response_model=PlaceOut, dependencies=[Depends(require_admin)])
 def delete_place_api(place_id: int):
     return delete_place(place_id)
@@ -82,3 +105,13 @@ def approve_place_api(place_id: int, user=Depends(get_current_user)):
 @router.post("/{place_id}/reject", response_model=PlaceOut, dependencies=[Depends(require_admin)])
 def reject_place_api(place_id: int, payload: PlaceApprovalAction, user=Depends(get_current_user)):
     return reject_place(place_id, admin_user_id=user["id"], rejection_reason=payload.rejection_reason)
+
+
+@router.post("/photo-submissions/{submission_id}/approve", response_model=PlacePhotoSubmissionOut, dependencies=[Depends(require_admin)])
+def approve_place_photo_submission_api(submission_id: int, user=Depends(get_current_user)):
+    return approve_place_photo_submission(submission_id, admin_user_id=user["id"])
+
+
+@router.post("/photo-submissions/{submission_id}/reject", response_model=PlacePhotoSubmissionOut, dependencies=[Depends(require_admin)])
+def reject_place_photo_submission_api(submission_id: int, payload: PlaceApprovalAction, user=Depends(get_current_user)):
+    return reject_place_photo_submission(submission_id, admin_user_id=user["id"], rejection_reason=payload.rejection_reason)

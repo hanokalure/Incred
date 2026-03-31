@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, Linking } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
@@ -36,12 +36,23 @@ export default function MapScreen({ navigation }) {
 
   const requestLocation = async () => {
     setLocationError("");
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      setLocationError("Location permission is required to center map on your position.");
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== "granted") {
+      setLocationError("Location permission is blocked. Enable it in app settings and try again.");
+      Linking.openSettings().catch(() => {});
       return;
     }
-    const loc = await Location.getCurrentPositionAsync({});
+
+    const provider = await Location.getProviderStatusAsync();
+    if (!provider.locationServicesEnabled) {
+      setLocationError("Location services are turned off. Enable GPS/location services and try again.");
+      return;
+    }
+
+    const loc = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Highest,
+      mayShowUserSettingsDialog: true,
+    });
     setRegion((r) => ({
       ...r,
       latitude: loc.coords.latitude,
@@ -50,7 +61,18 @@ export default function MapScreen({ navigation }) {
   };
 
   useEffect(() => {
-    requestLocation().catch(() => setLocationError("Unable to access device location."));
+    requestLocation().catch((error) => {
+      const message = String(error?.message || "");
+      if (message.toLowerCase().includes("denied")) {
+        setLocationError("Location permission denied. Enable it in app settings and try again.");
+        return;
+      }
+      if (message.toLowerCase().includes("timeout")) {
+        setLocationError("Location request timed out. Move to an open area and try again.");
+        return;
+      }
+      setLocationError(message || "Unable to access device location.");
+    });
   }, []);
 
   const filtered = selected === "All" ? places : places.filter((p) => p.category === selected);

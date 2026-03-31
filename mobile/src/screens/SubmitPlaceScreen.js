@@ -166,37 +166,22 @@ export default function SubmitPlaceScreen({ navigation }) {
 
       const provider = await Location.getProviderStatusAsync();
       if (!provider.locationServicesEnabled) {
-        const lastKnown = await Location.getLastKnownPositionAsync();
-        if (lastKnown?.coords) {
-          setLatitude(String(lastKnown.coords.latitude));
-          setLongitude(String(lastKnown.coords.longitude));
-          setError("GPS is off. Used your last known location.");
-          return;
-        }
         setError("Location services are turned off. Enable GPS/location services and try again.");
         return;
       }
 
-      try {
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setLatitude(String(position.coords.latitude));
-        setLongitude(String(position.coords.longitude));
-      } catch (liveErr) {
-        const lastKnown = await Location.getLastKnownPositionAsync();
-        if (lastKnown?.coords) {
-          setLatitude(String(lastKnown.coords.latitude));
-          setLongitude(String(lastKnown.coords.longitude));
-          setError("Live GPS unavailable. Used your last known location.");
-          return;
-        }
-        throw liveErr;
-      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+        mayShowUserSettingsDialog: true,
+      });
+      setLatitude(String(position.coords.latitude));
+      setLongitude(String(position.coords.longitude));
     } catch (e) {
       const message = String(e?.message || "");
       if (message.toLowerCase().includes("denied")) {
         setError("Location permission denied. Enable it in app settings and try again.");
+      } else if (message.toLowerCase().includes("timeout")) {
+        setError("Location request timed out. Move to an open area and try again.");
       } else {
         setError(message || "Unable to fetch location.");
       }

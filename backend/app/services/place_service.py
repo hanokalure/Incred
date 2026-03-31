@@ -15,6 +15,24 @@ ALLOWED_CATEGORIES = {
 }
 
 
+def _normalize_media_arrays(payload: Dict[str, Any]) -> None:
+    image_urls = payload.get("image_urls")
+    if "image_urls" in payload and image_urls is None:
+        payload.pop("image_urls", None)
+    elif image_urls is None:
+        payload.pop("image_urls", None)
+    elif isinstance(image_urls, str):
+        payload["image_urls"] = [image_urls]
+
+    video_urls = payload.get("video_urls")
+    if "video_urls" in payload and video_urls is None:
+        payload.pop("video_urls", None)
+    elif video_urls is None:
+        payload.pop("video_urls", None)
+    elif isinstance(video_urls, str):
+        payload["video_urls"] = [video_urls]
+
+
 def _raise_if_missing_approval_columns(error: APIError):
     payload_error = error.args[0] if error.args else {}
     code = payload_error.get("code") if isinstance(payload_error, dict) else None
@@ -72,18 +90,7 @@ def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[
     restaurant_details = payload.pop("restaurant_details", None)
     stay_details = payload.pop("stay_details", None)
 
-    # Normalize optional arrays to what PostgREST expects
-    image_urls = payload.get("image_urls")
-    if image_urls is None:
-        payload.pop("image_urls", None)
-    elif isinstance(image_urls, str):
-        payload["image_urls"] = [image_urls]
-
-    video_urls = payload.get("video_urls")
-    if video_urls is None:
-        payload.pop("video_urls", None)
-    elif isinstance(video_urls, str):
-        payload["video_urls"] = [video_urls]
+    _normalize_media_arrays(payload)
 
     payload["submitted_by"] = user_id
     if user_role == "admin":
@@ -145,17 +152,7 @@ def update_place(place_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
     restaurant_details = payload.pop("restaurant_details", None)
     stay_details = payload.pop("stay_details", None)
 
-    image_urls = payload.get("image_urls")
-    if "image_urls" in payload and image_urls is None:
-        payload.pop("image_urls", None)
-    elif isinstance(image_urls, str):
-        payload["image_urls"] = [image_urls]
-
-    video_urls = payload.get("video_urls")
-    if "video_urls" in payload and video_urls is None:
-        payload.pop("video_urls", None)
-    elif isinstance(video_urls, str):
-        payload["video_urls"] = [video_urls]
+    _normalize_media_arrays(payload)
 
     result = supabase_admin.table("places").update(payload).eq("id", place_id).execute()
     if not result or not result.data:
@@ -221,17 +218,7 @@ def update_my_submission(place_id: int, user_id: str, payload: Dict[str, Any]) -
     restaurant_details = payload.pop("restaurant_details", None)
     stay_details = payload.pop("stay_details", None)
 
-    image_urls = payload.get("image_urls")
-    if "image_urls" in payload and image_urls is None:
-        payload.pop("image_urls", None)
-    elif isinstance(image_urls, str):
-        payload["image_urls"] = [image_urls]
-
-    video_urls = payload.get("video_urls")
-    if "video_urls" in payload and video_urls is None:
-        payload.pop("video_urls", None)
-    elif isinstance(video_urls, str):
-        payload["video_urls"] = [video_urls]
+    _normalize_media_arrays(payload)
 
     result = supabase_admin.table("places").update(payload).eq("id", place_id).eq("submitted_by", user_id).execute()
     if not result or not result.data:
@@ -322,4 +309,154 @@ def reject_place(place_id: int, admin_user_id: str, rejection_reason: Optional[s
         raise
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    return result.data[0]
+
+
+def submit_place_photo(place_id: int, user_id: str, image_url: str) -> Dict[str, Any]:
+    place_result = (
+        supabase_admin.table("places")
+        .select("id,approval_status")
+        .eq("id", place_id)
+        .single()
+        .execute()
+    )
+    if not place_result or not place_result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    if place_result.data.get("approval_status") != "approved":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You can only add photos to approved places")
+
+    result = (
+        supabase_admin.table("place_photo_submissions")
+        .insert(
+            {
+                "place_id": place_id,
+                "image_url": image_url,
+                "submitted_by": user_id,
+                "status": "pending",
+                "reviewed_by": None,
+                "reviewed_at": None,
+                "rejection_reason": None,
+            }
+        )
+        .execute()
+    )
+    if not result or not result.data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission failed")
+    return result.data[0]
+
+
+def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
+    result = (
+        supabase_admin.table("place_photo_submissions")
+        .select("id,place_id,image_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
+        .eq("status", "pending")
+        .order("created_at", desc=False)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        return []
+
+    place_ids = list({row["place_id"] for row in rows if row.get("place_id") is not None})
+    user_ids = list({row["submitted_by"] for row in rows if row.get("submitted_by")})
+
+    places = (
+        supabase_admin.table("places").select("id,name").in_("id", place_ids).execute().data
+        if place_ids
+        else []
+    )
+    users = (
+        supabase_admin.table("users").select("id,name,email").in_("id", user_ids).execute().data
+        if user_ids
+        else []
+    )
+
+    place_name_by_id = {place["id"]: place.get("name") for place in (places or [])}
+    user_name_by_id = {}
+    for user in users or []:
+        display_name = user.get("name") or ((user.get("email") or "").split("@")[0] if user.get("email") else None)
+        user_name_by_id[user["id"]] = display_name
+
+    for row in rows:
+        row["place_name"] = place_name_by_id.get(row.get("place_id"))
+        row["submitted_by_name"] = user_name_by_id.get(row.get("submitted_by"))
+
+    return rows
+
+
+def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Dict[str, Any]:
+    existing = (
+        supabase_admin.table("place_photo_submissions")
+        .select("id,place_id,image_url,status")
+        .eq("id", submission_id)
+        .single()
+        .execute()
+    )
+    if not existing or not existing.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
+    if existing.data.get("status") != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission is not pending")
+
+    place = (
+        supabase_admin.table("places")
+        .select("id,image_urls")
+        .eq("id", existing.data["place_id"])
+        .single()
+        .execute()
+    )
+    if not place or not place.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+
+    image_urls = list(place.data.get("image_urls") or [])
+    image_url = existing.data.get("image_url")
+    if image_url and image_url not in image_urls:
+        image_urls.append(image_url)
+        supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", existing.data["place_id"]).execute()
+
+    result = (
+        supabase_admin.table("place_photo_submissions")
+        .update(
+            {
+                "status": "approved",
+                "reviewed_by": admin_user_id,
+                "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                "rejection_reason": None,
+            }
+        )
+        .eq("id", submission_id)
+        .execute()
+    )
+    if not result or not result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
+    return result.data[0]
+
+
+def reject_place_photo_submission(submission_id: int, admin_user_id: str, rejection_reason: Optional[str] = None) -> Dict[str, Any]:
+    existing = (
+        supabase_admin.table("place_photo_submissions")
+        .select("id,status")
+        .eq("id", submission_id)
+        .single()
+        .execute()
+    )
+    if not existing or not existing.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
+    if existing.data.get("status") != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission is not pending")
+
+    result = (
+        supabase_admin.table("place_photo_submissions")
+        .update(
+            {
+                "status": "rejected",
+                "reviewed_by": admin_user_id,
+                "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                "rejection_reason": rejection_reason or None,
+            }
+        )
+        .eq("id", submission_id)
+        .execute()
+    )
+    if not result or not result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
     return result.data[0]

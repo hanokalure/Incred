@@ -5,7 +5,15 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PageCard from "../components/PageCard";
 import PrimaryButton from "../components/PrimaryButton";
-import { approvePlace, fetchPendingPlaces, rejectPlace } from "../services/placesApi";
+import {
+    approvePlace,
+    approvePlacePhotoSubmission,
+    fetchPendingPlacePhotoSubmissions,
+    fetchPendingPlaces,
+    rejectPlace,
+    rejectPlacePhotoSubmission,
+} from "../services/placesApi";
+import { toDisplayImageUrl } from "../services/mediaUrl";
 
 const categoryLabel = (value) => {
     const mapping = {
@@ -23,11 +31,15 @@ export default function PlaceApprovalScreen() {
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState("");
     const [rejectReasonById, setRejectReasonById] = useState({});
+    const [pendingPhotoSubmissions, setPendingPhotoSubmissions] = useState([]);
 
     const loadPending = useCallback(() => {
         fetchPendingPlaces()
             .then((rows) => setPendingPlaces(rows || []))
             .catch((e) => setError(e?.message || "Failed to load pending places"));
+        fetchPendingPlacePhotoSubmissions()
+            .then((rows) => setPendingPhotoSubmissions(rows || []))
+            .catch((e) => setError(e?.message || "Failed to load pending photo submissions"));
     }, []);
 
     useEffect(() => {
@@ -55,6 +67,32 @@ export default function PlaceApprovalScreen() {
             loadPending();
         } catch (e) {
             setError(e?.message || "Rejection failed");
+        } finally {
+            setStatus("idle");
+        }
+    };
+
+    const handlePhotoApprove = async (id) => {
+        setStatus(`approve-photo-${id}`);
+        setError("");
+        try {
+            await approvePlacePhotoSubmission(id);
+            loadPending();
+        } catch (e) {
+            setError(e?.message || "Photo approval failed");
+        } finally {
+            setStatus("idle");
+        }
+    };
+
+    const handlePhotoReject = async (id) => {
+        setStatus(`reject-photo-${id}`);
+        setError("");
+        try {
+            await rejectPlacePhotoSubmission(id, rejectReasonById[`photo-${id}`] || "");
+            loadPending();
+        } catch (e) {
+            setError(e?.message || "Photo rejection failed");
         } finally {
             setStatus("idle");
         }
@@ -112,6 +150,52 @@ export default function PlaceApprovalScreen() {
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
                 contentContainerStyle={styles.list}
             />
+
+            <View style={styles.photoSection}>
+                <Text style={styles.title}>Photo Approvals</Text>
+                <Text style={styles.subtitle}>Review photo additions submitted by members for approved places.</Text>
+                {pendingPhotoSubmissions.length === 0 ? (
+                    <Text style={styles.empty}>No pending photo submissions right now.</Text>
+                ) : null}
+                {pendingPhotoSubmissions.map((item) => (
+                    <View key={item.id} style={styles.photoCard}>
+                        <Text style={styles.itemName}>{item.place_name || `Place ${item.place_id}`}</Text>
+                        <Text style={styles.itemMeta}>
+                            Submitted by {item.submitted_by_name || "Member"}
+                        </Text>
+                        <View style={styles.previewWrap}>
+                            <img
+                                src={toDisplayImageUrl(item.image_url)}
+                                alt={item.place_name || "Pending place photo"}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                        </View>
+                        <TextInput
+                            style={styles.input}
+                            value={rejectReasonById[`photo-${item.id}`] || ""}
+                            onChangeText={(value) =>
+                                setRejectReasonById((prev) => ({ ...prev, [`photo-${item.id}`]: value }))
+                            }
+                            placeholder="Optional rejection reason"
+                            placeholderTextColor={colors.textSecondary}
+                        />
+                        <View style={styles.actions}>
+                            <PrimaryButton
+                                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Photo"}
+                                onPress={() => handlePhotoApprove(item.id)}
+                                style={styles.actionBtn}
+                            />
+                            <View style={styles.spacer} />
+                            <PrimaryButton
+                                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Photo"}
+                                onPress={() => handlePhotoReject(item.id)}
+                                variant="ghost"
+                                style={styles.actionBtn}
+                            />
+                        </View>
+                    </View>
+                ))}
+            </View>
         </PageCard>
     );
 }
@@ -178,5 +262,26 @@ const styles = StyleSheet.create({
     empty: {
         ...typography.body,
         color: colors.textSecondary,
+    },
+    photoSection: {
+        marginTop: spacing.xl,
+    },
+    photoCard: {
+        backgroundColor: colors.surface,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        marginTop: spacing.md,
+    },
+    previewWrap: {
+        width: "100%",
+        height: 220,
+        borderRadius: 16,
+        overflow: "hidden",
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.md,
     },
 });

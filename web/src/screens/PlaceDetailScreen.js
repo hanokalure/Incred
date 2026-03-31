@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Image, Alert, Linking, Platform } from "react-native";
+import { useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -7,18 +8,22 @@ import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import PageCard from "../components/PageCard";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import { fetchPlaceDetails } from "../services/placesApi";
+import { fetchPlaceDetails, submitPlacePhoto } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
+import { uploadPlaceImage } from "../services/uploadsApi";
 
 export default function PlaceDetailScreen({ navigation, route }) {
+  const role = useSelector((state) => state.auth.role);
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
   const [place, setPlace] = useState(null);
   const [favoriteId, setFavoriteId] = useState(null);
+  const [photoStatus, setPhotoStatus] = useState("idle");
+  const [photoError, setPhotoError] = useState("");
 
-  useEffect(() => {
+  const loadPlace = () => {
     if (!placeId) return;
     fetchPlaceDetails(placeId)
       .then((data) => setPlace(data))
@@ -29,6 +34,10 @@ export default function PlaceDetailScreen({ navigation, route }) {
         setFavoriteId(match ? match.id : null);
       })
       .catch(() => setFavoriteId(null));
+  };
+
+  useEffect(() => {
+    loadPlace();
   }, [placeId]);
 
   const handleToggleSaved = async () => {
@@ -80,6 +89,23 @@ export default function PlaceDetailScreen({ navigation, route }) {
     }
   };
 
+  const handlePhotoAdd = async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file || !placeId) return;
+    setPhotoStatus("uploading");
+    setPhotoError("");
+    try {
+      const uploaded = await uploadPlaceImage(file);
+      setPhotoStatus("submitting");
+      await submitPlacePhoto(placeId, uploaded.public_url);
+      setPhotoStatus("submitted");
+      Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
+    } catch (e) {
+      setPhotoStatus("idle");
+      setPhotoError(e?.message || "Photo submission failed");
+    }
+  };
+
   return (
     <PageCard>
       <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
@@ -116,16 +142,33 @@ export default function PlaceDetailScreen({ navigation, route }) {
 
       <Text style={styles.section}>Photos</Text>
       {place?.image_urls?.length ? (
-        <View style={styles.heroWrap}>
-          <Image
-            source={{ uri: toDisplayImageUrl(place.image_urls[0]) }}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
+        <View style={styles.photoList}>
+          {place.image_urls.map((imageUrl, index) => (
+            <View key={`${imageUrl}-${index}`} style={styles.photoCard}>
+              <Image
+                source={{ uri: toDisplayImageUrl(imageUrl) }}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+            </View>
+          ))}
         </View>
       ) : (
         <PhotoPlaceholder label="Place photos (coming soon)" />
       )}
+      {role !== "admin" ? (
+        <View style={styles.photoSubmitBox}>
+          <Text style={styles.detailsTitle}>Add Your Photo</Text>
+          <Text style={styles.detailsText}>You can suggest more photos for this place. Admin approval is required before they appear publicly.</Text>
+          <View style={styles.fileInputWrap}>
+            <input type="file" accept="image/*" onChange={handlePhotoAdd} />
+          </View>
+          {photoStatus === "uploading" ? <Text style={styles.statusText}>Uploading photo...</Text> : null}
+          {photoStatus === "submitting" ? <Text style={styles.statusText}>Submitting for approval...</Text> : null}
+          {photoStatus === "submitted" ? <Text style={styles.successText}>Photo submitted for admin approval.</Text> : null}
+          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+        </View>
+      ) : null}
 
       <Text style={styles.section}>Videos</Text>
       {place?.video_urls?.length ? (
@@ -201,6 +244,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  photoList: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  photoCard: {
+    width: "100%",
+    height: 260,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: colors.accent,
+  },
   videoList: {
     gap: spacing.md,
     marginBottom: spacing.lg,
@@ -235,5 +289,31 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
+  },
+  photoSubmitBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  fileInputWrap: {
+    marginTop: spacing.sm,
+  },
+  statusText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  successText: {
+    ...typography.body,
+    color: colors.success,
+    marginTop: spacing.sm,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginTop: spacing.sm,
   },
 });

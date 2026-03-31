@@ -19,3 +19,13 @@ export const uploadReviewImage = async (asset) => {
   });
   return apiUpload("/uploads/place-image", formData);
 };
+
+export const uploadPlaceVideo = async (asset) => {
+  const formData = new FormData();
+  formData.append("file", {
+    uri: asset.uri,
+    name: asset.fileName || asset.name || "place.mp4",
+    type: asset.mimeType || asset.type || "video/mp4",
+  });
+  return apiUpload("/uploads/place-video", formData);
+};

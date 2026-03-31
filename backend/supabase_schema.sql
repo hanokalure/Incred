@@ -101,11 +101,25 @@ create table if not exists public.itineraries (
     created_at timestamptz not null default now()
 );
 
+create table if not exists public.place_photo_submissions (
+    id bigserial primary key,
+    place_id bigint not null references public.places(id) on delete cascade,
+    image_url text not null,
+    submitted_by uuid not null references public.users(id) on delete cascade,
+    status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+    reviewed_by uuid references public.users(id) on delete set null,
+    reviewed_at timestamptz,
+    rejection_reason text,
+    created_at timestamptz not null default now()
+);
+
 -- Helpful indexes
 create index if not exists idx_places_district on public.places(district_id);
 create index if not exists idx_places_category on public.places(category);
 create index if not exists idx_reviews_place on public.reviews(place_id);
 create index if not exists idx_favorites_user on public.favorites(user_id);
+create index if not exists idx_place_photo_submissions_place on public.place_photo_submissions(place_id);
+create index if not exists idx_place_photo_submissions_status on public.place_photo_submissions(status);
 
 -- Row Level Security (optional but recommended)
 alter table public.users enable row level security;
@@ -116,6 +130,7 @@ alter table public.stay_details enable row level security;
 alter table public.reviews enable row level security;
 alter table public.favorites enable row level security;
 alter table public.itineraries enable row level security;
+alter table public.place_photo_submissions enable row level security;
 
 -- Example policies (adjust to your needs)
 create policy if not exists "Public read districts" on public.districts
@@ -135,3 +150,9 @@ create policy if not exists "Users manage own itineraries" on public.itineraries
 
 create policy if not exists "Users manage own profile" on public.users
     for all using (auth.uid() = id) with check (auth.uid() = id);
+
+create policy if not exists "Users create photo submissions" on public.place_photo_submissions
+    for insert with check (auth.uid() = submitted_by);
+
+create policy if not exists "Users read own photo submissions" on public.place_photo_submissions
+    for select using (auth.uid() = submitted_by);

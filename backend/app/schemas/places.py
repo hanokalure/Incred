@@ -80,3 +80,21 @@ class PlaceOut(PlaceBase):
 
 class PlaceApprovalAction(BaseModel):
     rejection_reason: Optional[str] = None
+
+
+class PlacePhotoSubmissionCreate(BaseModel):
+    image_url: str = Field(min_length=1, max_length=2000)
+
+
+class PlacePhotoSubmissionOut(BaseModel):
+    id: int
+    place_id: int
+    image_url: str
+    submitted_by: str
+    status: str
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    created_at: Optional[str] = None
+    place_name: Optional[str] = None
+    submitted_by_name: Optional[str] = None

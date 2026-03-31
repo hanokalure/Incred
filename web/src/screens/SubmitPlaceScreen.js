@@ -14,6 +14,7 @@ import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import { fetchDistricts } from "../services/districtsApi";
 import { detectPlaceFromGoogleMapsLink } from "../services/locationDetectApi";
 import { getBrowserLocation } from "../utils/browserLocation";
+import { reverseGeocodeLocation } from "../services/locationApi";
 
 export default function SubmitPlaceScreen({ navigation }) {
   const role = useSelector((state) => state.auth.role);
@@ -186,6 +187,14 @@ export default function SubmitPlaceScreen({ navigation }) {
       const location = await getBrowserLocation();
       setLatitude(String(location.latitude));
       setLongitude(String(location.longitude));
+      try {
+        const resolvedAddress = await reverseGeocodeLocation(location);
+        if (resolvedAddress) {
+          setAddress(resolvedAddress);
+        }
+      } catch (_err) {
+        // Keep coords even if reverse geocoding fails.
+      }
     } catch (e) {
       setError(e?.message || "Unable to fetch location.");
     } finally {

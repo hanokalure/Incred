@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, Image } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PageCard from "../components/PageCard";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
-import { approvePlace, fetchPendingPlaces, rejectPlace } from "../services/placesApi";
+import {
+  approvePlace,
+  approvePlacePhotoSubmission,
+  fetchPendingPlacePhotoSubmissions,
+  fetchPendingPlaces,
+  rejectPlace,
+  rejectPlacePhotoSubmission,
+} from "../services/placesApi";
+import { toDisplayImageUrl } from "../services/mediaUrl";
 
 const categoryLabel = (value) => {
   const mapping = {
@@ -21,6 +29,7 @@ const categoryLabel = (value) => {
 
 export default function PlaceApprovalScreen({ navigation }) {
   const [pendingPlaces, setPendingPlaces] = useState([]);
+  const [pendingPhotoSubmissions, setPendingPhotoSubmissions] = useState([]);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [rejectReasonById, setRejectReasonById] = useState({});
@@ -29,6 +38,9 @@ export default function PlaceApprovalScreen({ navigation }) {
     fetchPendingPlaces()
       .then((rows) => setPendingPlaces(rows || []))
       .catch((e) => setError(e?.message || "Failed to load pending places"));
+    fetchPendingPlacePhotoSubmissions()
+      .then((rows) => setPendingPhotoSubmissions(rows || []))
+      .catch((e) => setError(e?.message || "Failed to load pending photo submissions"));
   }, []);
 
   useEffect(() => {
@@ -56,6 +68,32 @@ export default function PlaceApprovalScreen({ navigation }) {
       loadPending();
     } catch (e) {
       setError(e?.message || "Rejection failed");
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  const handlePhotoApprove = async (id) => {
+    setStatus(`approve-photo-${id}`);
+    setError("");
+    try {
+      await approvePlacePhotoSubmission(id);
+      loadPending();
+    } catch (e) {
+      setError(e?.message || "Photo approval failed");
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  const handlePhotoReject = async (id) => {
+    setStatus(`reject-photo-${id}`);
+    setError("");
+    try {
+      await rejectPlacePhotoSubmission(id, rejectReasonById[`photo-${id}`] || "");
+      loadPending();
+    } catch (e) {
+      setError(e?.message || "Photo rejection failed");
     } finally {
       setStatus("idle");
     }
@@ -89,6 +127,35 @@ export default function PlaceApprovalScreen({ navigation }) {
               <PrimaryButton
                 label={status === `reject-${item.id}` ? "Rejecting..." : "Reject"}
                 onPress={() => handleReject(item.id)}
+                variant="ghost"
+              />
+            </View>
+          </View>
+        ))}
+        <Text style={styles.subtitle}>Pending photo additions</Text>
+        {pendingPhotoSubmissions.length === 0 ? <Text style={styles.empty}>No pending photo submissions right now.</Text> : null}
+        {pendingPhotoSubmissions.map((item) => (
+          <View key={item.id} style={styles.card}>
+            <Text style={styles.name}>{item.place_name || `Place ${item.place_id}`}</Text>
+            <Text style={styles.meta}>Submitted by {item.submitted_by_name || "Member"}</Text>
+            <View style={styles.previewWrap}>
+              <Image source={{ uri: toDisplayImageUrl(item.image_url) }} style={styles.previewImage} resizeMode="cover" />
+            </View>
+            <TextInput
+              style={styles.input}
+              value={rejectReasonById[`photo-${item.id}`] || ""}
+              onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [`photo-${item.id}`]: value }))}
+              placeholder="Optional rejection reason"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <View style={styles.actions}>
+              <PrimaryButton
+                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Photo"}
+                onPress={() => handlePhotoApprove(item.id)}
+              />
+              <PrimaryButton
+                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Photo"}
+                onPress={() => handlePhotoReject(item.id)}
                 variant="ghost"
               />
             </View>
@@ -135,6 +202,20 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: spacing.sm,
+  },
+  previewWrap: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
   },
   error: {
     ...typography.body,

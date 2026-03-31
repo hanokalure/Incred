@@ -7,10 +7,14 @@ export function getBrowserLocation() {
 
     const hostname = window.location.hostname;
     const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
-    const isSecure = window.location.protocol === "https:" || isLocalhost;
+    const isSecure = window.isSecureContext || window.location.protocol === "https:" || isLocalhost;
 
     if (!isSecure) {
-      reject(new Error("Location access needs HTTPS or localhost."));
+      reject(
+        new Error(
+          "Browser location is blocked here. Open the web app on https:// or localhost so the permission prompt can appear."
+        )
+      );
       return;
     }
 
@@ -34,12 +38,12 @@ export function getBrowserLocation() {
           reject(new Error("Location request timed out. Please try again."));
           return;
         }
-        reject(new Error(error?.message || "Unable to fetch your location."));
+        reject(new Error(error?.message || "Unable to fetch your current location."));
       },
       {
         enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 60000,
+        timeout: 20000,
+        maximumAge: 0,
       }
     );
   });

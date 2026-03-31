@@ -21,7 +21,16 @@ export default function BrandHeader() {
                     return;
                 }
 
-                let location = await Location.getCurrentPositionAsync({});
+                const provider = await Location.getProviderStatusAsync();
+                if (!provider.locationServicesEnabled) {
+                    setLocationName("Karnataka, IN");
+                    return;
+                }
+
+                let location = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Highest,
+                    mayShowUserSettingsDialog: true,
+                });
                 let reverse = await Location.reverseGeocodeAsync({
                     latitude: location.coords.latitude,
                     longitude: location.coords.longitude,

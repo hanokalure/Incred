@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Image, Alert, Platform } from "react-native";
 import { Video, ResizeMode } from "expo-av";
+import * as ImagePicker from "expo-image-picker";
+import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import { fetchPlaceDetails } from "../services/placesApi";
+import { fetchPlaceDetails, submitPlacePhoto } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
+import { uploadPlaceImage } from "../services/uploadsApi";
 
 import PageCard from "../components/PageCard";
 
 export default function PlaceDetailScreen({ navigation, route }) {
+  const role = useSelector((state) => state.auth.role);
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
   const [place, setPlace] = useState(null);
   const [favoriteId, setFavoriteId] = useState(null);
   const [status, setStatus] = useState("idle");
+  const [photoStatus, setPhotoStatus] = useState("idle");
+  const [photoError, setPhotoError] = useState("");
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -69,6 +75,34 @@ export default function PlaceDetailScreen({ navigation, route }) {
     }
   };
 
+  const handleAddPhoto = async () => {
+    if (!placeId) return;
+    setPhotoError("");
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      setPhotoError("Photo permission is required.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    setPhotoStatus("uploading");
+    try {
+      const upload = await uploadPlaceImage(result.assets[0]);
+      setPhotoStatus("submitting");
+      await submitPlacePhoto(placeId, upload.public_url);
+      setPhotoStatus("submitted");
+      Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
+    } catch (e) {
+      setPhotoStatus("idle");
+      setPhotoError(e?.message || "Photo submission failed.");
+    }
+  };
+
   return (
     <PageCard>
       <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
@@ -97,6 +131,25 @@ export default function PlaceDetailScreen({ navigation, route }) {
             ))}
           </View>
         </>
+      ) : null}
+      {role !== "admin" ? (
+        <View style={styles.photoSubmitBox}>
+          <Text style={styles.detailsTitle}>Add Your Photo</Text>
+          <Text style={styles.detailsText}>You can suggest more photos for this place. Admin approval is required.</Text>
+          <PrimaryButton
+            label={
+              photoStatus === "uploading"
+                ? "Uploading..."
+                : photoStatus === "submitting"
+                  ? "Submitting..."
+                  : "Add Photo"
+            }
+            onPress={handleAddPhoto}
+            variant="ghost"
+          />
+          {photoStatus === "submitted" ? <Text style={styles.successText}>Photo submitted for admin approval.</Text> : null}
+          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+        </View>
       ) : null}
 
       <Text style={styles.section}>Videos</Text>
@@ -291,5 +344,23 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
+  },
+  photoSubmitBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  successText: {
+    ...typography.body,
+    color: colors.success,
+    marginTop: spacing.sm,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginTop: spacing.sm,
   },
 });
