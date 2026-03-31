@@ -5,14 +5,13 @@ import * as ImagePicker from "expo-image-picker";
 import { useSelector } from "react-redux";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
-import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import { fetchPlaceDetails, submitPlacePhoto } from "../services/placesApi";
+import { fetchPlaceDetails, submitPlaceMedia } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
-import { uploadPlaceImage } from "../services/uploadsApi";
+import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 
 import PageCard from "../components/PageCard";
 
@@ -94,12 +93,40 @@ export default function PlaceDetailScreen({ navigation, route }) {
     try {
       const upload = await uploadPlaceImage(result.assets[0]);
       setPhotoStatus("submitting");
-      await submitPlacePhoto(placeId, upload.public_url);
+      await submitPlaceMedia(placeId, "image", upload.public_url);
       setPhotoStatus("submitted");
       Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
     } catch (e) {
       setPhotoStatus("idle");
       setPhotoError(e?.message || "Photo submission failed.");
+    }
+  };
+
+  const handleAddVideo = async () => {
+    if (!placeId) return;
+    setPhotoError("");
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      setPhotoError("Video permission is required.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    setPhotoStatus("uploading-video");
+    try {
+      const upload = await uploadPlaceVideo(result.assets[0]);
+      setPhotoStatus("submitting-video");
+      await submitPlaceMedia(placeId, "video", upload.public_url);
+      setPhotoStatus("submitted-video");
+      Alert.alert("Video Submitted", "Your video was sent for admin approval.");
+    } catch (e) {
+      setPhotoStatus("idle");
+      setPhotoError(e?.message || "Video submission failed.");
     }
   };
 
@@ -116,7 +143,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
             onError={() => {}}
           />
         ) : (
-          <PhotoPlaceholder label={place?.name || "Place photo"} />
+          <Text style={styles.emptyText}>No photos added yet.</Text>
         )}
       </View>
 
@@ -182,8 +209,27 @@ export default function PlaceDetailScreen({ navigation, route }) {
           ))}
         </View>
       ) : (
-        <PhotoPlaceholder label="No videos added yet" />
+        <Text style={styles.emptyText}>No videos added yet.</Text>
       )}
+      {role !== "admin" ? (
+        <View style={styles.photoSubmitBox}>
+          <Text style={styles.detailsTitle}>Add Your Video</Text>
+          <Text style={styles.detailsText}>You can suggest more videos for this place. Admin approval is required.</Text>
+          <PrimaryButton
+            label={
+              photoStatus === "uploading-video"
+                ? "Uploading Video..."
+                : photoStatus === "submitting-video"
+                  ? "Submitting Video..."
+                  : "Add Video"
+            }
+            onPress={handleAddVideo}
+            variant="ghost"
+          />
+          {photoStatus === "submitted-video" ? <Text style={styles.successText}>Video submitted for admin approval.</Text> : null}
+          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+        </View>
+      ) : null}
 
       <View style={styles.info}>
         <Text style={styles.title}>{place?.name || "Place Details"}</Text>
@@ -362,5 +408,9 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     marginTop: spacing.sm,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
 });

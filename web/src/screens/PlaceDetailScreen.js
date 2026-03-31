@@ -4,15 +4,14 @@ import { useSelector } from "react-redux";
 import { colors } from "../theme/colors";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
-import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import PageCard from "../components/PageCard";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import { fetchPlaceDetails, submitPlacePhoto } from "../services/placesApi";
+import { fetchPlaceDetails, submitPlaceMedia } from "../services/placesApi";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
-import { uploadPlaceImage } from "../services/uploadsApi";
+import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 
 export default function PlaceDetailScreen({ navigation, route }) {
   const role = useSelector((state) => state.auth.role);
@@ -97,12 +96,29 @@ export default function PlaceDetailScreen({ navigation, route }) {
     try {
       const uploaded = await uploadPlaceImage(file);
       setPhotoStatus("submitting");
-      await submitPlacePhoto(placeId, uploaded.public_url);
+      await submitPlaceMedia(placeId, "image", uploaded.public_url);
       setPhotoStatus("submitted");
       Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
     } catch (e) {
       setPhotoStatus("idle");
       setPhotoError(e?.message || "Photo submission failed");
+    }
+  };
+
+  const handleVideoAdd = async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file || !placeId) return;
+    setPhotoStatus("uploading-video");
+    setPhotoError("");
+    try {
+      const uploaded = await uploadPlaceVideo(file);
+      setPhotoStatus("submitting-video");
+      await submitPlaceMedia(placeId, "video", uploaded.public_url);
+      setPhotoStatus("submitted-video");
+      Alert.alert("Video Submitted", "Your video was sent for admin approval.");
+    } catch (e) {
+      setPhotoStatus("idle");
+      setPhotoError(e?.message || "Video submission failed");
     }
   };
 
@@ -154,7 +170,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
           ))}
         </View>
       ) : (
-        <PhotoPlaceholder label="Place photos (coming soon)" />
+        <Text style={styles.emptyText}>No photos added yet.</Text>
       )}
       {role !== "admin" ? (
         <View style={styles.photoSubmitBox}>
@@ -189,8 +205,21 @@ export default function PlaceDetailScreen({ navigation, route }) {
           ))}
         </View>
       ) : (
-        <PhotoPlaceholder label="No videos added yet" />
+        <Text style={styles.emptyText}>No videos added yet.</Text>
       )}
+      {role !== "admin" ? (
+        <View style={styles.photoSubmitBox}>
+          <Text style={styles.detailsTitle}>Add Your Video</Text>
+          <Text style={styles.detailsText}>You can suggest more videos for this place. Admin approval is required before they appear publicly.</Text>
+          <View style={styles.fileInputWrap}>
+            <input type="file" accept="video/*" onChange={handleVideoAdd} />
+          </View>
+          {photoStatus === "uploading-video" ? <Text style={styles.statusText}>Uploading video...</Text> : null}
+          {photoStatus === "submitting-video" ? <Text style={styles.statusText}>Submitting video for approval...</Text> : null}
+          {photoStatus === "submitted-video" ? <Text style={styles.successText}>Video submitted for admin approval.</Text> : null}
+          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+        </View>
+      ) : null}
 
       <View style={styles.buttonContainer}>
         <PrimaryButton
@@ -315,5 +344,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     marginTop: spacing.sm,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
 });

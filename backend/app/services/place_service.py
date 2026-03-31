@@ -312,7 +312,9 @@ def reject_place(place_id: int, admin_user_id: str, rejection_reason: Optional[s
     return result.data[0]
 
 
-def submit_place_photo(place_id: int, user_id: str, image_url: str) -> Dict[str, Any]:
+def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: str) -> Dict[str, Any]:
+    if not media_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Media URL is required")
     place_result = (
         supabase_admin.table("places")
         .select("id,approval_status")
@@ -323,14 +325,19 @@ def submit_place_photo(place_id: int, user_id: str, image_url: str) -> Dict[str,
     if not place_result or not place_result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
     if place_result.data.get("approval_status") != "approved":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You can only add photos to approved places")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You can only add media to approved places")
+    if media_type not in {"image", "video"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid media type")
 
     result = (
         supabase_admin.table("place_photo_submissions")
         .insert(
             {
                 "place_id": place_id,
-                "image_url": image_url,
+                "media_type": media_type,
+                "media_url": media_url,
+                "image_url": media_url if media_type == "image" else None,
+                "video_url": media_url if media_type == "video" else None,
                 "submitted_by": user_id,
                 "status": "pending",
                 "reviewed_by": None,
@@ -348,7 +355,7 @@ def submit_place_photo(place_id: int, user_id: str, image_url: str) -> Dict[str,
 def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
     result = (
         supabase_admin.table("place_photo_submissions")
-        .select("id,place_id,image_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
+        .select("id,place_id,media_type,media_url,image_url,video_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
         .eq("status", "pending")
         .order("created_at", desc=False)
         .execute()
@@ -380,6 +387,10 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
     for row in rows:
         row["place_name"] = place_name_by_id.get(row.get("place_id"))
         row["submitted_by_name"] = user_name_by_id.get(row.get("submitted_by"))
+        if row.get("media_type") == "image" and not row.get("image_url"):
+            row["image_url"] = row.get("media_url")
+        if row.get("media_type") == "video" and not row.get("video_url"):
+            row["video_url"] = row.get("media_url")
 
     return rows
 
@@ -387,7 +398,7 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
 def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Dict[str, Any]:
     existing = (
         supabase_admin.table("place_photo_submissions")
-        .select("id,place_id,image_url,status")
+        .select("id,place_id,media_type,media_url,image_url,video_url,status")
         .eq("id", submission_id)
         .single()
         .execute()
@@ -399,7 +410,7 @@ def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Di
 
     place = (
         supabase_admin.table("places")
-        .select("id,image_urls")
+        .select("id,image_urls,video_urls")
         .eq("id", existing.data["place_id"])
         .single()
         .execute()
@@ -407,11 +418,18 @@ def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Di
     if not place or not place.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
-    image_urls = list(place.data.get("image_urls") or [])
-    image_url = existing.data.get("image_url")
-    if image_url and image_url not in image_urls:
-        image_urls.append(image_url)
-        supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", existing.data["place_id"]).execute()
+    if existing.data.get("media_type") == "video":
+        video_urls = list(place.data.get("video_urls") or [])
+        video_url = existing.data.get("video_url") or existing.data.get("media_url")
+        if video_url and video_url not in video_urls:
+            video_urls.append(video_url)
+            supabase_admin.table("places").update({"video_urls": video_urls}).eq("id", existing.data["place_id"]).execute()
+    else:
+        image_urls = list(place.data.get("image_urls") or [])
+        image_url = existing.data.get("image_url") or existing.data.get("media_url")
+        if image_url and image_url not in image_urls:
+            image_urls.append(image_url)
+            supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", existing.data["place_id"]).execute()
 
     result = (
         supabase_admin.table("place_photo_submissions")

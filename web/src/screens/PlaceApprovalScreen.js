@@ -164,11 +164,20 @@ export default function PlaceApprovalScreen() {
                             Submitted by {item.submitted_by_name || "Member"}
                         </Text>
                         <View style={styles.previewWrap}>
-                            <img
-                                src={toDisplayImageUrl(item.image_url)}
-                                alt={item.place_name || "Pending place photo"}
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
+                            {item.media_type === "video" ? (
+                                <video
+                                    src={toDisplayImageUrl(item.video_url || item.media_url)}
+                                    controls
+                                    playsInline
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                <img
+                                    src={toDisplayImageUrl(item.image_url || item.media_url)}
+                                    alt={item.place_name || "Pending place photo"}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            )}
                         </View>
                         <TextInput
                             style={styles.input}

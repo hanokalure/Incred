@@ -139,7 +139,11 @@ export default function PlaceApprovalScreen({ navigation }) {
             <Text style={styles.name}>{item.place_name || `Place ${item.place_id}`}</Text>
             <Text style={styles.meta}>Submitted by {item.submitted_by_name || "Member"}</Text>
             <View style={styles.previewWrap}>
-              <Image source={{ uri: toDisplayImageUrl(item.image_url) }} style={styles.previewImage} resizeMode="cover" />
+              {item.media_type === "video" ? (
+                <Text style={styles.meta}>Pending video: {item.video_url || item.media_url}</Text>
+              ) : (
+                <Image source={{ uri: toDisplayImageUrl(item.image_url || item.media_url) }} style={styles.previewImage} resizeMode="cover" />
+              )}
             </View>
             <TextInput
               style={styles.input}

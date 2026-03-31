@@ -83,13 +83,19 @@ class PlaceApprovalAction(BaseModel):
 
 
 class PlacePhotoSubmissionCreate(BaseModel):
-    image_url: str = Field(min_length=1, max_length=2000)
+    media_type: str = Field(default="image", min_length=1, max_length=20)
+    media_url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
+    image_url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
+    video_url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
 
 
 class PlacePhotoSubmissionOut(BaseModel):
     id: int
     place_id: int
-    image_url: str
+    media_type: str
+    media_url: str
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
     submitted_by: str
     status: str
     reviewed_by: Optional[str] = None

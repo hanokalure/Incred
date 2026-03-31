@@ -89,7 +89,9 @@ def resubmit_my_submission_api(place_id: int, user=Depends(get_current_user)):
 
 @router.post("/{place_id}/photo-submissions", response_model=PlacePhotoSubmissionOut, status_code=201)
 def submit_place_photo_api(place_id: int, payload: PlacePhotoSubmissionCreate, user=Depends(get_current_user)):
-    return submit_place_photo(place_id, user_id=user["id"], image_url=payload.image_url)
+    media_url = payload.media_url or payload.image_url or payload.video_url
+    media_type = payload.media_type or ("video" if payload.video_url else "image")
+    return submit_place_photo(place_id, user_id=user["id"], media_type=media_type, media_url=media_url)
 
 
 @router.delete("/{place_id}", response_model=PlaceOut, dependencies=[Depends(require_admin)])
