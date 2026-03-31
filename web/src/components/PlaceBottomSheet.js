@@ -20,6 +20,7 @@ export default function PlaceBottomSheet({
   onDirections,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [heroHover, setHeroHover] = useState(false);
 
   const heroUrl = useMemo(() => {
     const media = buildPreviewMedia(place, 1)[0];
@@ -72,7 +73,11 @@ export default function PlaceBottomSheet({
         </Text>
 
         {heroUrl && !(heroUrl.type === "image" && imageFailed) ? (
-          <View style={styles.heroWrap}>
+          <View
+            style={[styles.heroWrap, heroHover ? styles.heroWrapHover : null]}
+            onMouseEnter={() => Platform.OS === "web" && setHeroHover(true)}
+            onMouseLeave={() => Platform.OS === "web" && setHeroHover(false)}
+          >
             {heroUrl.type === "image" ? (
               <Image
                 source={{ uri: heroUrl.url }}
@@ -226,7 +231,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   heroWrap: {
-    height: 160,
+    height: 220,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: colors.accent,
@@ -247,6 +252,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
   },
+  heroWrapHover: {
+    height: 260,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ scale: 1.02 }],
+  },
   strip: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -254,7 +265,7 @@ const styles = StyleSheet.create({
   },
   thumb: {
     flex: 1,
-    height: 72,
+    height: 96,
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: colors.surface,

@@ -40,7 +40,7 @@ export default function PlaceApprovalScreen({ navigation }) {
       .catch((e) => setError(e?.message || "Failed to load pending places"));
     fetchPendingPlacePhotoSubmissions()
       .then((rows) => setPendingPhotoSubmissions(rows || []))
-      .catch((e) => setError(e?.message || "Failed to load pending photo submissions"));
+      .catch((e) => setError(e?.message || "Failed to load pending media submissions"));
   }, []);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function PlaceApprovalScreen({ navigation }) {
       await approvePlacePhotoSubmission(id);
       loadPending();
     } catch (e) {
-      setError(e?.message || "Photo approval failed");
+      setError(e?.message || "Media approval failed");
     } finally {
       setStatus("idle");
     }
@@ -93,7 +93,7 @@ export default function PlaceApprovalScreen({ navigation }) {
       await rejectPlacePhotoSubmission(id, rejectReasonById[`photo-${id}`] || "");
       loadPending();
     } catch (e) {
-      setError(e?.message || "Photo rejection failed");
+      setError(e?.message || "Media rejection failed");
     } finally {
       setStatus("idle");
     }
@@ -132,8 +132,8 @@ export default function PlaceApprovalScreen({ navigation }) {
             </View>
           </View>
         ))}
-        <Text style={styles.subtitle}>Pending photo additions</Text>
-        {pendingPhotoSubmissions.length === 0 ? <Text style={styles.empty}>No pending photo submissions right now.</Text> : null}
+        <Text style={styles.subtitle}>Pending media additions</Text>
+        {pendingPhotoSubmissions.length === 0 ? <Text style={styles.empty}>No pending media submissions right now.</Text> : null}
         {pendingPhotoSubmissions.map((item) => (
           <View key={item.id} style={styles.card}>
             <Text style={styles.name}>{item.place_name || `Place ${item.place_id}`}</Text>
@@ -154,11 +154,11 @@ export default function PlaceApprovalScreen({ navigation }) {
             />
             <View style={styles.actions}>
               <PrimaryButton
-                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Photo"}
+                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Media"}
                 onPress={() => handlePhotoApprove(item.id)}
               />
               <PrimaryButton
-                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Photo"}
+                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Media"}
                 onPress={() => handlePhotoReject(item.id)}
                 variant="ghost"
               />

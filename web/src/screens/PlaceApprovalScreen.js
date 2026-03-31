@@ -39,7 +39,7 @@ export default function PlaceApprovalScreen() {
             .catch((e) => setError(e?.message || "Failed to load pending places"));
         fetchPendingPlacePhotoSubmissions()
             .then((rows) => setPendingPhotoSubmissions(rows || []))
-            .catch((e) => setError(e?.message || "Failed to load pending photo submissions"));
+            .catch((e) => setError(e?.message || "Failed to load pending media submissions"));
     }, []);
 
     useEffect(() => {
@@ -79,7 +79,7 @@ export default function PlaceApprovalScreen() {
             await approvePlacePhotoSubmission(id);
             loadPending();
         } catch (e) {
-            setError(e?.message || "Photo approval failed");
+            setError(e?.message || "Media approval failed");
         } finally {
             setStatus("idle");
         }
@@ -92,7 +92,7 @@ export default function PlaceApprovalScreen() {
             await rejectPlacePhotoSubmission(id, rejectReasonById[`photo-${id}`] || "");
             loadPending();
         } catch (e) {
-            setError(e?.message || "Photo rejection failed");
+            setError(e?.message || "Media rejection failed");
         } finally {
             setStatus("idle");
         }
@@ -152,10 +152,10 @@ export default function PlaceApprovalScreen() {
             />
 
             <View style={styles.photoSection}>
-                <Text style={styles.title}>Photo Approvals</Text>
-                <Text style={styles.subtitle}>Review photo additions submitted by members for approved places.</Text>
+                <Text style={styles.title}>Media Approvals</Text>
+                <Text style={styles.subtitle}>Review photo and video additions submitted by members for approved places.</Text>
                 {pendingPhotoSubmissions.length === 0 ? (
-                    <Text style={styles.empty}>No pending photo submissions right now.</Text>
+                    <Text style={styles.empty}>No pending media submissions right now.</Text>
                 ) : null}
                 {pendingPhotoSubmissions.map((item) => (
                     <View key={item.id} style={styles.photoCard}>
@@ -174,7 +174,7 @@ export default function PlaceApprovalScreen() {
                             ) : (
                                 <img
                                     src={toDisplayImageUrl(item.image_url || item.media_url)}
-                                    alt={item.place_name || "Pending place photo"}
+                                    alt={item.place_name || "Pending place media"}
                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 />
                             )}
@@ -190,13 +190,13 @@ export default function PlaceApprovalScreen() {
                         />
                         <View style={styles.actions}>
                             <PrimaryButton
-                                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Photo"}
+                                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Media"}
                                 onPress={() => handlePhotoApprove(item.id)}
                                 style={styles.actionBtn}
                             />
                             <View style={styles.spacer} />
                             <PrimaryButton
-                                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Photo"}
+                                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Media"}
                                 onPress={() => handlePhotoReject(item.id)}
                                 variant="ghost"
                                 style={styles.actionBtn}

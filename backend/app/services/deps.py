@@ -1,16 +1,42 @@
+import base64
+import json
+import time
 from typing import Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase_auth.errors import AuthApiError
+import httpx
 
 from ..database import supabase_anon, supabase_admin
+from ..config import settings
 
 security = HTTPBearer(auto_error=False)
 
 
-def _get_user_from_token(token: str):
+def _decode_token_claims(token: str) -> Dict[str, Any]:
     try:
-        return supabase_anon.auth.get_user(token)
+        parts = token.split(".")
+        if len(parts) != 3:
+            raise ValueError("Invalid token format")
+        payload = parts[1]
+        padding = "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload + padding)
+        claims = json.loads(decoded.decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+
+    exp = claims.get("exp")
+    if exp is not None and int(exp) <= int(time.time()):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+
+    if not claims.get("sub"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return claims
+
+
+def _get_user_id_from_token(token: str) -> str:
+    try:
+        user_response = supabase_anon.auth.get_user(token)
     except AuthApiError as exc:
         message = (getattr(exc, "message", None) or str(exc)).lower()
         if "expired" in message:
@@ -18,6 +44,18 @@ def _get_user_from_token(token: str):
         else:
             detail = "Invalid token"
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail) from exc
+    except httpx.TimeoutException as exc:
+        if settings.ENV != "development":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service timeout",
+            ) from exc
+        claims = _decode_token_claims(token)
+        return str(claims["sub"])
+
+    if not user_response or not user_response.user or not user_response.user.id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return str(user_response.user.id)
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
@@ -25,11 +63,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
     token = credentials.credentials
-    user_response = _get_user_from_token(token)
-    if not user_response or not user_response.user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-    user_id = user_response.user.id
+    user_id = _get_user_id_from_token(token)
     profile = supabase_admin.table("users").select("id,email,name,role").eq("id", user_id).single().execute()
     if not profile or not profile.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
@@ -49,13 +83,9 @@ def get_optional_current_user(credentials: HTTPAuthorizationCredentials = Depend
 
     token = credentials.credentials
     try:
-        user_response = _get_user_from_token(token)
+        user_id = _get_user_id_from_token(token)
     except HTTPException:
         return None
-    if not user_response or not user_response.user:
-        return None
-
-    user_id = user_response.user.id
     profile = supabase_admin.table("users").select("id,email,name,role").eq("id", user_id).single().execute()
     if not profile or not profile.data:
         return None

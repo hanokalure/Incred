@@ -14,6 +14,8 @@ ALLOWED_CATEGORIES = {
     "stay",
 }
 
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv")
+
 
 def _normalize_media_arrays(payload: Dict[str, Any]) -> None:
     image_urls = payload.get("image_urls")
@@ -45,6 +47,58 @@ def _raise_if_missing_approval_columns(error: APIError):
                 "and refresh Supabase API schema cache."
             ),
         )
+
+
+def _is_missing_column_error(error: APIError, column_name: str) -> bool:
+    payload_error = error.args[0] if error.args else {}
+    code = payload_error.get("code") if isinstance(payload_error, dict) else None
+    message = payload_error.get("message") if isinstance(payload_error, dict) else str(error)
+    return code == "PGRST204" and column_name in (message or "")
+
+
+def _infer_submission_media(row: Dict[str, Any]) -> Dict[str, Any]:
+    media_url = row.get("media_url") or row.get("video_url") or row.get("image_url")
+    media_type = row.get("media_type")
+    if not media_type:
+        lower_url = (media_url or "").lower()
+        media_type = "video" if lower_url.endswith(VIDEO_EXTENSIONS) else "image"
+
+    row["media_type"] = media_type
+    row["media_url"] = media_url
+    row["image_url"] = media_url if media_type == "image" else None
+    row["video_url"] = media_url if media_type == "video" else None
+    return row
+
+
+def _fetch_place_media_submission(submission_id: int) -> Dict[str, Any]:
+    try:
+        result = (
+            supabase_admin.table("place_photo_submissions")
+            .select("id,place_id,media_type,media_url,image_url,video_url,status")
+            .eq("id", submission_id)
+            .single()
+            .execute()
+        )
+        row = result.data if result else None
+    except APIError as error:
+        if not (
+            _is_missing_column_error(error, "media_type")
+            or _is_missing_column_error(error, "media_url")
+            or _is_missing_column_error(error, "video_url")
+        ):
+            raise
+        legacy_result = (
+            supabase_admin.table("place_photo_submissions")
+            .select("id,place_id,image_url,status")
+            .eq("id", submission_id)
+            .single()
+            .execute()
+        )
+        row = legacy_result.data if legacy_result else None
+
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
+    return _infer_submission_media(row)
 
 
 def list_places(district_id: Optional[int] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -329,38 +383,67 @@ def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: 
     if media_type not in {"image", "video"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid media type")
 
-    result = (
-        supabase_admin.table("place_photo_submissions")
-        .insert(
-            {
-                "place_id": place_id,
-                "media_type": media_type,
-                "media_url": media_url,
-                "image_url": media_url if media_type == "image" else None,
-                "video_url": media_url if media_type == "video" else None,
-                "submitted_by": user_id,
-                "status": "pending",
-                "reviewed_by": None,
-                "reviewed_at": None,
-                "rejection_reason": None,
-            }
-        )
-        .execute()
-    )
+    insert_payload = {
+        "place_id": place_id,
+        "media_type": media_type,
+        "media_url": media_url,
+        "image_url": media_url,
+        "video_url": media_url if media_type == "video" else None,
+        "submitted_by": user_id,
+        "status": "pending",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "rejection_reason": None,
+    }
+    try:
+        result = supabase_admin.table("place_photo_submissions").insert(insert_payload).execute()
+    except APIError as error:
+        if not (
+            _is_missing_column_error(error, "media_type")
+            or _is_missing_column_error(error, "media_url")
+            or _is_missing_column_error(error, "video_url")
+        ):
+            raise
+        legacy_payload = {
+            "place_id": place_id,
+            "image_url": media_url,
+            "submitted_by": user_id,
+            "status": "pending",
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "rejection_reason": None,
+        }
+        result = supabase_admin.table("place_photo_submissions").insert(legacy_payload).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission failed")
-    return result.data[0]
+    return _infer_submission_media(result.data[0])
 
 
 def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
-    result = (
-        supabase_admin.table("place_photo_submissions")
-        .select("id,place_id,media_type,media_url,image_url,video_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
-        .eq("status", "pending")
-        .order("created_at", desc=False)
-        .execute()
-    )
-    rows = result.data or []
+    try:
+        result = (
+            supabase_admin.table("place_photo_submissions")
+            .select("id,place_id,media_type,media_url,image_url,video_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
+            .eq("status", "pending")
+            .order("created_at", desc=False)
+            .execute()
+        )
+        rows = result.data or []
+    except APIError as error:
+        if not (
+            _is_missing_column_error(error, "media_type")
+            or _is_missing_column_error(error, "media_url")
+            or _is_missing_column_error(error, "video_url")
+        ):
+            raise
+        legacy_result = (
+            supabase_admin.table("place_photo_submissions")
+            .select("id,place_id,image_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
+            .eq("status", "pending")
+            .order("created_at", desc=False)
+            .execute()
+        )
+        rows = legacy_result.data or []
     if not rows:
         return []
 
@@ -385,51 +468,40 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
         user_name_by_id[user["id"]] = display_name
 
     for row in rows:
+        _infer_submission_media(row)
         row["place_name"] = place_name_by_id.get(row.get("place_id"))
         row["submitted_by_name"] = user_name_by_id.get(row.get("submitted_by"))
-        if row.get("media_type") == "image" and not row.get("image_url"):
-            row["image_url"] = row.get("media_url")
-        if row.get("media_type") == "video" and not row.get("video_url"):
-            row["video_url"] = row.get("media_url")
 
     return rows
 
 
 def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Dict[str, Any]:
-    existing = (
-        supabase_admin.table("place_photo_submissions")
-        .select("id,place_id,media_type,media_url,image_url,video_url,status")
-        .eq("id", submission_id)
-        .single()
-        .execute()
-    )
-    if not existing or not existing.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo submission not found")
-    if existing.data.get("status") != "pending":
+    submission = _fetch_place_media_submission(submission_id)
+    if submission.get("status") != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission is not pending")
 
     place = (
         supabase_admin.table("places")
         .select("id,image_urls,video_urls")
-        .eq("id", existing.data["place_id"])
+        .eq("id", submission["place_id"])
         .single()
         .execute()
     )
     if not place or not place.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
-    if existing.data.get("media_type") == "video":
+    if submission.get("media_type") == "video":
         video_urls = list(place.data.get("video_urls") or [])
-        video_url = existing.data.get("video_url") or existing.data.get("media_url")
+        video_url = submission.get("video_url") or submission.get("media_url")
         if video_url and video_url not in video_urls:
             video_urls.append(video_url)
-            supabase_admin.table("places").update({"video_urls": video_urls}).eq("id", existing.data["place_id"]).execute()
+            supabase_admin.table("places").update({"video_urls": video_urls}).eq("id", submission["place_id"]).execute()
     else:
         image_urls = list(place.data.get("image_urls") or [])
-        image_url = existing.data.get("image_url") or existing.data.get("media_url")
+        image_url = submission.get("image_url") or submission.get("media_url")
         if image_url and image_url not in image_urls:
             image_urls.append(image_url)
-            supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", existing.data["place_id"]).execute()
+            supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", submission["place_id"]).execute()
 
     result = (
         supabase_admin.table("place_photo_submissions")
