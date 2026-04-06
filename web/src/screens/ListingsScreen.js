@@ -91,7 +91,7 @@ export default function ListingsScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (role === "admin") loadPlaces();
+    loadPlaces();
   }, [filterCategory, filterDistrictId]);
 
   const categoryOptions = useMemo(
@@ -557,6 +557,32 @@ export default function ListingsScreen({ navigation }) {
               placeholder="Search by place, category, address..."
               placeholderTextColor={colors.textSecondary}
             />
+            <View style={styles.filterRow}>
+              <SelectField
+                label="Category"
+                value={filterCategory}
+                options={categoryOptions}
+                onChange={setFilterCategory}
+              />
+              <SelectField
+                label="District"
+                value={filterDistrictId}
+                options={districtOptions}
+                onChange={setFilterDistrictId}
+              />
+            </View>
+            <View style={styles.filterActions}>
+              <PrimaryButton label="Refresh" onPress={loadPlaces} variant="ghost" />
+              <PrimaryButton
+                label="Clear"
+                onPress={() => {
+                  setQuery("");
+                  setFilterCategory("All");
+                  setFilterDistrictId("All");
+                }}
+                variant="ghost"
+              />
+            </View>
           </View>
           <ScrollView style={styles.list}>
             {visibleUserPlaces.map((p) => (
