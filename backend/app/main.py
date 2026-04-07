@@ -8,7 +8,12 @@ from .routers import admin, auth, districts, favorites, files, itineraries, plac
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME)
 
-    origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+    origins = []
+    for origin in settings.CORS_ORIGINS.split(","):
+        normalized = origin.strip().rstrip("/")
+        if normalized and normalized not in origins:
+            origins.append(normalized)
+
     if origins:
         app.add_middleware(
             CORSMiddleware,
