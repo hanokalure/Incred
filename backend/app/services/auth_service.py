@@ -1,11 +1,18 @@
 from typing import Dict, Any
 from fastapi import HTTPException, status
+from supabase_auth.errors import AuthApiError
 
 from ..database import supabase_anon, supabase_admin
 
 
 def signup_user(email: str, password: str, name: str) -> Dict[str, Any]:
-    result = supabase_anon.auth.sign_up({"email": email, "password": password})
+    normalized_email = str(email).strip().lower()
+    normalized_name = str(name).strip()
+    try:
+        result = supabase_anon.auth.sign_up({"email": normalized_email, "password": password})
+    except AuthApiError as exc:
+        detail = getattr(exc, "message", None) or str(exc) or "Signup failed"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
     if not result or not result.user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup failed")
 
@@ -14,8 +21,8 @@ def signup_user(email: str, password: str, name: str) -> Dict[str, Any]:
     # Ensure profile in users table
     supabase_admin.table("users").insert({
         "id": user_id,
-        "email": email,
-        "name": name,
+        "email": normalized_email,
+        "name": normalized_name,
         "role": "user",
     }).execute()
 
@@ -28,15 +35,20 @@ def signup_user(email: str, password: str, name: str) -> Dict[str, Any]:
         "expires_in": result.session.expires_in,
         "user": {
             "id": user_id,
-            "email": email,
-            "name": name,
+            "email": normalized_email,
+            "name": normalized_name,
             "role": "user",
         },
     }
 
 
 def login_user(email: str, password: str) -> Dict[str, Any]:
-    result = supabase_anon.auth.sign_in_with_password({"email": email, "password": password})
+    normalized_email = str(email).strip().lower()
+    try:
+        result = supabase_anon.auth.sign_in_with_password({"email": normalized_email, "password": password})
+    except AuthApiError as exc:
+        detail = getattr(exc, "message", None) or str(exc) or "Invalid credentials"
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail) from exc
     if not result or not result.session or not result.user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 

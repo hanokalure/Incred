@@ -16,8 +16,25 @@ logger = logging.getLogger(__name__)
 
 @router.api_route("/files/place-images/{object_path:path}", methods=["GET", "HEAD"])
 def get_place_image(object_path: str, request: Request):
-    # Restrict to expected prefix to avoid becoming a generic file proxy.
-    if not object_path or not object_path.startswith("places/"):
+    return _stream_bucket_object(object_path, request, allowed_prefixes=_allowed_prefixes(""))
+
+
+@router.api_route("/files/story-media/{object_path:path}", methods=["GET", "HEAD"])
+def get_story_media(object_path: str, request: Request):
+    return _stream_bucket_object(object_path, request, allowed_prefixes=_allowed_prefixes("stories"))
+
+
+def _allowed_prefixes(*suffixes: str) -> tuple[str, ...]:
+    base_folder = settings.AWS_S3_BASE_FOLDER.strip("/") or "places"
+    prefixes = []
+    for suffix in suffixes:
+        normalized = suffix.strip("/")
+        prefixes.append(f"{base_folder}/{normalized}/" if normalized else f"{base_folder}/")
+    return tuple(prefixes)
+
+
+def _stream_bucket_object(object_path: str, request: Request, allowed_prefixes: tuple[str, ...]):
+    if not object_path or not any(object_path.startswith(prefix) for prefix in allowed_prefixes):
         raise HTTPException(status_code=404, detail="Not found")
 
     media_type, _ = mimetypes.guess_type(object_path)

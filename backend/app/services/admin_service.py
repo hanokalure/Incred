@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from ..database import supabase_admin
@@ -35,6 +36,7 @@ def get_admin_dashboard() -> Dict[str, Any]:
 
 
 def get_admin_users() -> Dict[str, Any]:
+    now_iso = datetime.now(timezone.utc).isoformat()
     users = (
         supabase_admin.table("users")
         .select("id,name,email,role,created_at")
@@ -42,12 +44,60 @@ def get_admin_users() -> Dict[str, Any]:
         .execute()
     )
     data = users.data or []
+    active_stories = (
+        supabase_admin.table("stories")
+        .select("id,user_id,media_type,media_url,caption,status,expires_at,created_at")
+        .eq("status", "active")
+        .gt("expires_at", now_iso)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    stories = active_stories.data or []
+    reviews = _fetch_rows("reviews", "id,user_id")
+    favorites = _fetch_rows("favorites", "id,user_id")
+    itineraries = _fetch_rows("itineraries", "id,user_id")
+    submitted_places = _fetch_rows("places", "id,submitted_by")
+
+    review_count_by_user: defaultdict[str, int] = defaultdict(int)
+    favorite_count_by_user: defaultdict[str, int] = defaultdict(int)
+    itinerary_count_by_user: defaultdict[str, int] = defaultdict(int)
+    place_submission_count_by_user: defaultdict[str, int] = defaultdict(int)
+    for review in reviews:
+        if review.get("user_id"):
+            review_count_by_user[review["user_id"]] += 1
+    for favorite in favorites:
+        if favorite.get("user_id"):
+            favorite_count_by_user[favorite["user_id"]] += 1
+    for itinerary in itineraries:
+        if itinerary.get("user_id"):
+            itinerary_count_by_user[itinerary["user_id"]] += 1
+    for place in submitted_places:
+        if place.get("submitted_by"):
+            place_submission_count_by_user[place["submitted_by"]] += 1
+
+    stories_by_user: defaultdict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for story in stories:
+        user_id = story.get("user_id")
+        if user_id:
+            stories_by_user[user_id].append(story)
+
+    for user in data:
+        user_stories = stories_by_user.get(user["id"], [])
+        user["active_story_count"] = len(user_stories)
+        user["latest_story"] = user_stories[0] if user_stories else None
+        user["active_stories"] = user_stories
+        user["review_count"] = review_count_by_user.get(user["id"], 0)
+        user["favorite_count"] = favorite_count_by_user.get(user["id"], 0)
+        user["itinerary_count"] = itinerary_count_by_user.get(user["id"], 0)
+        user["place_submission_count"] = place_submission_count_by_user.get(user["id"], 0)
+
     return {
         "users": data,
         "summary": {
             "total": len(data),
             "admins": sum(1 for user in data if user.get("role") == "admin"),
             "members": sum(1 for user in data if user.get("role") == "user"),
+            "users_with_active_stories": sum(1 for user in data if user.get("active_story_count")),
         },
     }
 

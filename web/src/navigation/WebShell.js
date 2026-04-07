@@ -22,6 +22,10 @@ import PlaceApprovalScreen from "../screens/PlaceApprovalScreen";
 import AnalyticsScreen from "../screens/AnalyticsScreen";
 import UsersScreen from "../screens/UsersScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import CreateStoryScreen from "../screens/CreateStoryScreen";
+import StoryArchiveScreen from "../screens/StoryArchiveScreen";
+import StoryViewerScreen from "../screens/StoryViewerScreen";
+import UserDetailScreen from "../screens/UserDetailScreen";
 import { useLanguage } from "../context/LanguageContext";
 import { getBrowserLocation } from "../utils/browserLocation";
 import { reverseGeocodeLocation } from "../services/locationApi";
@@ -242,6 +246,10 @@ export default function WebShell() {
                 <Stack.Screen name="DayPlan" component={DayPlanScreen} />
                 <Stack.Screen name="SavedList" component={SavedListScreen} />
                 <Stack.Screen name="ProfileSub" component={ProfileSubScreen} />
+                <Stack.Screen name="CreateStory" component={CreateStoryScreen} />
+                <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
+                <Stack.Screen name="StoryArchive" component={StoryArchiveScreen} />
+                <Stack.Screen name="UserDetail" component={UserDetailScreen} />
               </Stack.Navigator>
             </NavigationContainer>
           </NavigationIndependentTree>

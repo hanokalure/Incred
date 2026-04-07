@@ -13,7 +13,8 @@ import {
     rejectPlace,
     rejectPlacePhotoSubmission,
 } from "../services/placesApi";
-import { toDisplayImageUrl } from "../services/mediaUrl";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
+import { actOnAdminStoryReport, fetchAdminStoryReports } from "../services/adminApi";
 
 const categoryLabel = (value) => {
     const mapping = {
@@ -32,6 +33,7 @@ export default function PlaceApprovalScreen() {
     const [error, setError] = useState("");
     const [rejectReasonById, setRejectReasonById] = useState({});
     const [pendingPhotoSubmissions, setPendingPhotoSubmissions] = useState([]);
+    const [storyReports, setStoryReports] = useState([]);
 
     const loadPending = useCallback(() => {
         fetchPendingPlaces()
@@ -40,6 +42,9 @@ export default function PlaceApprovalScreen() {
         fetchPendingPlacePhotoSubmissions()
             .then((rows) => setPendingPhotoSubmissions(rows || []))
             .catch((e) => setError(e?.message || "Failed to load pending media submissions"));
+        fetchAdminStoryReports()
+            .then((rows) => setStoryReports((rows || []).filter((item) => item.status === "open")))
+            .catch((e) => setError(e?.message || "Failed to load story reports"));
     }, []);
 
     useEffect(() => {
@@ -93,6 +98,19 @@ export default function PlaceApprovalScreen() {
             loadPending();
         } catch (e) {
             setError(e?.message || "Media rejection failed");
+        } finally {
+            setStatus("idle");
+        }
+    };
+
+    const handleStoryReportAction = async (reportId, action) => {
+        setStatus(`${action}-story-${reportId}`);
+        setError("");
+        try {
+            await actOnAdminStoryReport(reportId, action, rejectReasonById[`story-${reportId}`] || "");
+            loadPending();
+        } catch (e) {
+            setError(e?.message || "Story moderation failed");
         } finally {
             setStatus("idle");
         }
@@ -205,6 +223,65 @@ export default function PlaceApprovalScreen() {
                     </View>
                 ))}
             </View>
+
+            <View style={styles.photoSection}>
+                <Text style={styles.title}>Story Reports</Text>
+                <Text style={styles.subtitle}>Review stories reported by members and decide whether to dismiss or remove them.</Text>
+                {storyReports.length === 0 ? (
+                    <Text style={styles.empty}>No open story reports right now.</Text>
+                ) : null}
+                {storyReports.map((item) => (
+                    <View key={item.id} style={styles.photoCard}>
+                        <Text style={styles.itemName}>{item.story?.user_name || "Story author"}</Text>
+                        <Text style={styles.itemMeta}>
+                            Reported by {item.reported_by_name || "Member"} • Reason: {item.reason}
+                        </Text>
+                        <View style={styles.previewWrap}>
+                            {item.story?.media_type === "video" ? (
+                                <video
+                                    src={toDisplayMediaUrl(item.story?.media_url)}
+                                    controls
+                                    playsInline
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                <img
+                                    src={toDisplayMediaUrl(item.story?.media_url)}
+                                    alt={item.story?.caption || "Reported story"}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            )}
+                        </View>
+                        <Text style={styles.reportCaption}>{item.story?.caption || "No caption"}</Text>
+                        <Text style={styles.reportStats}>
+                            Views: {item.story?.view_count ?? 0} • Status: {item.story?.status || "unknown"}
+                        </Text>
+                        <TextInput
+                            style={styles.input}
+                            value={rejectReasonById[`story-${item.id}`] || ""}
+                            onChangeText={(value) =>
+                                setRejectReasonById((prev) => ({ ...prev, [`story-${item.id}`]: value }))
+                            }
+                            placeholder="Optional admin note"
+                            placeholderTextColor={colors.textSecondary}
+                        />
+                        <View style={styles.actions}>
+                            <PrimaryButton
+                                label={status === `dismiss-story-${item.id}` ? "Dismissing..." : "Dismiss Report"}
+                                onPress={() => handleStoryReportAction(item.id, "dismiss")}
+                                variant="ghost"
+                                style={styles.actionBtn}
+                            />
+                            <View style={styles.spacer} />
+                            <PrimaryButton
+                                label={status === `remove_story-story-${item.id}` ? "Removing..." : "Remove Story"}
+                                onPress={() => handleStoryReportAction(item.id, "remove_story")}
+                                style={styles.actionBtn}
+                            />
+                        </View>
+                    </View>
+                ))}
+            </View>
         </PageCard>
     );
 }
@@ -291,6 +368,17 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
         borderWidth: 1,
         borderColor: colors.border,
+        marginBottom: spacing.md,
+    },
+    reportCaption: {
+        ...typography.body,
+        color: colors.text,
+        fontWeight: "700",
+        marginBottom: spacing.xs,
+    },
+    reportStats: {
+        ...typography.caption,
+        color: colors.textSecondary,
         marginBottom: spacing.md,
     },
 });

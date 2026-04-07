@@ -5,6 +5,11 @@ function toProxyPlaceImageUrl(objectPath) {
   return `${API_BASE_URL}/files/place-images/${objectPath}`;
 }
 
+function toProxyStoryMediaUrl(objectPath) {
+  if (!objectPath) return objectPath;
+  return `${API_BASE_URL}/files/story-media/${objectPath}`;
+}
+
 function extractPlaceImagesObjectPath(urlOrPath) {
   if (!urlOrPath) return null;
 
@@ -36,6 +41,13 @@ function extractPlaceImagesObjectPath(urlOrPath) {
   return null;
 }
 
+function extractStoryObjectPath(urlOrPath) {
+  if (!urlOrPath || typeof urlOrPath !== "string") return null;
+  if (urlOrPath.startsWith("places/stories/")) return urlOrPath;
+  if (urlOrPath.includes("/files/story-media/")) return null;
+  return null;
+}
+
 export function toDisplayImageUrl(imageUrl) {
   if (!imageUrl) return imageUrl;
 
@@ -45,5 +57,7 @@ export function toDisplayImageUrl(imageUrl) {
 }
 
 export function toDisplayMediaUrl(mediaUrl) {
+  const storyObjectPath = extractStoryObjectPath(mediaUrl);
+  if (storyObjectPath) return toProxyStoryMediaUrl(storyObjectPath);
   return toDisplayImageUrl(mediaUrl);
 }

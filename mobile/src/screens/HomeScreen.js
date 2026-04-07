@@ -11,10 +11,11 @@ import PrimaryButton from "../components/PrimaryButton";
 import { loadRecommendations } from "../store/slices/recommendationsSlice";
 import { fetchPlaces } from "../services/placesApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
+import StoryStrip from "../components/StoryStrip";
 
 import PageCard from "../components/PageCard";
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const language = useSelector((state) => state.lang.language);
   const [places, setPlaces] = useState([]);
@@ -89,6 +90,8 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.title}>{t.greeting}{'\n'}{t.explorer}</Text>
         <Text style={styles.subtitle}>{t.subtitle}</Text>
       </View>
+
+      <StoryStrip navigation={navigation} refreshKey={route?.params?.storyRefreshAt || 0} />
 
       <SectionHeader title={t.categories} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.row}>

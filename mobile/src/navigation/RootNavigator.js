@@ -17,6 +17,9 @@ import ReviewSubmitScreen from "../screens/ReviewSubmitScreen";
 import SubmitPlaceScreen from "../screens/SubmitPlaceScreen";
 import PlaceApprovalScreen from "../screens/PlaceApprovalScreen";
 import MySubmissionsScreen from "../screens/MySubmissionsScreen";
+import CreateStoryScreen from "../screens/CreateStoryScreen";
+import StoryViewerScreen from "../screens/StoryViewerScreen";
+import StoryArchiveScreen from "../screens/StoryArchiveScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -44,6 +47,9 @@ export default function RootNavigator() {
         <Stack.Screen name="SubmitPlace" component={SubmitPlaceScreen} />
         <Stack.Screen name="MySubmissions" component={MySubmissionsScreen} />
         <Stack.Screen name="PlaceApprovals" component={PlaceApprovalScreen} />
+        <Stack.Screen name="CreateStory" component={CreateStoryScreen} />
+        <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
+        <Stack.Screen name="StoryArchive" component={StoryArchiveScreen} />
 
         <Stack.Screen name="ReviewsList" component={ReviewsListScreen} />
         <Stack.Screen name="ReviewSubmit" component={ReviewSubmitScreen} />

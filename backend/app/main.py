@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import auth, districts, places, reviews, favorites, itineraries, uploads, files, admin
+from .routers import admin, auth, districts, favorites, files, itineraries, places, reviews, stories, uploads
 
 
 def create_app() -> FastAPI:
@@ -23,6 +23,7 @@ def create_app() -> FastAPI:
     app.include_router(places.router, prefix="/places", tags=["Places"])
     app.include_router(reviews.router, prefix="/reviews", tags=["Reviews"])
     app.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
+    app.include_router(stories.router, tags=["Stories"])
     app.include_router(itineraries.router, tags=["Itineraries"])
     app.include_router(uploads.router, tags=["Uploads"])
     app.include_router(files.router, tags=["Files"])

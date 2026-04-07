@@ -61,3 +61,11 @@ def upload_place_image(file: UploadFile) -> Tuple[str, str]:
 
 def upload_place_video(file: UploadFile) -> Tuple[str, str]:
     return _upload_place_media(file, "videos")
+
+
+def upload_story_image(file: UploadFile) -> Tuple[str, str]:
+    return _upload_place_media(file, "stories/images")
+
+
+def upload_story_video(file: UploadFile) -> Tuple[str, str]:
+    return _upload_place_media(file, "stories/videos")

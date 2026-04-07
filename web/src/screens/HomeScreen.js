@@ -14,8 +14,9 @@ import { getBrowserLocation } from "../utils/browserLocation";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 import { useLanguage } from "../context/LanguageContext";
 import { fetchAdminDashboard } from "../services/adminApi";
+import StoryStrip from "../components/StoryStrip";
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const { role, user } = useSelector(state => state.auth);
   const { t } = useLanguage();
   const [featured, setFeatured] = useState([]);
@@ -126,6 +127,8 @@ export default function HomeScreen({ navigation }) {
         </Pressable>
         {locError ? <Text style={styles.locationError}>{locError}</Text> : null}
       </View>
+
+      <StoryStrip navigation={navigation} refreshKey={route?.params?.storyRefreshAt || 0} />
 
       <SectionHeader
         title={t("featuredDiscoveries")}

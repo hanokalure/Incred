@@ -34,6 +34,8 @@ export default function ProfileScreen({ navigation }) {
       <PrimaryButton label="App Language" onPress={() => navigation.navigate("Language", { title: "Language" })} variant="ghost" />
       <View style={styles.spacer} />
       <PrimaryButton label="Notifications" onPress={() => navigation.navigate("Notifications", { title: "Notifications" })} variant="ghost" />
+      <View style={styles.spacer} />
+      <PrimaryButton label="Story Archive" onPress={() => navigation.navigate("StoryArchive")} variant="ghost" />
 
       <View style={styles.spacer} />
       <PrimaryButton label="Add Place" onPress={() => navigation.navigate("SubmitPlace")} />

@@ -23,7 +23,7 @@ function StatCard({ label, value, icon }) {
   );
 }
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, role } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const { t, language } = useLanguage();
@@ -70,6 +70,10 @@ export default function ProfileScreen() {
           <StatCard label={t("profileSavedCount")} value={savedCount} icon="bookmark-outline" />
           <StatCard label={t("role")} value={(role || "user").toUpperCase()} icon="shield-checkmark-outline" />
           <StatCard label={t("language")} value={language.toUpperCase()} icon="language-outline" />
+        </View>
+
+        <View style={styles.actionRow}>
+          <PrimaryButton label="Story Archive" variant="ghost" onPress={() => navigation.navigate("StoryArchive")} />
         </View>
 
         <PrimaryButton
@@ -145,6 +149,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.lg,
     flexWrap: "wrap",
+  },
+  actionRow: {
+    marginBottom: spacing.lg,
   },
   statCard: {
     flex: 1,
