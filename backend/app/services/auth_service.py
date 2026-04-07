@@ -1,6 +1,10 @@
 from typing import Dict, Any
 from fastapi import HTTPException, status
-from supabase_auth.errors import AuthApiError
+
+try:
+    from supabase_auth.errors import AuthApiError
+except ImportError:
+    from gotrue.errors import AuthApiError
 
 from ..database import supabase_anon, supabase_admin
 
