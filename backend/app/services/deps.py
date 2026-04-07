@@ -4,8 +4,12 @@ import time
 from typing import Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase_auth.errors import AuthApiError
 import httpx
+
+try:
+    from supabase_auth.errors import AuthApiError
+except ImportError:
+    from gotrue.errors import AuthApiError
 
 from ..database import supabase_anon, supabase_admin
 from ..config import settings

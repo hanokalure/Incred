@@ -6,12 +6,32 @@ import boto3
 from fastapi import UploadFile, HTTPException, status
 from ..config import settings
 
-s3_client = boto3.client(
-    "s3",
-    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    region_name=settings.AWS_REGION,
-)
+_s3_client = None
+
+
+def get_s3_client():
+    global _s3_client
+    if _s3_client is None:
+        if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY or not settings.AWS_REGION:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="AWS S3 is not configured",
+            )
+        _s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION,
+        )
+    return _s3_client
+
+
+class LazyS3Client:
+    def __getattr__(self, name):
+        return getattr(get_s3_client(), name)
+
+
+s3_client = LazyS3Client()
 
 
 def _guess_extension(filename: str, content_type: str | None) -> str:
@@ -41,7 +61,7 @@ def _upload_place_media(file: UploadFile, media_type: str) -> Tuple[str, str]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
 
     try:
-        s3_client.put_object(
+        get_s3_client().put_object(
             Bucket=settings.AWS_S3_BUCKET,
             Key=object_path,
             Body=data,
