@@ -1,6 +1,6 @@
 import { getAuthToken } from "./authStore";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = String(process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 function buildHeaders(options = {}) {
   const headers = {
