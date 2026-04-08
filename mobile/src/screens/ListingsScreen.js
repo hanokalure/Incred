@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput } from "react-native";
+import * as Location from "expo-location";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -9,6 +10,32 @@ import { deletePlace, fetchPlaces, updatePlace } from "../services/placesApi";
 import { getAuthProfile } from "../services/authStore";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
+function toRad(value) {
+  return (value * Math.PI) / 180;
+}
+
+function haversineKm(a, b) {
+  if (!a || !b) return null;
+  const lat1 = Number(a.latitude);
+  const lon1 = Number(a.longitude);
+  const lat2 = Number(b.latitude);
+  const lon2 = Number(b.longitude);
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return null;
+  }
+
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const sourceLat = toRad(lat1);
+  const targetLat = toRad(lat2);
+  const aVal =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(sourceLat) * Math.cos(targetLat);
+  const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+  return earthRadiusKm * c;
+}
+
 export default function ListingsScreen({ navigation }) {
   const [places, setPlaces] = useState([]);
   const [role, setRole] = useState(null);
@@ -17,6 +44,7 @@ export default function ListingsScreen({ navigation }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [userLocation, setUserLocation] = useState(null);
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -41,6 +69,32 @@ export default function ListingsScreen({ navigation }) {
       .then((profile) => setRole(profile?.role || "user"))
       .catch(() => setRole("user"));
   }, []);
+
+  useEffect(() => {
+    if (role === "admin") return;
+
+    async function resolveLocation() {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== "granted") {
+          setUserLocation(null);
+          return;
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      } catch {
+        setUserLocation(null);
+      }
+    }
+
+    resolveLocation();
+  }, [role]);
 
   const startEdit = (place) => {
     setEditingId(place.id);
@@ -87,15 +141,27 @@ export default function ListingsScreen({ navigation }) {
 
   const visibleUserPlaces = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
-    if (!q) return places;
-    return (places || []).filter((p) => {
+    const filtered = !q
+      ? places
+      : (places || []).filter((p) => {
       const name = (p.name || "").toLowerCase();
       const category = (p.category || "").toLowerCase();
       const desc = (p.description || "").toLowerCase();
       const addr = (p.address || "").toLowerCase();
       return name.includes(q) || category.includes(q) || desc.includes(q) || addr.includes(q);
     });
-  }, [places, query]);
+    if (!userLocation) return filtered;
+    return filtered.map((p) => {
+      const km = haversineKm(userLocation, {
+        latitude: p.latitude,
+        longitude: p.longitude,
+      });
+      return {
+        ...p,
+        distance: km === null ? null : Number(km.toFixed(1)),
+      };
+    });
+  }, [places, query, userLocation]);
 
   return (
     <View style={styles.container}>

@@ -17,6 +17,8 @@ import {
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { fetchDistricts } from "../services/districtsApi";
+import { haversineKm } from "../utils/geo";
+import { getBrowserLocation } from "../utils/browserLocation";
 
 const CATEGORY_OPTIONS = [
   { label: "Restaurant", value: "restaurant" },
@@ -61,6 +63,7 @@ export default function ListingsScreen({ navigation }) {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterDistrictId, setFilterDistrictId] = useState("All");
+  const [userLocation, setUserLocation] = useState(null);
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -89,6 +92,13 @@ export default function ListingsScreen({ navigation }) {
       .then((data) => setDistricts(data || []))
       .catch(() => setDistricts([]));
   }, []);
+
+  useEffect(() => {
+    if (role === "admin") return;
+    getBrowserLocation()
+      .then((coords) => setUserLocation(coords))
+      .catch(() => setUserLocation(null));
+  }, [role]);
 
   useEffect(() => {
     loadPlaces();
@@ -129,15 +139,27 @@ export default function ListingsScreen({ navigation }) {
 
   const visibleUserPlaces = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
-    if (!q) return places;
-    return (places || []).filter((p) => {
+    const filtered = !q
+      ? places
+      : (places || []).filter((p) => {
       const name = (p.name || "").toLowerCase();
       const category = (p.category || "").toLowerCase();
       const desc = (p.description || "").toLowerCase();
       const addr = (p.address || "").toLowerCase();
       return name.includes(q) || category.includes(q) || desc.includes(q) || addr.includes(q);
     });
-  }, [places, query]);
+    if (!userLocation) return filtered;
+    return filtered.map((p) => {
+      const km = haversineKm(userLocation, {
+        latitude: p.latitude,
+        longitude: p.longitude,
+      });
+      return {
+        ...p,
+        distance: km === null ? null : Number(km.toFixed(1)),
+      };
+    });
+  }, [places, query, userLocation]);
 
   const startEdit = async (place) => {
     setStatus(`load-${place.id}`);
