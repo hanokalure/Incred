@@ -6,6 +6,7 @@ import { typography } from "../theme/typography";
 import PrimaryButton from "./PrimaryButton";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
+import { useLanguage } from "../context/LanguageContext";
 
 function buildPreviewMedia(place, limit = 3) {
   const images = (place?.image_urls || []).map((url) => ({ type: "image", url }));
@@ -19,8 +20,16 @@ export default function PlaceBottomSheet({
   onOpenDetails,
   onDirections,
 }) {
+  const { t, language } = useLanguage();
   const [imageFailed, setImageFailed] = useState(false);
   const [heroHover, setHeroHover] = useState(false);
+  const categoryLabel = {
+    restaurant: t("categoryRestaurant"),
+    generational_shop: t("categoryGenerationalShop"),
+    tourist_place: t("categoryTouristPlace"),
+    hidden_gem: t("categoryHiddenGem"),
+    stay: t("categoryStay"),
+  }[place?.category] || getPlaceCategoryLabel(place?.category, language);
 
   const heroUrl = useMemo(() => {
     const media = buildPreviewMedia(place, 1)[0];
@@ -51,7 +60,7 @@ export default function PlaceBottomSheet({
 
         <View style={styles.headerRow}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{getPlaceCategoryLabel(place.category)}</Text>
+            <Text style={styles.badgeText}>{categoryLabel}</Text>
           </View>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Text style={styles.closeText}>×</Text>
@@ -69,7 +78,7 @@ export default function PlaceBottomSheet({
         ) : null}
 
         <Text style={styles.mediaMeta}>
-          {photoCount} photo{photoCount === 1 ? "" : "s"} • {videoCount} video{videoCount === 1 ? "" : "s"}
+          {photoCount} {photoCount === 1 ? t("photoWord") : t("photosWord")} • {videoCount} {videoCount === 1 ? t("videoWord") : t("videosWord")}
         </Text>
 
         {heroUrl && !(heroUrl.type === "image" && imageFailed) ? (
@@ -96,12 +105,12 @@ export default function PlaceBottomSheet({
                 style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
               />
             ) : (
-              <Text style={styles.heroFallback}>Video available</Text>
+              <Text style={styles.heroFallback}>{t("videoAvailable")}</Text>
             )}
           </View>
         ) : (
           <View style={styles.heroWrap}>
-            <Text style={styles.heroFallback}>No photo</Text>
+            <Text style={styles.heroFallback}>{t("noPhoto")}</Text>
           </View>
         )}
 
@@ -121,7 +130,7 @@ export default function PlaceBottomSheet({
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <Text style={styles.thumbFallback}>Video</Text>
+                  <Text style={styles.thumbFallback}>{t("videoWord")}</Text>
                 )}
               </View>
             ))}
@@ -129,9 +138,9 @@ export default function PlaceBottomSheet({
         ) : null}
 
         <View style={styles.actions}>
-          <PrimaryButton label="Open Details" onPress={onOpenDetails} />
+          <PrimaryButton label={t("openDetails")} onPress={onOpenDetails} />
           <View style={styles.spacer} />
-          <PrimaryButton label="Directions" onPress={onDirections} variant="ghost" />
+          <PrimaryButton label={t("directions")} onPress={onDirections} variant="ghost" />
         </View>
       </View>
     </View>

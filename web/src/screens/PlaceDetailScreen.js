@@ -12,8 +12,10 @@ import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/saved
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function PlaceDetailScreen({ navigation, route }) {
+  const { t } = useLanguage();
   const role = useSelector((state) => state.auth.role);
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
@@ -21,6 +23,16 @@ export default function PlaceDetailScreen({ navigation, route }) {
   const [favoriteId, setFavoriteId] = useState(null);
   const [photoStatus, setPhotoStatus] = useState("idle");
   const [photoError, setPhotoError] = useState("");
+  const categoryLabel = (value) => {
+    const mapping = {
+      restaurant: t("categoryRestaurant"),
+      generational_shop: t("categoryGenerationalShop"),
+      tourist_place: t("categoryTouristPlace"),
+      hidden_gem: t("categoryHiddenGem"),
+      stay: t("categoryStay"),
+    };
+    return mapping[value] || getPlaceCategoryLabel(value);
+  };
 
   const loadPlace = () => {
     if (!placeId) return;
@@ -56,13 +68,13 @@ export default function PlaceDetailScreen({ navigation, route }) {
       }
     } catch (e) {
       console.warn("Failed to toggle saved:", e);
-      Alert.alert("Saved", e?.message || "Failed to save this place. Please try again.");
+      Alert.alert(t("savedAlertTitle"), e?.message || t("saveFailed"));
     }
   };
 
   const openDirections = () => {
     if (!place?.latitude || !place?.longitude) {
-      Alert.alert("Directions", "No coordinates available for this place yet.");
+      Alert.alert(t("directionsAlertTitle"), t("noCoordinates"));
       return;
     }
     const destination = `${place.latitude},${place.longitude}`;
@@ -72,7 +84,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
 
   const handleAddToItinerary = async () => {
     if (!place?.district_id) {
-      Alert.alert("Itinerary", "District is missing for this place.");
+      Alert.alert(t("itineraryAlertTitle"), t("missingDistrict"));
       return;
     }
     try {
@@ -84,7 +96,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
       });
       navigation.navigate("DayPlan", { plan: res?.plan, district_id: place.district_id });
     } catch (e) {
-      Alert.alert("Itinerary", e?.message || "Unable to add to itinerary.");
+      Alert.alert(t("itineraryAlertTitle"), e?.message || t("itineraryFailed"));
     }
   };
 
@@ -98,7 +110,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
       setPhotoStatus("submitting");
       await submitPlaceMedia(placeId, "image", uploaded.public_url);
       setPhotoStatus("submitted");
-      Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
+      Alert.alert(t("photoSubmittedAlertTitle"), t("photoSubmittedAlertBody"));
     } catch (e) {
       setPhotoStatus("idle");
       setPhotoError(e?.message || "Photo submission failed");
@@ -115,7 +127,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
       setPhotoStatus("submitting-video");
       await submitPlaceMedia(placeId, "video", uploaded.public_url);
       setPhotoStatus("submitted-video");
-      Alert.alert("Video Submitted", "Your video was sent for admin approval.");
+      Alert.alert(t("videoSubmittedAlertTitle"), t("videoSubmittedAlertBody"));
     } catch (e) {
       setPhotoStatus("idle");
       setPhotoError(e?.message || "Video submission failed");
@@ -124,39 +136,39 @@ export default function PlaceDetailScreen({ navigation, route }) {
 
   return (
     <PageCard>
-      <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
-      <Text style={styles.title}>{place?.name || "Place Details"}</Text>
+      <ScreenHeader title={t("placeDetailTitle")} onBack={() => navigation.goBack()} />
+      <Text style={styles.title}>{place?.name || t("placeDetailsFallback")}</Text>
       <Text style={styles.meta}>
-        Category: {getPlaceCategoryLabel(place?.category)} • Rating: {place?.avg_rating ?? "—"}
+        {t("categoryLabel")}: {categoryLabel(place?.category)} • {t("ratingLabel")}: {place?.avg_rating ?? "—"}
       </Text>
       {place?.address ? <Text style={styles.address}>{place.address}</Text> : null}
       <Text style={styles.desc}>
-        {place?.description || "No description available yet."}
+        {place?.description || t("noDescription")}
       </Text>
 
       {place?.restaurant_details ? (
         <View style={styles.detailsBox}>
-          <Text style={styles.detailsTitle}>Restaurant Details</Text>
-          {place.restaurant_details.cuisine ? <Text style={styles.detailsText}>Cuisine: {place.restaurant_details.cuisine}</Text> : null}
-          {place.restaurant_details.price_range ? <Text style={styles.detailsText}>Price: {place.restaurant_details.price_range}</Text> : null}
-          {place.restaurant_details.must_try ? <Text style={styles.detailsText}>Must try: {place.restaurant_details.must_try}</Text> : null}
+          <Text style={styles.detailsTitle}>{t("restaurantDetails")}</Text>
+          {place.restaurant_details.cuisine ? <Text style={styles.detailsText}>{t("cuisine")}: {place.restaurant_details.cuisine}</Text> : null}
+          {place.restaurant_details.price_range ? <Text style={styles.detailsText}>{t("price")}: {place.restaurant_details.price_range}</Text> : null}
+          {place.restaurant_details.must_try ? <Text style={styles.detailsText}>{t("mustTry")}: {place.restaurant_details.must_try}</Text> : null}
         </View>
       ) : null}
 
       {place?.stay_details ? (
         <View style={styles.detailsBox}>
-          <Text style={styles.detailsTitle}>Stay Details</Text>
-          {place.stay_details.stay_type ? <Text style={styles.detailsText}>Type: {place.stay_details.stay_type}</Text> : null}
+          <Text style={styles.detailsTitle}>{t("stayDetails")}</Text>
+          {place.stay_details.stay_type ? <Text style={styles.detailsText}>{t("type")}: {place.stay_details.stay_type}</Text> : null}
           {place.stay_details.price_per_night !== null && place.stay_details.price_per_night !== undefined ? (
-            <Text style={styles.detailsText}>Price/night: {place.stay_details.price_per_night}</Text>
+            <Text style={styles.detailsText}>{t("pricePerNight")}: {place.stay_details.price_per_night}</Text>
           ) : null}
           {place.stay_details.amenities?.length ? (
-            <Text style={styles.detailsText}>Amenities: {place.stay_details.amenities.join(", ")}</Text>
+            <Text style={styles.detailsText}>{t("amenities")}: {place.stay_details.amenities.join(", ")}</Text>
           ) : null}
         </View>
       ) : null}
 
-      <Text style={styles.section}>Photos</Text>
+      <Text style={styles.section}>{t("photos")}</Text>
       {place?.image_urls?.length ? (
         <View style={styles.photoList}>
           {place.image_urls.map((imageUrl, index) => (
@@ -170,23 +182,23 @@ export default function PlaceDetailScreen({ navigation, route }) {
           ))}
         </View>
       ) : (
-        <Text style={styles.emptyText}>No photos added yet.</Text>
+        <Text style={styles.emptyText}>{t("noPhotos")}</Text>
       )}
       {role !== "admin" ? (
         <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>Add Your Photo</Text>
-          <Text style={styles.detailsText}>You can suggest more photos for this place. Admin approval is required before they appear publicly.</Text>
+          <Text style={styles.detailsTitle}>{t("addYourPhoto")}</Text>
+          <Text style={styles.detailsText}>{t("addYourPhotoHint")}</Text>
           <View style={styles.fileInputWrap}>
             <input type="file" accept="image/*" onChange={handlePhotoAdd} />
           </View>
-          {photoStatus === "uploading" ? <Text style={styles.statusText}>Uploading photo...</Text> : null}
-          {photoStatus === "submitting" ? <Text style={styles.statusText}>Submitting for approval...</Text> : null}
-          {photoStatus === "submitted" ? <Text style={styles.successText}>Photo submitted for admin approval.</Text> : null}
+          {photoStatus === "uploading" ? <Text style={styles.statusText}>{t("uploadPhoto")}</Text> : null}
+          {photoStatus === "submitting" ? <Text style={styles.statusText}>{t("submitApproval")}</Text> : null}
+          {photoStatus === "submitted" ? <Text style={styles.successText}>{t("photoSubmitted")}</Text> : null}
           {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
         </View>
       ) : null}
 
-      <Text style={styles.section}>Videos</Text>
+      <Text style={styles.section}>{t("videos")}</Text>
       {place?.video_urls?.length ? (
         <View style={styles.videoList}>
           {place.video_urls.map((videoUrl, index) => (
@@ -205,30 +217,30 @@ export default function PlaceDetailScreen({ navigation, route }) {
           ))}
         </View>
       ) : (
-        <Text style={styles.emptyText}>No videos added yet.</Text>
+        <Text style={styles.emptyText}>{t("noVideos")}</Text>
       )}
       {role !== "admin" ? (
         <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>Add Your Video</Text>
-          <Text style={styles.detailsText}>You can suggest more videos for this place. Admin approval is required before they appear publicly.</Text>
+          <Text style={styles.detailsTitle}>{t("addYourVideo")}</Text>
+          <Text style={styles.detailsText}>{t("addYourVideoHint")}</Text>
           <View style={styles.fileInputWrap}>
             <input type="file" accept="video/*" onChange={handleVideoAdd} />
           </View>
-          {photoStatus === "uploading-video" ? <Text style={styles.statusText}>Uploading video...</Text> : null}
-          {photoStatus === "submitting-video" ? <Text style={styles.statusText}>Submitting video for approval...</Text> : null}
-          {photoStatus === "submitted-video" ? <Text style={styles.successText}>Video submitted for admin approval.</Text> : null}
+          {photoStatus === "uploading-video" ? <Text style={styles.statusText}>{t("uploadVideo")}</Text> : null}
+          {photoStatus === "submitting-video" ? <Text style={styles.statusText}>{t("submitVideoApproval")}</Text> : null}
+          {photoStatus === "submitted-video" ? <Text style={styles.successText}>{t("videoSubmitted")}</Text> : null}
           {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
         </View>
       ) : null}
 
       <View style={styles.buttonContainer}>
         <PrimaryButton
-          label={favoriteId ? "Remove from Saved" : "Save Place"}
+          label={favoriteId ? t("removeFromSaved") : t("savePlace")}
           onPress={handleToggleSaved}
         />
-        <PrimaryButton label="Add to Itinerary" onPress={handleAddToItinerary} variant="ghost" />
-        <PrimaryButton label="Get Directions" onPress={openDirections} variant="ghost" />
-        <PrimaryButton label="Read Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
+        <PrimaryButton label={t("addToItinerary")} onPress={handleAddToItinerary} variant="ghost" />
+        <PrimaryButton label={t("getDirections")} onPress={openDirections} variant="ghost" />
+        <PrimaryButton label={t("readReviews")} onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
       </View>
     </PageCard>
   );

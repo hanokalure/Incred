@@ -15,6 +15,16 @@ import { useLanguage } from "../context/LanguageContext";
 
 export default function MapScreen({ navigation }) {
   const { t } = useLanguage();
+  const categoryLabel = (value) => {
+    const mapping = {
+      restaurant: t("categoryRestaurant"),
+      generational_shop: t("categoryGenerationalShop"),
+      tourist_place: t("categoryTouristPlace"),
+      hidden_gem: t("categoryHiddenGem"),
+      stay: t("categoryStay"),
+    };
+    return mapping[value] || getPlaceCategoryLabel(value);
+  };
   const [userLocation, setUserLocation] = useState(null);
   const [activePlace, setActivePlace] = useState(null);
   const [places, setPlaces] = useState([]);
@@ -83,7 +93,7 @@ export default function MapScreen({ navigation }) {
 
   return (
     <PageCard>
-      <ScreenHeader title="Interactive Map" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={t("interactiveMapTitle")} onBack={() => navigation.goBack()} />
 
       <View style={styles.locationRow}>
         <Pressable onPress={resolveLocation} style={styles.locationButton}>
@@ -104,17 +114,17 @@ export default function MapScreen({ navigation }) {
         />
       </View>
 
-      <Text style={styles.section}>Filter</Text>
+      <Text style={styles.section}>{t("filter")}</Text>
       <View style={styles.row}>
         <CategoryChip
-          label="All"
+          label={t("all")}
           selected={selectedCategory === "All"}
           onPress={() => setSelectedCategory("All")}
         />
         {categories.map((c) => (
           <CategoryChip
             key={c}
-            label={`${getPlaceCategoryLabel(c)}${categoryCounts[c] ? ` (${categoryCounts[c]})` : ""}`}
+            label={`${categoryLabel(c)}${categoryCounts[c] ? ` (${categoryCounts[c]})` : ""}`}
             selected={selectedCategory === c}
             onPress={() => setSelectedCategory(c)}
             disabled={!categoryCounts[c]}

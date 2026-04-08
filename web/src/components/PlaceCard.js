@@ -3,14 +3,16 @@ import { View, Text, StyleSheet, Platform, Image, Pressable } from "react-native
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function PlaceCard({ name, category, distance, rating, imageUrl, videoUrl, onPress, hideDistance = false }) {
+  const { t } = useLanguage();
   const [imageFailed, setImageFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const distanceLabel =
     distance === null || distance === undefined || distance === ""
-      ? "Distance unknown"
-      : `${distance} km away`;
+      ? t("distanceUnknown")
+      : `${distance} ${t("kmAway")}`;
   const ratingLabel = rating === null || rating === undefined ? "—" : rating;
   const showImage = !!imageUrl && !imageFailed;
   const showVideo = !showImage && !!videoUrl && !videoFailed;
@@ -42,7 +44,7 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
         ) : (
           <View style={styles.imageFallback}>
             <Text style={styles.imageFallbackText}>
-              {imageUrl ? "Image unavailable" : videoUrl ? "Video unavailable" : "No image"}
+              {imageUrl ? t("imageUnavailable") : videoUrl ? t("videoUnavailable") : t("noPhoto")}
             </Text>
           </View>
         )}

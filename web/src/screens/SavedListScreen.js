@@ -10,9 +10,21 @@ import { typography } from "../theme/typography";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function SavedListScreen({ navigation }) {
+  const { t } = useLanguage();
   const [savedPlaces, setSavedPlaces] = useState([]);
+  const categoryLabel = (value) => {
+    const mapping = {
+      restaurant: t("categoryRestaurant"),
+      generational_shop: t("categoryGenerationalShop"),
+      tourist_place: t("categoryTouristPlace"),
+      hidden_gem: t("categoryHiddenGem"),
+      stay: t("categoryStay"),
+    };
+    return mapping[value] || getPlaceCategoryLabel(value);
+  };
 
   const load = useCallback(async () => {
       try {
@@ -35,15 +47,15 @@ export default function SavedListScreen({ navigation }) {
 
   return (
     <PageCard>
-      <ScreenHeader title="Saved Places" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={t("savedPlacesTitle")} onBack={() => navigation.goBack()} />
       {savedPlaces.length === 0 ? (
-        <Text style={styles.text}>No saved places yet.</Text>
+        <Text style={styles.text}>{t("noSavedPlaces")}</Text>
       ) : (
         savedPlaces.map((p) => (
           <PlaceCard
             key={p.id}
             name={p.name}
-            category={getPlaceCategoryLabel(p.category)}
+            category={categoryLabel(p.category)}
             rating={p.avg_rating ?? p.rating}
             imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
             videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}

@@ -19,14 +19,7 @@ import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { fetchDistricts } from "../services/districtsApi";
 import { haversineKm } from "../utils/geo";
 import { getBrowserLocation } from "../utils/browserLocation";
-
-const CATEGORY_OPTIONS = [
-  { label: "Restaurant", value: "restaurant" },
-  { label: "Generational Shop", value: "generational_shop" },
-  { label: "Tourist Place", value: "tourist_place" },
-  { label: "Hidden Gem", value: "hidden_gem" },
-  { label: "Stay", value: "stay" },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 function createEmptyForm() {
   return {
@@ -54,6 +47,7 @@ function createEmptyForm() {
 
 export default function ListingsScreen({ navigation }) {
   const role = useSelector((state) => state.auth.role);
+  const { t } = useLanguage();
   const [places, setPlaces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -67,11 +61,11 @@ export default function ListingsScreen({ navigation }) {
 
   const categoryLabel = (value) => {
     const mapping = {
-      restaurant: "Food",
-      stay: "Stay",
-      generational_shop: "Shops",
-      hidden_gem: "Hidden Gems",
-      tourist_place: "Tourist",
+      restaurant: t("categoryRestaurant"),
+      stay: t("categoryStay"),
+      generational_shop: t("categoryGenerationalShop"),
+      hidden_gem: t("categoryHiddenGem"),
+      tourist_place: t("categoryTouristPlace"),
     };
     return mapping[value] || value;
   };
@@ -105,15 +99,22 @@ export default function ListingsScreen({ navigation }) {
   }, [filterCategory, filterDistrictId]);
 
   const categoryOptions = useMemo(
-    () => [{ label: "All categories", value: "All" }, ...CATEGORY_OPTIONS],
-    []
+    () => [
+      { label: t("all"), value: "All" },
+      { label: t("categoryRestaurant"), value: "restaurant" },
+      { label: t("categoryGenerationalShop"), value: "generational_shop" },
+      { label: t("categoryTouristPlace"), value: "tourist_place" },
+      { label: t("categoryHiddenGem"), value: "hidden_gem" },
+      { label: t("categoryStay"), value: "stay" },
+    ],
+    [t]
   );
 
   const districtOptions = useMemo(() => {
-    const opts = [{ label: "All districts", value: "All" }];
+    const opts = [{ label: t("all"), value: "All" }];
     (districts || []).forEach((d) => opts.push({ label: d.name, value: String(d.id) }));
     return opts;
-  }, [districts]);
+  }, [districts, t]);
 
   const adminDistrictOptions = useMemo(
     () => (districts || []).map((d) => ({ label: d.name, value: String(d.id) })),
@@ -313,8 +314,8 @@ export default function ListingsScreen({ navigation }) {
 
   return (
     <PageCard>
-      <Text style={styles.title}>Listings</Text>
-      <Text style={styles.text}>Browse curated places and businesses.</Text>
+      <Text style={styles.title}>{t("listingsTitle")}</Text>
+      <Text style={styles.text}>{t("listingsSubtitle")}</Text>
 
       {role === "admin" ? (
         <>
@@ -329,22 +330,22 @@ export default function ListingsScreen({ navigation }) {
             />
             <View style={styles.filterRow}>
               <SelectField
-                label="Category"
+                label={t("category")}
                 value={filterCategory}
                 options={categoryOptions}
                 onChange={setFilterCategory}
               />
               <SelectField
-                label="District"
+                label={t("district")}
                 value={filterDistrictId}
                 options={districtOptions}
                 onChange={setFilterDistrictId}
               />
             </View>
             <View style={styles.filterActions}>
-              <PrimaryButton label="Refresh" onPress={loadPlaces} variant="ghost" />
+              <PrimaryButton label={t("refresh")} onPress={loadPlaces} variant="ghost" />
               <PrimaryButton
-                label="Clear"
+                label={t("clear")}
                 onPress={() => {
                   setQuery("");
                   setFilterCategory("All");
@@ -384,7 +385,7 @@ export default function ListingsScreen({ navigation }) {
                     <SelectField
                       label="Category"
                       value={form.category}
-                      options={CATEGORY_OPTIONS}
+                      options={categoryOptions.filter((option) => option.value !== "All")}
                       onChange={(value) => setForm((current) => ({ ...current, category: value }))}
                     />
                     <SelectField
@@ -571,32 +572,32 @@ export default function ListingsScreen({ navigation }) {
       ) : (
         <>
           <View style={styles.userSearchPanel}>
-            <Text style={styles.filterTitle}>Discover Search</Text>
+            <Text style={styles.filterTitle}>{t("discoverSearchTitle")}</Text>
             <TextInput
               style={styles.search}
               value={query}
               onChangeText={setQuery}
-              placeholder="Search by place, category, address..."
+              placeholder={t("discoverSearchPlaceholder")}
               placeholderTextColor={colors.textSecondary}
             />
             <View style={styles.filterRow}>
               <SelectField
-                label="Category"
+                label={t("category")}
                 value={filterCategory}
                 options={categoryOptions}
                 onChange={setFilterCategory}
               />
               <SelectField
-                label="District"
+                label={t("district")}
                 value={filterDistrictId}
                 options={districtOptions}
                 onChange={setFilterDistrictId}
               />
             </View>
             <View style={styles.filterActions}>
-              <PrimaryButton label="Refresh" onPress={loadPlaces} variant="ghost" />
+              <PrimaryButton label={t("refresh")} onPress={loadPlaces} variant="ghost" />
               <PrimaryButton
-                label="Clear"
+                label={t("clear")}
                 onPress={() => {
                   setQuery("");
                   setFilterCategory("All");

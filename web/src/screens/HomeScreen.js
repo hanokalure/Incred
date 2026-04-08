@@ -19,6 +19,16 @@ import StoryStrip from "../components/StoryStrip";
 export default function HomeScreen({ navigation, route }) {
   const { role, user } = useSelector(state => state.auth);
   const { t } = useLanguage();
+  const categoryLabel = (value) => {
+    const mapping = {
+      restaurant: t("categoryRestaurant"),
+      generational_shop: t("categoryGenerationalShop"),
+      tourist_place: t("categoryTouristPlace"),
+      hidden_gem: t("categoryHiddenGem"),
+      stay: t("categoryStay"),
+    };
+    return mapping[value] || getPlaceCategoryLabel(value);
+  };
   const [featured, setFeatured] = useState([]);
   const [adminDashboard, setAdminDashboard] = useState(null);
   const [adminError, setAdminError] = useState("");
@@ -118,7 +128,7 @@ export default function HomeScreen({ navigation, route }) {
   return (
     <PageCard>
       <View style={styles.header}>
-        <Text style={styles.title}>{t("greeting")}, {user?.name || "Explorer"}</Text>
+        <Text style={styles.title}>{t("greeting")}, {user?.name || t("explorer")}</Text>
         <Text style={styles.subtitle}>{t("greetingSubtitle")}</Text>
         <Pressable onPress={resolveLocation} style={styles.locationBtn}>
           <Text style={styles.locationText}>
@@ -140,7 +150,7 @@ export default function HomeScreen({ navigation, route }) {
           <View key={p.id} style={styles.featuredCardWrap}>
             <PlaceCard
               name={p.name}
-              category={getPlaceCategoryLabel(p.category)}
+              category={categoryLabel(p.category)}
               distance={p.distance}
               rating={p.avg_rating ?? p.rating}
               imageUrl={toDisplayImageUrl(p.image_urls?.[0])}

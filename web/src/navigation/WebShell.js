@@ -86,7 +86,7 @@ export default function WebShell() {
 
   const [active, setActive] = useState(homeRoute);
   const [collapsed, setCollapsed] = useState(width < 1024);
-  const [locationText, setLocationText] = useState("Locating...");
+  const [locationText, setLocationText] = useState(t("locating"));
 
   useEffect(() => {
     setCollapsed(width < 1024);
@@ -97,8 +97,12 @@ export default function WebShell() {
   }, [homeRoute]);
 
   useEffect(() => {
+    setLocationText(t("locating"));
+  }, [language, t]);
+
+  useEffect(() => {
     if (role === "admin") {
-      setLocationText("Admin workspace");
+      setLocationText(t("adminWorkspace"));
       return;
     }
 
@@ -106,13 +110,13 @@ export default function WebShell() {
       .then(async (location) => {
         try {
           const name = await reverseGeocodeLocation(location);
-          setLocationText(name || "Location active");
+          setLocationText(name || t("locationActive"));
         } catch (error) {
-          setLocationText("Location active");
+          setLocationText(t("locationActive"));
         }
       })
-      .catch(() => setLocationText("Location unavailable"));
-  }, [role]);
+      .catch(() => setLocationText(t("locationUnavailable")));
+  }, [role, language, t]);
 
   const go = (key) => {
     setActive(key);
