@@ -14,10 +14,20 @@ def create_app() -> FastAPI:
         if normalized and normalized not in origins:
             origins.append(normalized)
 
-    if origins:
+    allow_origin_regex = settings.CORS_ALLOW_ORIGIN_REGEX.strip() if settings.CORS_ALLOW_ORIGIN_REGEX else None
+
+    # `*` with allow_credentials=True is unreliable for browser-based auth flows.
+    # When wildcard access is requested, switch to a regex so the middleware
+    # echoes the caller origin instead of returning an unusable wildcard policy.
+    if origins == ["*"]:
+        origins = []
+        allow_origin_regex = allow_origin_regex or ".*"
+
+    if origins or allow_origin_regex:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
+            allow_origin_regex=allow_origin_regex,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],

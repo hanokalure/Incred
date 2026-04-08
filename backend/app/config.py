@@ -27,6 +27,7 @@ class Settings:
     AWS_S3_BASE_FOLDER: str = os.getenv("AWS_S3_BASE_FOLDER", "places")
 
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
+    CORS_ALLOW_ORIGIN_REGEX: Optional[str] = os.getenv("CORS_ALLOW_ORIGIN_REGEX")
 
 
 settings = Settings()
