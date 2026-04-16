@@ -3,14 +3,16 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 
-export default function PrimaryButton({ label, onPress, variant = "primary" }) {
+export default function PrimaryButton({ label, onPress, variant = "primary", disabled = false }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.base,
         variant === "ghost" && styles.ghost,
-        pressed && styles.pressed,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
       ]}
     >
       <Text style={[styles.text, variant === "ghost" && styles.ghostText]}>
@@ -59,5 +61,8 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
+  },
+  disabled: {
+    opacity: 0.6,
   },
 });

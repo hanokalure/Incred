@@ -2,6 +2,7 @@ import { getAuthToken } from "./authStore";
 import { getApiBaseUrl, getApiBaseUrls } from "./runtimeConfig";
 
 let API_BASE_URL = getApiBaseUrl();
+const REQUEST_TIMEOUT_MS = 8000;
 
 async function buildHeaders(options = {}) {
   const headers = {
@@ -36,7 +37,29 @@ async function handleResponse(res) {
 
 function isNetworkFailure(error) {
   const message = String(error?.message || "").toLowerCase();
-  return message.includes("network request failed") || message.includes("failed to fetch");
+  return (
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("request timed out") ||
+    error?.name === "AbortError"
+  );
+}
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs || REQUEST_TIMEOUT_MS);
+
+  try {
+    const { timeoutMs, ...fetchOptions } = options;
+    return await fetch(url, { ...fetchOptions, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchWithBaseFallback(path, options) {
@@ -45,13 +68,17 @@ async function fetchWithBaseFallback(path, options) {
 
   for (const base of candidateBases) {
     try {
-      const res = await fetch(`${base}${path}`, options);
+      const res = await fetchWithTimeout(`${base}${path}`, options);
       API_BASE_URL = base;
       return res;
     } catch (error) {
       lastError = error;
       if (!isNetworkFailure(error)) break;
     }
+  }
+
+  if (lastError && isNetworkFailure(lastError)) {
+    throw new Error(`Network request failed. Tried: ${candidateBases.join(", ")}`);
   }
 
   throw lastError || new Error("Network request failed");
@@ -61,6 +88,7 @@ export async function apiGet(path, options = {}) {
   const res = await fetchWithBaseFallback(path, {
     method: "GET",
     headers: await buildHeaders(options),
+    timeoutMs: options.timeoutMs,
   });
   return handleResponse(res);
 }
@@ -70,6 +98,7 @@ export async function apiPost(path, body, options = {}) {
     method: "POST",
     headers: await buildHeaders(options),
     body: JSON.stringify(body),
+    timeoutMs: options.timeoutMs,
   });
   return handleResponse(res);
 }
@@ -79,6 +108,7 @@ export async function apiPut(path, body, options = {}) {
     method: "PUT",
     headers: await buildHeaders(options),
     body: JSON.stringify(body),
+    timeoutMs: options.timeoutMs,
   });
   return handleResponse(res);
 }
@@ -87,6 +117,7 @@ export async function apiDelete(path, options = {}) {
   const res = await fetchWithBaseFallback(path, {
     method: "DELETE",
     headers: await buildHeaders(options),
+    timeoutMs: options.timeoutMs,
   });
   return handleResponse(res);
 }
@@ -96,6 +127,7 @@ export async function apiUpload(path, formData, options = {}) {
     method: "POST",
     headers: await buildHeaders({ ...options, contentType: null }),
     body: formData,
+    timeoutMs: options.timeoutMs,
   });
   return handleResponse(res);
 }

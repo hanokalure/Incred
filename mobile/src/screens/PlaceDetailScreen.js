@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Image, Alert, Platform } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import { useEffect, useState } from "react";
+import { View, Text, StyleSheet, Image, Alert, Platform, Pressable } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { useSelector } from "react-redux";
+import { Ionicons } from "@expo/vector-icons";
+import AppVideo from "../components/AppVideo";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchPlaceDetails, submitPlaceMedia } from "../services/placesApi";
+import { getAuthProfile } from "../services/authStore";
 import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
@@ -16,7 +17,7 @@ import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import PageCard from "../components/PageCard";
 
 export default function PlaceDetailScreen({ navigation, route }) {
-  const role = useSelector((state) => state.auth.role);
+  const [role, setRole] = useState("user");
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
   const [place, setPlace] = useState(null);
@@ -24,6 +25,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
   const [status, setStatus] = useState("idle");
   const [photoStatus, setPhotoStatus] = useState("idle");
   const [photoError, setPhotoError] = useState("");
+  const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -37,6 +39,26 @@ export default function PlaceDetailScreen({ navigation, route }) {
   };
 
   const isSaved = !!favoriteId;
+  const mediaSubmitted = photoStatus === "submitted" || photoStatus === "submitted-video";
+  const mediaBusy = photoStatus.startsWith("uploading") || photoStatus.startsWith("submitting");
+  const mediaStatusLabel =
+    photoStatus === "uploading"
+      ? "Uploading photo..."
+      : photoStatus === "submitting"
+        ? "Submitting photo..."
+        : photoStatus === "uploading-video"
+          ? "Uploading video..."
+          : photoStatus === "submitting-video"
+            ? "Submitting video..."
+            : mediaSubmitted
+              ? "Submitted for approval"
+              : "";
+
+  useEffect(() => {
+    getAuthProfile()
+      .then((profile) => setRole(profile?.role || "user"))
+      .catch(() => setRole("user"));
+  }, []);
 
   useEffect(() => {
     if (!placeId) return;
@@ -76,6 +98,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
 
   const handleAddPhoto = async () => {
     if (!placeId) return;
+    setMediaMenuOpen(false);
     setPhotoError("");
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== "granted") {
@@ -104,6 +127,7 @@ export default function PlaceDetailScreen({ navigation, route }) {
 
   const handleAddVideo = async () => {
     if (!placeId) return;
+    setMediaMenuOpen(false);
     setPhotoError("");
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== "granted") {
@@ -147,8 +171,9 @@ export default function PlaceDetailScreen({ navigation, route }) {
         )}
       </View>
 
-      {place?.image_urls?.length > 1 ? (
-        <>
+      <View style={styles.mediaSection}>
+        {place?.image_urls?.length > 1 ? (
+          <>
           <Text style={styles.section}>Photos</Text>
           <View style={styles.gallery}>
             {place.image_urls.slice(0, 3).map((imageUrl, index) => (
@@ -157,76 +182,77 @@ export default function PlaceDetailScreen({ navigation, route }) {
               </View>
             ))}
           </View>
-        </>
-      ) : null}
-      {role !== "admin" ? (
-        <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>Add Your Photo</Text>
-          <Text style={styles.detailsText}>You can suggest more photos for this place. Admin approval is required.</Text>
-          <PrimaryButton
-            label={
-              photoStatus === "uploading"
-                ? "Uploading..."
-                : photoStatus === "submitting"
-                  ? "Submitting..."
-                  : "Add Photo"
-            }
-            onPress={handleAddPhoto}
-            variant="ghost"
-          />
-          {photoStatus === "submitted" ? <Text style={styles.successText}>Photo submitted for admin approval.</Text> : null}
-          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
-        </View>
-      ) : null}
+          </>
+        ) : null}
 
-      <Text style={styles.section}>Videos</Text>
-      {place?.video_urls?.length ? (
-        <View style={styles.videoList}>
-          {place.video_urls.slice(0, 3).map((videoUrl, index) => (
-            <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
-              {Platform.OS === "web" ? (
-                <video
-                  src={toDisplayMediaUrl(videoUrl)}
-                  muted
-                  autoPlay
-                  loop
-                  playsInline
-                  controls
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <Video
-                  source={{ uri: toDisplayMediaUrl(videoUrl) }}
-                  style={styles.nativeVideo}
-                  resizeMode={ResizeMode.COVER}
-                  useNativeControls
-                  shouldPlay
-                  isLooping
-                  isMuted
-                />
-              )}
+        <Text style={styles.section}>Videos</Text>
+        {place?.video_urls?.length ? (
+          <View style={styles.videoList}>
+            {place.video_urls.slice(0, 3).map((videoUrl, index) => (
+              <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
+                {Platform.OS === "web" ? (
+                  <video
+                    src={toDisplayMediaUrl(videoUrl)}
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                    controls
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <AppVideo
+                    source={{ uri: toDisplayMediaUrl(videoUrl) }}
+                    style={styles.nativeVideo}
+                    contentFit="cover"
+                    nativeControls
+                    autoPlay
+                    loop
+                    muted
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>No videos added yet.</Text>
+        )}
+
+        {role !== "admin" ? (
+          <View style={styles.mediaActionsLayer} pointerEvents="box-none">
+            {mediaMenuOpen ? (
+              <View style={styles.mediaActionRail}>
+                <Pressable style={styles.mediaActionButton} onPress={handleAddPhoto} disabled={mediaBusy}>
+                  <Ionicons name="image-outline" size={18} color={colors.text} />
+                  <Text style={styles.mediaActionText}>Photo</Text>
+                </Pressable>
+                <Pressable style={styles.mediaActionButton} onPress={handleAddVideo} disabled={mediaBusy}>
+                  <Ionicons name="videocam-outline" size={18} color={colors.text} />
+                  <Text style={styles.mediaActionText}>Video</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.mediaFab, mediaBusy && styles.mediaFabDisabled]}
+              onPress={() => setMediaMenuOpen((value) => !value)}
+              disabled={mediaBusy}
+            >
+              <Ionicons name={mediaMenuOpen ? "close" : "add"} size={24} color={colors.text} />
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
+      {(mediaStatusLabel || photoError) && role !== "admin" ? (
+        <View style={styles.mediaFeedbackRow}>
+          {mediaStatusLabel ? (
+            <View style={[styles.mediaStatusChip, mediaSubmitted && styles.mediaStatusChipSuccess]}>
+              <Text style={[styles.mediaStatusText, mediaSubmitted && styles.mediaStatusTextSuccess]}>
+                {mediaStatusLabel}
+              </Text>
             </View>
-          ))}
-        </View>
-      ) : (
-        <Text style={styles.emptyText}>No videos added yet.</Text>
-      )}
-      {role !== "admin" ? (
-        <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>Add Your Video</Text>
-          <Text style={styles.detailsText}>You can suggest more videos for this place. Admin approval is required.</Text>
-          <PrimaryButton
-            label={
-              photoStatus === "uploading-video"
-                ? "Uploading Video..."
-                : photoStatus === "submitting-video"
-                  ? "Submitting Video..."
-                  : "Add Video"
-            }
-            onPress={handleAddVideo}
-            variant="ghost"
-          />
-          {photoStatus === "submitted-video" ? <Text style={styles.successText}>Video submitted for admin approval.</Text> : null}
+          ) : null}
           {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
         </View>
       ) : null}
@@ -290,6 +316,10 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  mediaSection: {
+    position: "relative",
+    marginBottom: spacing.lg,
+  },
   info: {
     marginBottom: spacing.xl,
   },
@@ -337,6 +367,82 @@ const styles = StyleSheet.create({
   nativeVideo: {
     width: "100%",
     height: "100%",
+  },
+  mediaActionsLayer: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.md,
+    alignItems: "flex-end",
+  },
+  mediaActionRail: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    alignItems: "flex-end",
+  },
+  mediaActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  mediaActionText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: "700",
+  },
+  mediaFab: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  mediaFabDisabled: {
+    opacity: 0.7,
+  },
+  mediaFeedbackRow: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  mediaStatusChip: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  mediaStatusChipSuccess: {
+    borderColor: colors.success,
+    backgroundColor: colors.background,
+  },
+  mediaStatusText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
+  mediaStatusTextSuccess: {
+    color: colors.success,
   },
   title: {
     ...typography.h1,
@@ -391,23 +497,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
-  photoSubmitBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  successText: {
-    ...typography.body,
-    color: colors.success,
-    marginTop: spacing.sm,
-  },
   errorText: {
     ...typography.body,
     color: colors.error,
-    marginTop: spacing.sm,
   },
   emptyText: {
     ...typography.body,

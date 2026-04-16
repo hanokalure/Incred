@@ -20,6 +20,7 @@ node_modules/
 
 # Python virtualenvs
 backend/.venv/
+backend/.ven/
 venv/
 .venv/
 env/
@@ -47,6 +48,23 @@ dist/
 build/
 **/dist/
 **/build/
+
+# Android / Gradle
+.gradle/
+**/.gradle/
+.gradle-user-home/
+**/.gradle-user-home/
+.kotlin/
+**/.kotlin/
+local.properties
+**/local.properties
+captures/
+**/captures/
+*.apk
+*.aab
+output.txt
+android-native/Get
+android-native/Run
 
 # macOS
 .AppleDouble

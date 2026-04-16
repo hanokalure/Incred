@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Platform, Image, Pressable } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import AppVideo from "./AppVideo";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -42,15 +42,13 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : showVideo ? (
-          <Video
+          <AppVideo
             source={{ uri: effectiveVideoUrl }}
             style={styles.video}
-            resizeMode={ResizeMode.COVER}
-            isLooping
-            shouldPlay
-            isMuted
-            onError={() => setVideoFailed(true)}
-            useNativeControls
+            contentFit="cover"
+            loop
+            autoPlay
+            muted
           />
         ) : (
           <View style={styles.imageFallback}>
@@ -62,9 +60,9 @@ export default function PlaceCard({ name, category, distance, rating, imageUrl, 
       </View>
       <View style={styles.content}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{category}</Text>
+          <Text style={styles.badgeText} numberOfLines={1}>{category}</Text>
         </View>
-        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.name} numberOfLines={2}>{name}</Text>
         <View style={styles.footer}>
           <Text style={styles.meta}>{distanceLabel}</Text>
           <View style={styles.ratingContainer}>
@@ -98,6 +96,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+    minHeight: 122,
+    justifyContent: "space-between",
   },
   imageWrap: {
     width: "100%",
@@ -140,17 +140,20 @@ const styles = StyleSheet.create({
   name: {
     ...typography.h3,
     color: colors.text,
+    minHeight: 48,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: spacing.sm,
+    gap: spacing.sm,
   },
   meta: {
     ...typography.body,
     fontSize: 14,
     color: colors.textSecondary,
+    flex: 1,
   },
   ratingContainer: {
     flexDirection: "row",

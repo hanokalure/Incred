@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Image, StyleSheet, Text, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Video, ResizeMode } from "expo-av";
+import AppVideo from "../components/AppVideo";
 import PageCard from "../components/PageCard";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
 import PrimaryButton from "../components/PrimaryButton";
@@ -97,14 +97,14 @@ export default function CreateStoryScreen({ navigation }) {
         {resolvedUri ? (
           <View style={styles.previewWrap}>
             {mediaType === "video" ? (
-              <Video
+              <AppVideo
                 source={{ uri: resolvedUri }}
                 style={styles.video}
-                resizeMode={ResizeMode.COVER}
-                isLooping
-                shouldPlay
-                isMuted
-                useNativeControls
+                contentFit="cover"
+                loop
+                autoPlay
+                muted
+                nativeControls
               />
             ) : (
               <Image source={{ uri: resolvedUri }} style={styles.previewImage} resizeMode="cover" />

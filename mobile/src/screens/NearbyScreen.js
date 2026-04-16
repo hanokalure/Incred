@@ -8,11 +8,13 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import { fetchPlaces } from "../services/placesApi";
+import { attachDistanceToPlaces, requestCurrentLocation } from "../services/locationHelpers";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
 export default function NearbyScreen({ navigation }) {
   const [places, setPlaces] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
 
   const CATEGORY_OPTIONS = [
     { label: "All", value: null },
@@ -42,6 +44,12 @@ export default function NearbyScreen({ navigation }) {
       .catch(() => setPlaces([]));
   }, [selected]);
 
+  useEffect(() => {
+    requestCurrentLocation().then(setUserLocation);
+  }, []);
+
+  const visiblePlaces = attachDistanceToPlaces(places, userLocation);
+
   return (
     <PageCard>
       <ScreenHeader title="Nearby Discoveries" onBack={() => navigation.goBack()} />
@@ -60,7 +68,7 @@ export default function NearbyScreen({ navigation }) {
       {places.length === 0 ? (
         <Text style={styles.text}>No places found in this category.</Text>
       ) : (
-        places.map((p) => (
+        visiblePlaces.map((p) => (
           <PlaceCard
             key={p.id}
             name={p.name}

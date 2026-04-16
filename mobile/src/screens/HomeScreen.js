@@ -9,8 +9,9 @@ import SectionHeader from "../components/SectionHeader";
 import PlaceCard from "../components/PlaceCard";
 import PrimaryButton from "../components/PrimaryButton";
 import { loadRecommendations } from "../store/slices/recommendationsSlice";
-import { fetchPlaces } from "../services/placesApi";
+import { fetchPlaceCategories, fetchPlaces } from "../services/placesApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
+import { attachDistanceToPlaces, requestCurrentLocation } from "../services/locationHelpers";
 import StoryStrip from "../components/StoryStrip";
 
 import PageCard from "../components/PageCard";
@@ -19,7 +20,9 @@ export default function HomeScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const language = useSelector((state) => state.lang.language);
   const [places, setPlaces] = useState([]);
-  const [status, setStatus] = useState("idle");
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
 
   const categoryLabel = (value) => {
     const mapping = {
@@ -32,16 +35,15 @@ export default function HomeScreen({ navigation, route }) {
     return mapping[value] || value;
   };
 
-  const categories = useMemo(() => {
-    const unique = new Set(places.map((p) => p.category).filter(Boolean));
-    return Array.from(unique).map(categoryLabel);
-  }, [places]);
-
-  const featured = places.slice(0, 6);
-  const allPlaces = places;
+  const allPlaces = useMemo(() => attachDistanceToPlaces(places, userLocation), [places, userLocation]);
+  const visiblePlaces = useMemo(() => {
+    if (!selectedCategory) return allPlaces;
+    return allPlaces.filter((place) => place.category === selectedCategory);
+  }, [allPlaces, selectedCategory]);
   const recommendedIds = useSelector((state) => state.recommendations.recommended);
-  const recStatus = useSelector((state) => state.recommendations.status);
-  const recommended = allPlaces.filter((p) => recommendedIds.includes(String(p.id)));
+  const recommended = visiblePlaces.filter((p) => recommendedIds.includes(String(p.id)));
+  const suggestedPlaces = (recommended.length ? recommended : visiblePlaces).slice(0, 6);
+  const recentPlaces = visiblePlaces.slice(0, 3);
 
   const t = {
     en: {
@@ -49,7 +51,7 @@ export default function HomeScreen({ navigation, route }) {
       explorer: "Explorer",
       subtitle: "Discover the soul of Karnataka through local experiences.",
       categories: "Top Categories",
-      curated: "Curated for You",
+      curated: "Suggested for You",
       showAll: "Show all",
     },
     kn: {
@@ -76,11 +78,19 @@ export default function HomeScreen({ navigation, route }) {
   }, [dispatch]);
 
   useEffect(() => {
-    setStatus("loading");
     fetchPlaces()
       .then((data) => setPlaces(data || []))
-      .catch(() => setPlaces([]))
-      .finally(() => setStatus("idle"));
+      .catch(() => setPlaces([]));
+  }, []);
+
+  useEffect(() => {
+    fetchPlaceCategories()
+      .then((data) => setCategories(data || []))
+      .catch(() => setCategories([]));
+  }, []);
+
+  useEffect(() => {
+    requestCurrentLocation().then(setUserLocation);
   }, []);
 
   return (
@@ -94,19 +104,34 @@ export default function HomeScreen({ navigation, route }) {
       <StoryStrip navigation={navigation} refreshKey={route?.params?.storyRefreshAt || 0} />
 
       <SectionHeader title={t.categories} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.row}>
-        {categories.map((c) => (
-          <CategoryChip key={c} label={c} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.row}
+        contentContainerStyle={styles.rowContent}
+      >
+        {categories.map((category) => (
+          <CategoryChip
+            key={category}
+            label={categoryLabel(category)}
+            selected={selectedCategory === category}
+            onPress={() => setSelectedCategory((value) => (value === category ? null : category))}
+          />
         ))}
       </ScrollView>
 
       <SectionHeader
         title={t.curated}
         action={t.showAll}
-        onActionPress={() => navigation.navigate("Discover")}
+        onActionPress={() => navigation.navigate("Discover", { category: selectedCategory })}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredRow}>
-        {featured.map((p) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.featuredRow}
+        contentContainerStyle={styles.featuredRowContent}
+      >
+        {suggestedPlaces.map((p) => (
           <View key={p.id} style={styles.featuredCardWrap}>
             <PlaceCard
               name={p.name}
@@ -134,7 +159,7 @@ export default function HomeScreen({ navigation, route }) {
       </View>
 
       <SectionHeader title="Recently Added" />
-      {featured.slice(0, 3).map((p) => (
+      {recentPlaces.map((p) => (
         <PlaceCard
           key={p.id}
           name={p.name}
@@ -149,7 +174,7 @@ export default function HomeScreen({ navigation, route }) {
 
       <PrimaryButton
         label="Browse All Places"
-        onPress={() => navigation.navigate("Discover")}
+        onPress={() => navigation.navigate("Discover", { category: selectedCategory })}
         variant="ghost"
       />
     </PageCard>
@@ -184,12 +209,18 @@ const styles = StyleSheet.create({
   },
   row: {
     marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
     marginBottom: spacing.xs,
+  },
+  rowContent: {
+    paddingLeft: spacing.lg,
+    paddingRight: spacing.xl,
   },
   featuredRow: {
     marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
+  },
+  featuredRowContent: {
+    paddingLeft: spacing.lg,
+    paddingRight: spacing.xl,
   },
   featuredCardWrap: {
     width: 260,

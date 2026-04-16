@@ -14,9 +14,15 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    if (status === "loading") return;
     setStatus("loading");
     setError("");
     try {
+      if (!email.trim() || !password) {
+        setError("Please enter email and password.");
+        setStatus("idle");
+        return;
+      }
       const data = await login({ email, password });
       const normalizedRole = String(data?.user?.role || "user").trim().toLowerCase();
       await setAuthToken(data.access_token);
@@ -52,6 +58,7 @@ export default function LoginScreen({ navigation }) {
       <PrimaryButton
         label={status === "loading" ? "Signing in..." : "Login"}
         onPress={handleLogin}
+        disabled={status === "loading"}
       />
       <View style={styles.spacer} />
       <PrimaryButton label="Create account" onPress={() => navigation.navigate("Register")} variant="ghost" />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Image, StyleSheet, Text, View } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import AppVideo from "../components/AppVideo";
 import PageCard from "../components/PageCard";
 import PrimaryButton from "../components/PrimaryButton";
 import ScreenHeader from "../components/ScreenHeader";
@@ -52,12 +52,12 @@ export default function StoryViewerScreen({ navigation, route }) {
           ))}
         </View>
         {story.media_type === "video" ? (
-          <Video
+          <AppVideo
             source={{ uri: toDisplayMediaUrl(story.media_url) }}
             style={styles.media}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            useNativeControls
+            contentFit="cover"
+            autoPlay
+            nativeControls
           />
         ) : (
           <Image source={{ uri: toDisplayMediaUrl(story.media_url) }} style={styles.media} resizeMode="cover" />

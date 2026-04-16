@@ -3,15 +3,26 @@ import { View, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
+import { getAuthToken } from "../services/authStore";
 
 export default function SplashScreen() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace("Onboarding");
-    }, 1200);
-    return () => clearTimeout(timer);
+    let active = true;
+
+    const bootstrap = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const token = await getAuthToken();
+      if (!active) return;
+      navigation.replace(token ? "MainTabs" : "Onboarding");
+    };
+
+    bootstrap();
+
+    return () => {
+      active = false;
+    };
   }, [navigation]);
 
   return (

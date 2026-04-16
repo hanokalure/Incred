@@ -15,9 +15,15 @@ export default function RegisterScreen({ navigation }) {
   const [error, setError] = useState("");
 
   const handleSignup = async () => {
+    if (status === "loading") return;
     setStatus("loading");
     setError("");
     try {
+      if (!name.trim() || !email.trim() || !password) {
+        setError("Name, email, and password are required.");
+        setStatus("idle");
+        return;
+      }
       const data = await signup({ name, email, password });
       if (data?.access_token) {
         const normalizedRole = String(data?.user?.role || "user").trim().toLowerCase();
@@ -56,6 +62,7 @@ export default function RegisterScreen({ navigation }) {
       <PrimaryButton
         label={status === "loading" ? "Creating..." : "Sign up"}
         onPress={handleSignup}
+        disabled={status === "loading"}
       />
       <View style={styles.spacer} />
       <PrimaryButton label="Back to login" onPress={() => navigation.goBack()} variant="ghost" />

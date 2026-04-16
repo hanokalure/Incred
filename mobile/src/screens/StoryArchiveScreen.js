@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Video, ResizeMode } from "expo-av";
+import AppVideo from "../components/AppVideo";
 import PageCard from "../components/PageCard";
 import PrimaryButton from "../components/PrimaryButton";
 import ScreenHeader from "../components/ScreenHeader";
@@ -52,14 +52,14 @@ export default function StoryArchiveScreen({ navigation }) {
             }
           >
             {story.media_type === "video" ? (
-              <Video
+              <AppVideo
                 source={{ uri: toDisplayMediaUrl(story.media_url) }}
                 style={styles.video}
-                resizeMode={ResizeMode.COVER}
-                isLooping
-                shouldPlay
-                isMuted
-                useNativeControls
+                contentFit="cover"
+                loop
+                autoPlay
+                muted
+                nativeControls
               />
             ) : (
               <Image source={{ uri: toDisplayMediaUrl(story.media_url) }} style={styles.image} resizeMode="cover" />

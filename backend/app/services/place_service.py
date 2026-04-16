@@ -17,6 +17,25 @@ ALLOWED_CATEGORIES = {
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv")
 
 
+def list_place_categories() -> List[str]:
+    result = (
+        supabase_anon.table("places")
+        .select("category")
+        .eq("approval_status", "approved")
+        .order("category")
+        .execute()
+    )
+    rows = result.data or []
+    categories = []
+    for row in rows:
+        category = row.get("category")
+        if category and category not in categories:
+            categories.append(category)
+
+    allowed_sorted = sorted(ALLOWED_CATEGORIES)
+    return categories or allowed_sorted
+
+
 def _normalize_media_arrays(payload: Dict[str, Any]) -> None:
     image_urls = payload.get("image_urls")
     if "image_urls" in payload and image_urls is None:

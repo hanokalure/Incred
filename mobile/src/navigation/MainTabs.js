@@ -37,6 +37,7 @@ export default function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: "Explore" }} />
+      <Tab.Screen name="Discover" component={SearchFilterScreen} options={{ title: "Discover" }} />
       <Tab.Screen name="Map" component={MapScreen} options={{ title: "Map" }} />
       <Tab.Screen name="Itinerary" component={ItineraryScreen} options={{ title: "Itinerary" }} />
       <Tab.Screen name="Saved" component={SavedListScreen} options={{ title: "Saved" }} />

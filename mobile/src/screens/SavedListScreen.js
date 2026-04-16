@@ -7,11 +7,13 @@ import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
+import { attachDistanceToPlaces, requestCurrentLocation } from "../services/locationHelpers";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
 export default function SavedListScreen({ navigation }) {
   const [savedPlaces, setSavedPlaces] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
 
   const load = useCallback(async () => {
       try {
@@ -32,6 +34,12 @@ export default function SavedListScreen({ navigation }) {
     }, [load])
   );
 
+  useEffect(() => {
+    requestCurrentLocation().then(setUserLocation);
+  }, []);
+
+  const visiblePlaces = attachDistanceToPlaces(savedPlaces, userLocation);
+
   return (
     <PageCard>
       <ScreenHeader title="Saved Collections" onBack={() => navigation.goBack()} />
@@ -40,7 +48,7 @@ export default function SavedListScreen({ navigation }) {
           <Text style={styles.emptyText}>You haven't saved any places yet. Start exploring to build your collection!</Text>
         </View>
       ) : (
-        savedPlaces.map((p) => (
+        visiblePlaces.map((p) => (
           <PlaceCard
             key={p.id}
             name={p.name}

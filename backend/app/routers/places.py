@@ -13,6 +13,7 @@ from ..schemas.places import (
 )
 from ..services.place_service import (
     list_places,
+    list_place_categories,
     get_place,
     create_place,
     update_place,
@@ -40,6 +41,11 @@ def get_places(
     category: Optional[str] = Query(default=None),
 ):
     return list_places(district_id=district_id, category=category)
+
+
+@router.get("/categories", response_model=List[str])
+def get_place_categories():
+    return list_place_categories()
 
 
 @router.post("", response_model=PlaceOut, status_code=201)

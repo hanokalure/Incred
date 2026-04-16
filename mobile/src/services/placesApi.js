@@ -4,6 +4,7 @@ export const fetchPlaces = (params = {}) => {
   const query = new URLSearchParams(params).toString();
   return apiGet(query ? `/places?${query}` : "/places");
 };
+export const fetchPlaceCategories = () => apiGet("/places/categories");
 
 // Fallback for existing screens: use backend list endpoint
 export const fetchNearbyPlaces = () => fetchPlaces();
