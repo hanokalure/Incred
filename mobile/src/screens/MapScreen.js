@@ -1,250 +1,409 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Platform, Linking } from "react-native";
-import MapView, { Marker } from "react-native-maps";
-import * as Location from "expo-location";
-import Constants from "expo-constants";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Linking, Modal, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "../components/ScreenHeader";
-import CategoryChip from "../components/CategoryChip";
 import PrimaryButton from "../components/PrimaryButton";
+import PlaceCard from "../components/PlaceCard";
+import LeafletPlacesMap from "../components/LeafletPlacesMap";
+import PageCard from "../components/PageCard";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import { setCategory, clearCategory } from "../store/slices/placesSlice";
+import { fetchPlaces } from "../services/placesApi";
+import { attachDistanceToPlaces, requestCurrentLocation, reverseGeocodeLocation } from "../services/locationHelpers";
+import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 
-import PageCard from "../components/PageCard";
+function categoryLabel(value) {
+  const mapping = {
+    restaurant: "Food",
+    stay: "Stay",
+    generational_shop: "Shops",
+    hidden_gem: "Hidden Gems",
+    tourist_place: "Tourist",
+  };
+  return mapping[value] || value || "Other";
+}
+
+function hasCoordinates(place) {
+  return Number.isFinite(Number(place?.latitude)) && Number.isFinite(Number(place?.longitude));
+}
 
 export default function MapScreen({ navigation }) {
-  const dispatch = useDispatch();
-  const categories = useSelector((state) => state.places.categories);
-  const selected = useSelector((state) => state.places.selectedCategory);
-  const places = useSelector((state) => state.places.places);
-
-  const [region, setRegion] = useState({
-    latitude: 12.9716,
-    longitude: 77.5946,
-    latitudeDelta: 0.15,
-    longitudeDelta: 0.15,
-  });
-
-  const [selectedPlace, setSelectedPlace] = useState(null);
-  const [routeInfo, setRouteInfo] = useState(null);
+  const [places, setPlaces] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationName, setLocationName] = useState("");
   const [locationError, setLocationError] = useState("");
+  const [activePlace, setActivePlace] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const mapsApiKey = Constants?.expoConfig?.extra?.googleMapsApiKey;
-  const hasGoogleMapsKey = !!mapsApiKey && !String(mapsApiKey).startsWith("YOUR_");
+  useEffect(() => {
+    fetchPlaces()
+      .then((data) => setPlaces(data || []))
+      .catch(() => setPlaces([]));
+  }, []);
 
-  const requestLocation = async () => {
+  const resolveLocation = async () => {
     setLocationError("");
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== "granted") {
-      setLocationError("Location permission is blocked. Enable it in app settings and try again.");
-      Linking.openSettings().catch(() => {});
+    const nextLocation = await requestCurrentLocation();
+    if (!nextLocation) {
+      setLocationName("");
+      setLocationError("Device location is unavailable. Showing Karnataka-wide results instead.");
       return;
     }
-
-    const provider = await Location.getProviderStatusAsync();
-    if (!provider.locationServicesEnabled) {
-      setLocationError("Location services are turned off. Enable GPS/location services and try again.");
-      return;
-    }
-
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Highest,
-      mayShowUserSettingsDialog: true,
-    });
-    setRegion((r) => ({
-      ...r,
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-    }));
+    setUserLocation(nextLocation);
+    const resolvedName = await reverseGeocodeLocation(nextLocation);
+    setLocationName(resolvedName || "");
   };
 
   useEffect(() => {
-    requestLocation().catch((error) => {
-      const message = String(error?.message || "");
-      if (message.toLowerCase().includes("denied")) {
-        setLocationError("Location permission denied. Enable it in app settings and try again.");
-        return;
-      }
-      if (message.toLowerCase().includes("timeout")) {
-        setLocationError("Location request timed out. Move to an open area and try again.");
-        return;
-      }
-      setLocationError(message || "Unable to access device location.");
+    resolveLocation().catch(() => {
+      setLocationError("Device location is unavailable. Showing Karnataka-wide results instead.");
     });
   }, []);
 
-  const filtered = selected === "All" ? places : places.filter((p) => p.category === selected);
-
-  const buildRoute = () => {
-    if (!selectedPlace) return;
-    setRouteInfo({
-      distance: `${selectedPlace.distance} km`,
-      eta: `${(selectedPlace.distance * 6).toFixed(0)} min`,
-      note: "Directions API placeholder",
+  const visiblePlaces = useMemo(() => {
+    const withDistance = attachDistanceToPlaces(places, userLocation);
+    return [...withDistance].sort((a, b) => {
+      const left = a.distance ?? Number.MAX_SAFE_INTEGER;
+      const right = b.distance ?? Number.MAX_SAFE_INTEGER;
+      return left - right;
     });
+  }, [places, userLocation]);
+
+  const mappablePlaces = useMemo(
+    () => visiblePlaces.filter((place) => hasCoordinates(place)),
+    [visiblePlaces]
+  );
+
+  useEffect(() => {
+    if (!visiblePlaces.length) {
+      setActivePlace(null);
+      setSheetOpen(false);
+      return;
+    }
+
+    setActivePlace((current) => {
+      if (current && visiblePlaces.some((place) => String(place.id) === String(current.id))) {
+        return visiblePlaces.find((place) => String(place.id) === String(current.id)) || current;
+      }
+      return visiblePlaces[0];
+    });
+  }, [visiblePlaces]);
+
+  const handleDirections = async (place) => {
+    if (!place || !hasCoordinates(place)) return;
+
+    const destination = `${place.latitude},${place.longitude}`;
+    const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : "";
+    const base = "https://www.google.com/maps/dir/?api=1";
+    const url = origin
+      ? `${base}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`
+      : `${base}&destination=${encodeURIComponent(destination)}`;
+
+    Linking.openURL(url).catch(() => {});
   };
 
+  const center = userLocation
+    ? [userLocation.latitude, userLocation.longitude]
+    : [14.8, 75.8];
+
+  const centerLabel = userLocation
+    ? locationName || `Near ${userLocation.latitude.toFixed(2)}, ${userLocation.longitude.toFixed(2)}`
+    : "Centered on Karnataka";
+
   return (
-    <PageCard scroll={false} cardStyle={styles.cardOverride}>
+    <PageCard>
       <ScreenHeader title="Interactive Map" onBack={() => navigation.goBack()} />
 
-      <View style={styles.mapWrap}>
-        <MapView
-          style={styles.map}
-          region={region}
-          showsUserLocation={true}
-        >
-          {filtered.map((m, idx) => (
-            <Marker
-              key={m.id}
-              coordinate={{
-                latitude: region.latitude + 0.01 * (idx + 1),
-                longitude: region.longitude + 0.01 * (idx + 1),
-              }}
-              title={m.name}
-              description={`${m.category} • ${m.distance} km`}
-              onPress={() => {
-                setSelectedPlace(m);
-                setRouteInfo(null);
-              }}
-            />
-          ))}
-        </MapView>
-      </View>
-      {!hasGoogleMapsKey ? (
-        <Text style={styles.locationError}>
-          Google Maps API key is not configured (`mobile/app.json` still has placeholder).
-        </Text>
-      ) : null}
-      {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
-      <PrimaryButton label="Enable Location" onPress={() => requestLocation()} variant="ghost" />
-
-      <Text style={styles.section}>Filter by Category</Text>
-      <View style={styles.row}>
-        <CategoryChip label="All" selected={selected === "All"} onPress={() => dispatch(clearCategory())} />
-        {categories.map((c) => (
-          <CategoryChip key={c} label={c} selected={selected === c} onPress={() => dispatch(setCategory(c))} />
-        ))}
+      <View style={styles.locationRow}>
+        <Pressable onPress={() => resolveLocation()} style={styles.locationButton}>
+          <Ionicons name="locate-outline" size={16} color={colors.text} />
+          <Text style={styles.locationButtonText}>{userLocation ? "Refresh location" : "Center on me"}</Text>
+        </Pressable>
+        <Text style={styles.locationMeta}>{centerLabel}</Text>
+        {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
       </View>
 
-      {selectedPlace ? (
-        <View style={styles.placeCard}>
-          <Text style={styles.name}>{selectedPlace.name}</Text>
-          <Text style={styles.meta}>{selectedPlace.category} • {selectedPlace.distance} km</Text>
-          <PrimaryButton
-            label="Open Place Detail"
-            onPress={() => navigation.navigate("PlaceDetail", { id: selectedPlace.id })}
-          />
-          <View style={styles.spacer} />
-          <PrimaryButton label="Get Directions" onPress={buildRoute} variant="ghost" />
-
-          {routeInfo && (
-            <View style={styles.routeInfo}>
-              <Text style={styles.routeTitle}>Optimal Route</Text>
-              <Text style={styles.meta}>ETA: {routeInfo.eta} ({routeInfo.distance})</Text>
-            </View>
-          )}
+      <View style={styles.mapFrame}>
+        <View style={styles.mapHeader}>
+          <View>
+            <Text style={styles.mapEyebrow}>Live map</Text>
+            <Text style={styles.mapTitle}>Explore places around {locationName || "Karnataka"}</Text>
+            <Text style={styles.mapSubtitle}>OpenStreetMap pins with tap-to-open place details.</Text>
+          </View>
+          <View style={styles.mapStats}>
+            <Text style={styles.mapStatsValue}>{mappablePlaces.length}</Text>
+            <Text style={styles.mapStatsLabel}>mapped</Text>
+          </View>
         </View>
-      ) : null}
+
+        <View style={styles.mapLegend}>
+          <View style={styles.legendPill}>
+            <Ionicons name="radio-button-on" size={12} color={colors.secondary} />
+            <Text style={styles.legendText}>{visiblePlaces.length} visible places</Text>
+          </View>
+          <View style={styles.legendPill}>
+            <Ionicons name="pin-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.legendText}>Tap any pin to open the details sheet</Text>
+          </View>
+        </View>
+
+        <View style={styles.mapCanvas}>
+          <LeafletPlacesMap
+            places={visiblePlaces}
+            selectedCategory="All"
+            center={center}
+            userLocation={userLocation}
+            activePlaceId={activePlace?.id}
+            onSelectPlace={(place) => {
+              setActivePlace(place);
+              setSheetOpen(true);
+            }}
+          />
+        </View>
+      </View>
+
+      <Modal
+        visible={sheetOpen && !!activePlace}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setSheetOpen(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setSheetOpen(false)} />
+          {activePlace ? (
+            <View style={styles.sheet}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.sheetHeader}>
+                <View style={styles.sheetTitleWrap}>
+                  <Text style={styles.sheetEyebrow}>Selected place</Text>
+                  <Text style={styles.sheetTitle}>{activePlace.name}</Text>
+                  <Text style={styles.sheetMeta}>
+                    {categoryLabel(activePlace.category)}
+                    {activePlace.distance !== null && activePlace.distance !== undefined ? ` - ${activePlace.distance} km` : ""}
+                  </Text>
+                </View>
+                <Pressable style={styles.sheetClose} onPress={() => setSheetOpen(false)}>
+                  <Ionicons name="close" size={18} color={colors.text} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScrollContent}>
+                <PlaceCard
+                  name={activePlace.name}
+                  category={categoryLabel(activePlace.category)}
+                  distance={activePlace.distance}
+                  rating={activePlace.avg_rating ?? activePlace.rating}
+                  imageUrl={toDisplayImageUrl(activePlace.image_urls?.[0])}
+                  videoUrl={toDisplayMediaUrl(activePlace.video_urls?.[0])}
+                />
+                <PrimaryButton
+                  label="Open Place Detail"
+                  onPress={() => {
+                    setSheetOpen(false);
+                    navigation.navigate("PlaceDetail", { id: activePlace.id });
+                  }}
+                />
+                <View style={styles.spacer} />
+                <PrimaryButton
+                  label={hasCoordinates(activePlace) ? "Get Directions" : "Location Unavailable"}
+                  onPress={() => handleDirections(activePlace)}
+                  variant="ghost"
+                  disabled={!hasCoordinates(activePlace)}
+                />
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  cardOverride: {
-    padding: 0,
+  locationRow: {
+    marginBottom: spacing.md,
   },
-  mapWrap: {
-    flex: 1,
+  locationButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  locationButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  locationMeta: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  locationError: {
+    ...typography.body,
+    color: colors.error,
+    fontSize: 13,
+    marginTop: spacing.xs,
+  },
+  mapFrame: {
+    borderRadius: 28,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  mapHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  mapEyebrow: {
+    ...typography.caption,
+    color: colors.secondary,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  mapTitle: {
+    ...typography.h2,
+    color: colors.text,
+    fontSize: 22,
+  },
+  mapSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    maxWidth: 250,
+  },
+  mapStats: {
+    minWidth: 74,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: 20,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+  },
+  mapStatsValue: {
+    ...typography.h2,
+    color: colors.text,
+    fontSize: 24,
+  },
+  mapStatsLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    letterSpacing: 0,
+  },
+  mapLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  legendPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: "rgba(255,255,255,0.84)",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.68)",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  legendText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  mapCanvas: {
+    height: 360,
     borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  map: {
-    flex: 1,
-  },
-  section: {
-    ...typography.h2,
-    fontSize: 20,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
-  row: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  locationError: {
-    ...typography.body,
-    color: colors.error,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  placeCard: {
-    position: "absolute",
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.15,
-        shadowRadius: 24,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  name: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  meta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 2,
-    marginBottom: spacing.md,
-  },
-  routeInfo: {
-    backgroundColor: colors.accent,
-    padding: spacing.md,
-    borderRadius: 16,
-    marginTop: spacing.md,
-  },
-  routeTitle: {
-    ...typography.h3,
-    fontSize: 16,
-    marginBottom: 4,
   },
   spacer: {
     height: spacing.sm,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(22, 24, 29, 0.34)",
+  },
+  sheet: {
+    maxHeight: "82%",
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sheetHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+    marginBottom: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  sheetTitleWrap: {
+    flex: 1,
+  },
+  sheetEyebrow: {
+    ...typography.caption,
+    color: colors.secondary,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  sheetTitle: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  sheetMeta: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  sheetClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sheetScrollContent: {
+    paddingBottom: spacing.sm,
   },
 });

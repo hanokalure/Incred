@@ -60,6 +60,29 @@ export async function requestCurrentLocation() {
   }
 }
 
+export async function reverseGeocodeLocation(coords) {
+  if (!coords) return null;
+
+  try {
+    const results = await Location.reverseGeocodeAsync({
+      latitude: Number(coords.latitude),
+      longitude: Number(coords.longitude),
+    });
+
+    const first = results?.[0];
+    if (!first) return null;
+
+    return [
+      first.city,
+      first.district,
+      first.subregion,
+      first.region,
+    ].find(Boolean) || null;
+  } catch {
+    return null;
+  }
+}
+
 export function attachDistanceToPlaces(places, userLocation) {
   return (places || []).map((place) => {
     const km = haversineKm(userLocation, {
