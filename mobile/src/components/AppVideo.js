@@ -1,4 +1,5 @@
-import { Video, ResizeMode } from "expo-av";
+import { useEffect } from "react";
+import { VideoView, useVideoPlayer } from "expo-video";
 
 export default function AppVideo({
   source,
@@ -11,16 +12,33 @@ export default function AppVideo({
 }) {
   const normalizedSource =
     typeof source === "string" ? { uri: source } : source?.uri ? { uri: source.uri } : source;
+  const resolvedSource = normalizedSource?.uri || normalizedSource;
+  const player = useVideoPlayer(resolvedSource, (instance) => {
+    instance.loop = loop;
+    instance.muted = muted;
+    if (autoPlay) {
+      instance.play();
+    }
+  });
+
+  useEffect(() => {
+    player.loop = loop;
+    player.muted = muted;
+
+    if (autoPlay) {
+      player.play();
+      return;
+    }
+
+    player.pause();
+  }, [autoPlay, loop, muted, player]);
 
   return (
-    <Video
-      source={normalizedSource}
+    <VideoView
+      player={player}
       style={style}
-      resizeMode={ResizeMode[contentFit?.toUpperCase()] || ResizeMode.COVER}
-      useNativeControls={nativeControls}
-      shouldPlay={autoPlay}
-      isLooping={loop}
-      isMuted={muted}
+      contentFit={contentFit}
+      nativeControls={nativeControls}
     />
   );
 }

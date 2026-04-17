@@ -15,6 +15,7 @@ export default function CategoryChip({ label, selected, onPress }) {
 
 const styles = StyleSheet.create({
   chip: {
+    minHeight: 40,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: 16,
@@ -22,6 +23,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginRight: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
   },
   selected: {
     backgroundColor: colors.primary,
@@ -31,6 +35,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: "600",
     fontSize: 14,
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   textSelected: {
     color: colors.text,

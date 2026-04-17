@@ -403,11 +403,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 40,
+    alignSelf: "flex-start",
   },
   filterButtonText: {
     ...typography.body,
     color: colors.text,
     fontWeight: "700",
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   resultsCount: {
     ...typography.h3,
@@ -436,6 +440,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginRight: spacing.sm,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sortChipActive: {
     backgroundColor: colors.accent,
@@ -447,6 +454,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "600",
+    includeFontPadding: false,
   },
   sortChipTextActive: {
     color: colors.text,
@@ -598,6 +606,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 40,
+    alignSelf: "flex-start",
   },
   toggleChipActive: {
     backgroundColor: colors.primary,
@@ -607,6 +617,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     fontWeight: "700",
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   toggleChipTextActive: {
     color: colors.text,
@@ -628,11 +640,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: spacing.md,
+    minHeight: 52,
   },
   resetButtonText: {
     ...typography.body,
     color: colors.textSecondary,
     fontWeight: "700",
+    lineHeight: 22,
+    includeFontPadding: false,
   },
   applyButton: {
     flex: 1,
@@ -641,11 +656,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: spacing.md,
+    minHeight: 52,
   },
   applyButtonText: {
     ...typography.body,
     color: colors.text,
     fontWeight: "700",
+    lineHeight: 22,
+    includeFontPadding: false,
   },
   empty: {
     marginTop: spacing.xl,

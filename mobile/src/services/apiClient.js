@@ -1,7 +1,5 @@
 import { getAuthToken } from "./authStore";
-import { getApiBaseUrl, getApiBaseUrls } from "./runtimeConfig";
-
-let API_BASE_URL = getApiBaseUrl();
+import { getApiBaseUrl, getApiBaseUrls, setApiBaseUrl } from "./runtimeConfig";
 const REQUEST_TIMEOUT_MS = 8000;
 
 async function buildHeaders(options = {}) {
@@ -63,13 +61,14 @@ async function fetchWithTimeout(url, options) {
 }
 
 async function fetchWithBaseFallback(path, options) {
-  const candidateBases = [API_BASE_URL, ...getApiBaseUrls().filter((url) => url !== API_BASE_URL)];
+  const activeBase = getApiBaseUrl();
+  const candidateBases = [activeBase, ...getApiBaseUrls().filter((url) => url !== activeBase)];
   let lastError = null;
 
   for (const base of candidateBases) {
     try {
       const res = await fetchWithTimeout(`${base}${path}`, options);
-      API_BASE_URL = base;
+      setApiBaseUrl(base);
       return res;
     } catch (error) {
       lastError = error;

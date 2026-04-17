@@ -1,15 +1,23 @@
 import { getApiBaseUrl } from "./runtimeConfig";
 
-const API_BASE_URL = getApiBaseUrl();
-
 function toProxyPlaceImageUrl(objectPath) {
   if (!objectPath) return objectPath;
-  return `${API_BASE_URL}/files/place-images/${objectPath}`;
+  return `${getApiBaseUrl()}/files/place-images/${objectPath}`;
 }
 
 function toProxyStoryMediaUrl(objectPath) {
   if (!objectPath) return objectPath;
-  return `${API_BASE_URL}/files/story-media/${objectPath}`;
+  return `${getApiBaseUrl()}/files/story-media/${objectPath}`;
+}
+
+function extractProxyObjectPath(urlOrPath, bucketPath) {
+  if (!urlOrPath || typeof urlOrPath !== "string") return null;
+
+  const marker = `/files/${bucketPath}/`;
+  const markerIndex = urlOrPath.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  return urlOrPath.slice(markerIndex + marker.length).split("?")[0];
 }
 
 function extractPlaceImagesObjectPath(urlOrPath) {
@@ -20,8 +28,8 @@ function extractPlaceImagesObjectPath(urlOrPath) {
 
   if (typeof urlOrPath !== "string") return null;
 
-  // Prefer proxy URLs as-is.
-  if (urlOrPath.includes("/files/place-images/")) return null;
+  const proxiedObjectPath = extractProxyObjectPath(urlOrPath, "place-images");
+  if (proxiedObjectPath) return proxiedObjectPath;
 
   // Signed URL format:
   //   .../storage/v1/object/sign/place-images/<objectPath>?token=...
@@ -46,7 +54,8 @@ function extractPlaceImagesObjectPath(urlOrPath) {
 function extractStoryObjectPath(urlOrPath) {
   if (!urlOrPath || typeof urlOrPath !== "string") return null;
   if (urlOrPath.startsWith("places/stories/")) return urlOrPath;
-  if (urlOrPath.includes("/files/story-media/")) return null;
+  const proxiedObjectPath = extractProxyObjectPath(urlOrPath, "story-media");
+  if (proxiedObjectPath) return proxiedObjectPath;
   return null;
 }
 

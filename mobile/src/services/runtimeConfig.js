@@ -1,6 +1,8 @@
 import { NativeModules, Platform } from "react-native";
 import Constants from "expo-constants";
 
+let resolvedApiBaseUrl = "";
+
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
@@ -38,6 +40,7 @@ export function getApiBaseUrls() {
   };
 
   if (explicit) push(explicit);
+  if (resolvedApiBaseUrl) push(resolvedApiBaseUrl);
 
   const host = hostFromExpoRuntime();
   if (host) push(`http://${host}:8000`);
@@ -54,5 +57,13 @@ export function getApiBaseUrls() {
 
 export function getApiBaseUrl() {
   const urls = getApiBaseUrls();
-  return urls[0] || "http://localhost:8000";
+  const next = urls[0] || "http://localhost:8000";
+  resolvedApiBaseUrl = normalizeBaseUrl(next);
+  return resolvedApiBaseUrl;
+}
+
+export function setApiBaseUrl(url) {
+  const normalized = normalizeBaseUrl(url);
+  if (!normalized) return;
+  resolvedApiBaseUrl = normalized;
 }

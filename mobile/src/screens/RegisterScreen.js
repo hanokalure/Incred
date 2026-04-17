@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
+import { useDispatch } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
 import { signup } from "../services/authApi";
 import { setAuthProfile, setAuthToken } from "../services/authStore";
+import { login as loginAction } from "../store/slices/authSlice";
 
 export default function RegisterScreen({ navigation }) {
+  const dispatch = useDispatch();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,9 +30,10 @@ export default function RegisterScreen({ navigation }) {
       const data = await signup({ name, email, password });
       if (data?.access_token) {
         const normalizedRole = String(data?.user?.role || "user").trim().toLowerCase();
+        const normalizedUser = data?.user ? { ...data.user, role: normalizedRole } : null;
         await setAuthToken(data.access_token);
-        await setAuthProfile(data.user ? { ...data.user, role: normalizedRole } : null);
-        navigation.replace("MainTabs");
+        await setAuthProfile(normalizedUser);
+        dispatch(loginAction({ user: normalizedUser, role: normalizedRole, token: data.access_token }));
       } else {
         navigation.goBack();
       }

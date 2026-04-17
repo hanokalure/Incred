@@ -15,7 +15,9 @@ export default function SplashScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       const token = await getAuthToken();
       if (!active) return;
-      navigation.replace(token ? "MainTabs" : "Onboarding");
+      if (!token) {
+        navigation.replace("Onboarding");
+      }
     };
 
     bootstrap();
