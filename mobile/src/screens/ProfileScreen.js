@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal, Image, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { colors } from "../theme/colors";
@@ -12,7 +13,9 @@ import PageCard from "../components/PageCard";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { fetchMySubmissions } from "../services/placesApi";
 import { fetchMyStoryArchive } from "../services/storiesApi";
-import { logout as logoutAction } from "../store/slices/authSlice";
+import { logout as logoutAction, updateUser } from "../store/slices/authSlice";
+import { toDisplayMediaUrl } from "../services/mediaUrl";
+import { uploadProfilePic } from "../services/authApi";
 
 function StatCard({ label, value, icon, tone = "default" }) {
   return (
@@ -51,13 +54,6 @@ function formatRole(role) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function compactId(id) {
-  if (!id) return "Unavailable";
-  const value = String(id);
-  if (value.length <= 10) return value;
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
 export default function ProfileScreen({ navigation }) {
   const { user, role } = useSelector((state) => state.auth);
   const language = useSelector((state) => state.lang.language);
@@ -67,19 +63,60 @@ export default function ProfileScreen({ navigation }) {
     storyCount: 0,
     submissionCount: 0,
   });
+  const [uploading, setUploading] = useState(false);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
 
-  const displayName = user?.name || user?.email?.split("@")[0] || "Explorer";
+  const handlePhotoPick = async () => {
+    setIsMenuVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Denied", "We need camera roll permissions to change your profile picture.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      const name = uri.split("/").pop();
+      const match = /\.(\w+)$/.exec(name);
+      const type = match ? `image/${match[1]}` : `image`;
+
+      const formData = new FormData();
+      formData.append("file", { uri, name, type });
+
+      setUploading(true);
+      try {
+        const response = await uploadProfilePic(formData);
+        if (response && response.profile_pic) {
+          dispatch(updateUser({ profile_pic: response.profile_pic }));
+        }
+      } catch (err) {
+        console.error("Upload failed", err);
+        Alert.alert("Upload Failed", err.message || "Failed to upload profile picture.");
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
   const roleLabel = formatRole(role);
   const languageLabel = String(language || "en").toUpperCase();
-  const profileFacts = useMemo(
-    () => [
+  
+  const profileFacts = useMemo(() => {
+    return [
       { label: "Email", value: user?.email || "No email available", icon: "mail-outline" },
       { label: "Role", value: roleLabel, icon: role === "admin" ? "shield-checkmark-outline" : "compass-outline" },
       { label: "Language", value: languageLabel, icon: "language-outline" },
-      { label: "Member ID", value: compactId(user?.id), icon: "finger-print-outline" },
-    ],
-    [languageLabel, role, roleLabel, user?.email, user?.id]
-  );
+    ];
+  }, [languageLabel, role, roleLabel, user?.email]);
 
   const quickActions = useMemo(
     () => [
@@ -111,13 +148,6 @@ export default function ProfileScreen({ navigation }) {
         detail: `Currently set to ${languageLabel}`,
         icon: "language-outline",
         onPress: () => navigation.navigate("Language", { title: "Language" }),
-      },
-      {
-        key: "notifications",
-        title: "Notifications",
-        detail: "Manage alerts and updates",
-        icon: "notifications-outline",
-        onPress: () => navigation.navigate("Notifications", { title: "Notifications" }),
       },
       {
         key: "achievements",
@@ -181,218 +211,279 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <PageCard>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.heroShell}>
-          <View style={styles.heroGlowLarge} />
-          <View style={styles.heroGlowSmall} />
-          <View style={styles.heroTopRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
-            </View>
-            <View style={styles.heroBadge}>
-              <Ionicons name={role === "admin" ? "sparkles-outline" : "compass-outline"} size={14} color={colors.text} />
-              <Text style={styles.heroBadgeText}>{roleLabel}</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroTextWrap}>
-            <Text style={styles.eyebrow}>Account</Text>
-            <Text style={styles.title}>{displayName}</Text>
-            <Text style={styles.subtitle}>
-              Your account center for saved places, submissions, stories, and app preferences.
-            </Text>
-          </View>
-
-          <View style={styles.heroChips}>
-            <View style={styles.heroChip}>
-              <Ionicons name="bookmark-outline" size={14} color={colors.text} />
-              <Text style={styles.heroChipText}>{stats.savedCount} saved</Text>
-            </View>
-            <View style={styles.heroChip}>
-              <Ionicons name="albums-outline" size={14} color={colors.text} />
-              <Text style={styles.heroChipText}>{stats.storyCount} stories</Text>
-            </View>
-            <View style={styles.heroChip}>
-              <Ionicons name="document-text-outline" size={14} color={colors.text} />
-              <Text style={styles.heroChipText}>{stats.submissionCount} submissions</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Overview</Text>
-          <Text style={styles.sectionCaption}>Live account details from your active session</Text>
-        </View>
-
-        <View style={styles.statRow}>
-          <StatCard label="saved places" value={stats.savedCount} icon="bookmark-outline" tone="primary" />
-          <StatCard label="story archive" value={stats.storyCount} icon="albums-outline" />
-          <StatCard label="submissions" value={stats.submissionCount} icon="document-text-outline" />
-        </View>
-
-        <View style={styles.infoCard}>
-          {profileFacts.map((fact) => (
-            <View key={fact.label} style={styles.infoRow}>
-              <View style={styles.infoIconWrap}>
-                <Ionicons name={fact.icon} size={16} color={colors.secondary} />
+      <View style={styles.topProfileSection}>
+        <View style={styles.avatarContainer}>
+          <Pressable onPress={() => setIsMenuVisible(true)} disabled={uploading} style={styles.avatarWrapper}>
+            {user?.profile_pic ? (
+              <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitial}>{(user?.name || "U").slice(0, 1).toUpperCase()}</Text>
               </View>
-              <View style={styles.infoCopy}>
-                <Text style={styles.infoLabel}>{fact.label}</Text>
-                <Text style={styles.infoValue}>{fact.value}</Text>
-              </View>
+            )}
+            <View style={styles.editBadge}>
+              <Ionicons name={uploading ? "sync" : "camera"} size={20} color="#fff" />
             </View>
-          ))}
+          </Pressable>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <Text style={styles.sectionCaption}>Most-used profile and contribution areas</Text>
+        <View style={styles.userInfoCentered}>
+          <Text style={styles.userNameCentered}>{user?.name || "Guest"}</Text>
+          <Text style={styles.userMetaCentered}>{user?.email || ""}</Text>
+          <View style={styles.roleBadgeCentered}>
+            <Ionicons name={role === "admin" ? "sparkles-outline" : "compass-outline"} size={14} color={colors.primary} />
+            <Text style={styles.roleTextCentered}>{roleLabel}</Text>
+          </View>
         </View>
 
-        <View style={styles.actionGroup}>
-          {quickActions.map((item) => (
-            <ActionTile
-              key={item.key}
-              icon={item.icon}
-              title={item.title}
-              detail={item.detail}
-              onPress={item.onPress}
-              tone={item.tone}
-            />
-          ))}
+        <View style={styles.heroChips}>
+          <View style={styles.heroChip}>
+            <Ionicons name="bookmark-outline" size={14} color={colors.text} />
+            <Text style={styles.heroChipText}>{stats.savedCount} saved</Text>
+          </View>
+          <View style={styles.heroChip}>
+            <Ionicons name="albums-outline" size={14} color={colors.text} />
+            <Text style={styles.heroChipText}>{stats.storyCount} stories</Text>
+          </View>
         </View>
+      </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{role === "admin" ? "Publishing Tools" : "Creator Tools"}</Text>
-          <Text style={styles.sectionCaption}>
-            {role === "admin" ? "Workflows available with admin access" : "Your contribution and submission workflow"}
-          </Text>
-        </View>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Overview</Text>
+        <Text style={styles.sectionCaption}>Live account details from your active session</Text>
+      </View>
 
-        <View style={styles.actionGroup}>
-          {creatorActions.map((item) => (
-            <ActionTile
-              key={item.key}
-              icon={item.icon}
-              title={item.title}
-              detail={item.detail}
-              onPress={item.onPress}
-              tone={item.tone}
-            />
-          ))}
-        </View>
+      <View style={styles.statRow}>
+        <StatCard label="saved places" value={stats.savedCount} icon="bookmark-outline" tone="primary" />
+        <StatCard label="story archive" value={stats.storyCount} icon="albums-outline" />
+        <StatCard label="submissions" value={stats.submissionCount} icon="document-text-outline" />
+      </View>
 
-        <View style={styles.logoutSection}>
-          <PrimaryButton
-            label="Logout"
-            onPress={async () => {
-              await clearAuthToken();
-              await clearAuthProfile();
-              dispatch(logoutAction());
-            }}
-            variant="ghost"
+      <View style={styles.infoCard}>
+        {profileFacts.map((fact) => (
+          <View key={fact.label} style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Ionicons name={fact.icon} size={16} color={colors.secondary} />
+            </View>
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoLabel}>{fact.label}</Text>
+              <Text style={styles.infoValue}>{fact.value}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionCaption}>Most-used profile and contribution areas</Text>
+      </View>
+
+      <View style={styles.actionGroup}>
+        {quickActions.map((item) => (
+          <ActionTile
+            key={item.key}
+            icon={item.icon}
+            title={item.title}
+            detail={item.detail}
+            onPress={item.onPress}
+            tone={item.tone}
           />
+        ))}
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{role === "admin" ? "Publishing Tools" : "Creator Tools"}</Text>
+        <Text style={styles.sectionCaption}>
+          {role === "admin" ? "Workflows available with admin access" : "Your contribution and submission workflow"}
+        </Text>
+      </View>
+
+      <View style={styles.actionGroup}>
+        {creatorActions.map((item) => (
+          <ActionTile
+            key={item.key}
+            icon={item.icon}
+            title={item.title}
+            detail={item.detail}
+            onPress={item.onPress}
+            tone={item.tone}
+          />
+        ))}
+      </View>
+
+      <View style={styles.logoutSection}>
+        <PrimaryButton
+          label="Logout"
+          variant="ghost"
+          onPress={async () => {
+            await clearAuthToken();
+            await clearAuthProfile();
+            dispatch(logoutAction());
+          }}
+        />
+      </View>
+
+      {/* Choice Menu Modal */}
+      <Modal visible={isMenuVisible} transparent animationType="fade" onRequestClose={() => setIsMenuVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setIsMenuVisible(false)}>
+          <View style={styles.menuCard}>
+            <Text style={styles.menuTitle}>Profile Photo</Text>
+            <Pressable 
+              style={styles.menuItem} 
+              onPress={() => {
+                setIsMenuVisible(false);
+                setIsViewerVisible(true);
+              }}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: "#E0F2F1" }]}>
+                <Ionicons name="eye-outline" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>View Photo</Text>
+            </Pressable>
+            
+            <Pressable style={styles.menuItem} onPress={handlePhotoPick}>
+              <View style={[styles.menuIcon, { backgroundColor: "#FFF3E0" }]}>
+                <Ionicons name="create-outline" size={20} color="#E67E22" />
+              </View>
+              <Text style={styles.menuItemText}>Change Photo</Text>
+            </Pressable>
+            
+            <Pressable style={[styles.menuItem, { marginTop: spacing.sm }]} onPress={() => setIsMenuVisible(false)}>
+              <Text style={[styles.menuItemText, { color: colors.textMuted, width: "100%", textAlign: "center" }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Image Viewer Modal */}
+      <Modal visible={isViewerVisible} transparent animationType="slide" onRequestClose={() => setIsViewerVisible(false)}>
+        <View style={styles.viewerOverlay}>
+          <Pressable style={styles.viewerClose} onPress={() => setIsViewerVisible(false)}>
+            <Ionicons name="close" size={30} color="#fff" />
+          </Pressable>
+          {user?.profile_pic ? (
+            <Image 
+              source={{ uri: toDisplayMediaUrl(user.profile_pic) }} 
+              style={styles.fullImage} 
+              resizeMode="contain" 
+            />
+          ) : (
+            <View style={styles.viewerPlaceholder}>
+              <Text style={styles.viewerInitial}>{(user?.name || "U").slice(0, 1).toUpperCase()}</Text>
+            </View>
+          )}
         </View>
-      </ScrollView>
+      </Modal>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  heroShell: {
-    backgroundColor: colors.surface,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    overflow: "hidden",
-    position: "relative",
-  },
-  heroGlowLarge: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 999,
-    right: -40,
-    top: -50,
-    backgroundColor: colors.accent,
-  },
-  heroGlowSmall: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 999,
-    left: -20,
-    bottom: -28,
-    backgroundColor: "#FFF1B8",
-  },
-  heroTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.md,
-  },
-  avatar: {
-    width: 78,
-    height: 78,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
+  topProfileSection: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.7)",
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    width: "100%",
   },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: colors.text,
+  avatarContainer: {
+    position: "relative",
+    marginBottom: spacing.lg,
   },
-  heroBadge: {
-    flexDirection: "row",
+  avatarWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: colors.surface,
+    borderWidth: 4,
+    borderColor: colors.border,
     alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: "rgba(255, 215, 0, 0.22)",
-    borderWidth: 1,
-    borderColor: "rgba(206, 17, 38, 0.1)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
+    justifyContent: "center",
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
-  heroBadgeText: {
-    ...typography.caption,
-    color: colors.text,
-    letterSpacing: 0.4,
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
-  heroTextWrap: {
-    marginBottom: spacing.md,
+  avatarPlaceholder: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
   },
-  eyebrow: {
-    ...typography.caption,
-    color: colors.secondary,
-    letterSpacing: 0.6,
-    marginBottom: spacing.xs,
+  avatarInitial: {
+    fontSize: 56,
+    fontWeight: "900",
+    color: colors.primary,
   },
-  title: {
+  editBadge: {
+    position: "absolute",
+    right: 4,
+    bottom: 4,
+    backgroundColor: colors.primary,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 3,
+    borderColor: colors.elevated,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  userInfoCentered: {
+    alignItems: "center",
+    marginBottom: spacing.lg,
+  },
+  userNameCentered: {
     ...typography.h2,
+    fontSize: 28,
     color: colors.text,
-    marginBottom: spacing.xs,
+    fontWeight: "900",
+    textAlign: "center",
+    marginBottom: 4,
   },
-  subtitle: {
+  userMetaCentered: {
     ...typography.body,
     color: colors.textSecondary,
-    maxWidth: "92%",
+    textAlign: "center",
+    marginBottom: spacing.sm,
+  },
+  roleBadgeCentered: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  roleTextCentered: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   heroChips: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "center",
     gap: spacing.sm,
+    marginBottom: spacing.xl,
   },
   heroChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 999,
@@ -405,6 +496,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  menuCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: 28,
+    padding: spacing.xl,
+    alignItems: "center",
+    elevation: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+  },
+  menuTitle: {
+    ...typography.h3,
+    marginBottom: spacing.xl,
+    color: colors.text,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    padding: spacing.md,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    marginBottom: spacing.md,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  menuItemText: {
+    ...typography.body,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 20,
+    padding: 10,
+  },
+  fullImage: {
+    width: "100%",
+    height: "80%",
+  },
+  viewerPlaceholder: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerInitial: {
+    fontSize: 100,
+    fontWeight: "900",
+    color: "#fff",
   },
   sectionHeader: {
     marginBottom: spacing.md,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, Image } from "react-native";
+import { View, Text, StyleSheet, TextInput, Image } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -102,77 +102,77 @@ export default function PlaceApprovalScreen({ navigation }) {
   return (
     <PageCard>
       <ScreenHeader title="Place Approvals" onBack={() => navigation.goBack()} />
-      <ScrollView>
-        <Text style={styles.subtitle}>Review and verify community-submitted discovery points.</Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {pendingPlaces.length === 0 ? <Text style={styles.empty}>No pending submissions right now.</Text> : null}
-        {pendingPlaces.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>
-              {categoryLabel(item.category)} • District {item.district_id}
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={rejectReasonById[item.id] || ""}
-              onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [item.id]: value }))}
-              placeholder="Optional rejection reason"
-              placeholderTextColor={colors.textSecondary}
+      <Text style={styles.subtitle}>Review and verify community-submitted discovery points.</Text>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {pendingPlaces.length === 0 ? <Text style={styles.empty}>No pending submissions right now.</Text> : null}
+      {pendingPlaces.map((item) => (
+        <View key={item.id} style={styles.card}>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.meta}>
+            {categoryLabel(item.category)} • District {item.district_id}
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={rejectReasonById[item.id] || ""}
+            onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [item.id]: value }))}
+            placeholder="Optional rejection reason"
+            placeholderTextColor={colors.textSecondary}
+          />
+          <View style={styles.actions}>
+            <PrimaryButton
+              label={status === `approve-${item.id}` ? "Approving..." : "Approve"}
+              onPress={() => handleApprove(item.id)}
             />
-            <View style={styles.actions}>
-              <PrimaryButton
-                label={status === `approve-${item.id}` ? "Approving..." : "Approve"}
-                onPress={() => handleApprove(item.id)}
-              />
-              <PrimaryButton
-                label={status === `reject-${item.id}` ? "Rejecting..." : "Reject"}
-                onPress={() => handleReject(item.id)}
-                variant="ghost"
-              />
-            </View>
-          </View>
-        ))}
-        <Text style={styles.subtitle}>Pending media additions</Text>
-        {pendingPhotoSubmissions.length === 0 ? <Text style={styles.empty}>No pending media submissions right now.</Text> : null}
-        {pendingPhotoSubmissions.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <Text style={styles.name}>{item.place_name || `Place ${item.place_id}`}</Text>
-            <Text style={styles.meta}>Submitted by {item.submitted_by_name || "Member"}</Text>
-            <View style={styles.previewWrap}>
-              {item.media_type === "video" ? (
-                <Text style={styles.meta}>Pending video: {item.video_url || item.media_url}</Text>
-              ) : (
-                <Image source={{ uri: toDisplayImageUrl(item.image_url || item.media_url) }} style={styles.previewImage} resizeMode="cover" />
-              )}
-            </View>
-            <TextInput
-              style={styles.input}
-              value={rejectReasonById[`photo-${item.id}`] || ""}
-              onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [`photo-${item.id}`]: value }))}
-              placeholder="Optional rejection reason"
-              placeholderTextColor={colors.textSecondary}
+            <PrimaryButton
+              label={status === `reject-${item.id}` ? "Rejecting..." : "Reject"}
+              onPress={() => handleReject(item.id)}
+              variant="ghost"
             />
-            <View style={styles.actions}>
-              <PrimaryButton
-                label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Media"}
-                onPress={() => handlePhotoApprove(item.id)}
-              />
-              <PrimaryButton
-                label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Media"}
-                onPress={() => handlePhotoReject(item.id)}
-                variant="ghost"
-              />
-            </View>
           </View>
-        ))}
-      </ScrollView>
+        </View>
+      ))}
+      <Text style={styles.subtitle}>Pending media additions</Text>
+      {pendingPhotoSubmissions.length === 0 ? <Text style={styles.empty}>No pending media submissions right now.</Text> : null}
+      {pendingPhotoSubmissions.map((item) => (
+        <View key={item.id} style={styles.card}>
+          <Text style={styles.name}>{item.place_name || `Place ${item.place_id}`}</Text>
+          <Text style={styles.meta}>Submitted by {item.submitted_by_name || "Member"}</Text>
+          <View style={styles.previewWrap}>
+            {item.media_type === "video" ? (
+              <Text style={styles.meta}>Pending video: {item.video_url || item.media_url}</Text>
+            ) : (
+              <Image source={{ uri: toDisplayImageUrl(item.image_url || item.media_url) }} style={styles.previewImage} resizeMode="cover" />
+            )}
+          </View>
+          <TextInput
+            style={styles.input}
+            value={rejectReasonById[`photo-${item.id}`] || ""}
+            onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [`photo-${item.id}`]: value }))}
+            placeholder="Optional rejection reason"
+            placeholderTextColor={colors.textSecondary}
+          />
+          <View style={styles.actions}>
+            <PrimaryButton
+              label={status === `approve-photo-${item.id}` ? "Approving..." : "Approve Media"}
+              onPress={() => handlePhotoApprove(item.id)}
+            />
+            <PrimaryButton
+              label={status === `reject-photo-${item.id}` ? "Rejecting..." : "Reject Media"}
+              onPress={() => handlePhotoReject(item.id)}
+              variant="ghost"
+            />
+          </View>
+        </View>
+      ))}
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
   subtitle: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    lineHeight: typography.body.lineHeight,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
   },
@@ -185,11 +185,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   name: {
-    ...typography.h3,
+    fontSize: typography.h3.fontSize,
+    fontWeight: typography.h3.fontWeight,
     color: colors.text,
   },
   meta: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.textSecondary,
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
@@ -222,12 +224,14 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   error: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.error,
     marginBottom: spacing.md,
   },
   empty: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.textSecondary,
   },
 });

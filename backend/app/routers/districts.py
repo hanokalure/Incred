@@ -8,10 +8,10 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[DistrictOut])
-def get_districts():
-    return list_districts()
+async def get_districts():
+    return await list_districts()
 
 
 @router.get("/{district_id}", response_model=DistrictOut)
-def get_district_by_id(district_id: int):
-    return get_district(district_id)
+async def get_district_by_id(district_id: int):
+    return await get_district(district_id)

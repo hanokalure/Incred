@@ -3,12 +3,14 @@ import { useSelector, useDispatch } from "react-redux";
 import { toggleLanguage } from "../store/slices/langSlice";
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 
 export default function BrandHeader() {
     const dispatch = useDispatch();
+    const navigation = useNavigation();
     const language = useSelector((state) => state.lang.language);
     const [locationName, setLocationName] = useState("Detecting...");
 
@@ -28,8 +30,7 @@ export default function BrandHeader() {
                 }
 
                 let location = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.Highest,
-                    mayShowUserSettingsDialog: true,
+                    accuracy: Location.Accuracy.Balanced,
                 });
                 let reverse = await Location.reverseGeocodeAsync({
                     latitude: location.coords.latitude,
@@ -59,14 +60,23 @@ export default function BrandHeader() {
                 </View>
             </View>
 
-            <Pressable
-                onPress={() => dispatch(toggleLanguage())}
-                style={styles.langToggle}
-            >
-                <Text style={styles.langText}>
-                    {language === "en" ? "KN" : "EN"}
-                </Text>
-            </Pressable>
+            <View style={styles.rightActions}>
+                <Pressable
+                    onPress={() => navigation.navigate("Notifications", { title: "Notifications" })}
+                    style={styles.actionBtn}
+                >
+                    <Text style={styles.actionIcon}>🔔</Text>
+                </Pressable>
+
+                <Pressable
+                    onPress={() => dispatch(toggleLanguage())}
+                    style={styles.langToggle}
+                >
+                    <Text style={styles.langText}>
+                        {language === "en" ? "KN" : "EN"}
+                    </Text>
+                </Pressable>
+            </View>
         </View>
     );
 }
@@ -112,6 +122,24 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: colors.textSecondary,
         maxWidth: "80%",
+    },
+    rightActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    actionBtn: {
+        backgroundColor: colors.surface,
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    actionIcon: {
+        fontSize: 18,
     },
     langToggle: {
         backgroundColor: colors.surface,

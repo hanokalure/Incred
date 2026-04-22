@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, Alert, Image, Linking } from "react-native";
+import { View, Text, TextInput, StyleSheet, Alert, Image, Linking } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import ScreenHeader from "../components/ScreenHeader";
@@ -234,9 +234,10 @@ export default function SubmitPlaceScreen({ navigation }) {
   return (
     <PageCard>
       <ScreenHeader title="Submit a Place" onBack={() => navigation.goBack()} />
-      <ScrollView style={styles.content}>
+      <View style={styles.formContainer}>
         <Text style={styles.label}>Place name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
+        
         <Text style={styles.label}>Google Maps Link</Text>
         <TextInput
           value={googleMapsLink}
@@ -252,6 +253,7 @@ export default function SubmitPlaceScreen({ navigation }) {
           variant="ghost"
         />
         <Text style={styles.helper}>We will try to fill address, district, latitude, and longitude from the link.</Text>
+        
         <SelectField
           label="Category"
           placeholder="Choose category"
@@ -266,17 +268,22 @@ export default function SubmitPlaceScreen({ navigation }) {
           options={districtOptions}
           onChange={setDistrictId}
         />
+        
         <Text style={styles.label}>Address</Text>
         <TextInput value={address} onChangeText={setAddress} style={styles.input} />
+        
         <Text style={styles.label}>Latitude</Text>
         <TextInput value={latitude} onChangeText={setLatitude} style={styles.input} keyboardType="numeric" />
+        
         <Text style={styles.label}>Longitude</Text>
         <TextInput value={longitude} onChangeText={setLongitude} style={styles.input} keyboardType="numeric" />
+        
         <PrimaryButton
           label={locStatus === "loading" ? "Fetching..." : "Use My Location"}
           onPress={useCurrentLocation}
           variant="ghost"
         />
+        
         <Text style={styles.label}>Description</Text>
         <TextInput
           value={description}
@@ -321,24 +328,30 @@ export default function SubmitPlaceScreen({ navigation }) {
           variant="ghost"
         />
         {uploadStatus === "uploading" ? <Text style={styles.helper}>Uploading photo…</Text> : null}
-        {imageUrl ? <Text style={styles.helper}>Uploaded: {imageUrl}</Text> : null}
+        {imageUrl ? <Text style={styles.helper}>Uploaded photo attached.</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <PrimaryButton
-          label={status === "loading" ? "Submitting..." : "Submit Place"}
-          onPress={handleSubmit}
-        />
-      </ScrollView>
+        
+        <View style={styles.submitWrap}>
+          <PrimaryButton
+            label={status === "loading" ? "Submitting..." : "Submit Place"}
+            onPress={handleSubmit}
+          />
+        </View>
+      </View>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    marginTop: spacing.md,
+  formContainer: {
+    paddingVertical: spacing.md,
   },
   label: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    lineHeight: typography.body.lineHeight,
     marginBottom: spacing.xs,
+    color: colors.textSecondary,
   },
   input: {
     backgroundColor: colors.surface,
@@ -347,25 +360,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    lineHeight: typography.body.lineHeight,
+    color: colors.text,
   },
   textArea: {
     height: 110,
     textAlignVertical: "top",
   },
   error: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    lineHeight: typography.body.lineHeight,
     color: colors.error,
     marginBottom: spacing.md,
+    textAlign: "center",
   },
   helper: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  row: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+    fontSize: typography.caption.fontSize,
+    fontWeight: typography.caption.fontWeight,
+    color: colors.textMuted,
     marginBottom: spacing.md,
   },
   previewWrap: {
@@ -381,5 +396,9 @@ const styles = StyleSheet.create({
   previewImage: {
     width: "100%",
     height: "100%",
+  },
+  submitWrap: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
   },
 });

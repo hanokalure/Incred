@@ -98,4 +98,20 @@ class IkRepository @Inject constructor(
     suspend fun approvePlace(placeId: Int): PlaceCardDto {
         return apiService.approvePlace(placeId)
     }
+
+    suspend fun rejectPlace(placeId: Int, reason: String?): PlaceCardDto {
+        return apiService.rejectPlace(placeId, com.incrediblekarnataka.android.data.model.PlaceApprovalAction(reason))
+    }
+
+    suspend fun getPendingPhotoSubmissions(): List<com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto> {
+        return apiService.getPendingPhotoSubmissions()
+    }
+
+    suspend fun approvePlacePhotoSubmission(submissionId: Int): com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto {
+        return apiService.approvePlacePhotoSubmission(submissionId)
+    }
+
+    suspend fun rejectPlacePhotoSubmission(submissionId: Int, reason: String?): com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto {
+        return apiService.rejectPlacePhotoSubmission(submissionId, com.incrediblekarnataka.android.data.model.PlaceApprovalAction(reason))
+    }
 }

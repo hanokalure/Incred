@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AppVideo from "../components/AppVideo";
 import PageCard from "../components/PageCard";
@@ -38,7 +38,7 @@ export default function StoryArchiveScreen({ navigation }) {
       <ScreenHeader title="Story Archive" onBack={() => navigation.goBack()} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!stories.length ? <Text style={styles.empty}>No expired stories in your archive yet.</Text> : null}
-      <ScrollView contentContainerStyle={styles.list}>
+      <View style={styles.list}>
         {stories.map((story) => (
           <Pressable
             key={story.id}
@@ -101,7 +101,7 @@ export default function StoryArchiveScreen({ navigation }) {
             </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     </PageCard>
   );
 }
@@ -130,33 +130,38 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   caption: {
-    ...typography.body,
-    color: colors.text,
+    fontSize: typography.body.fontSize,
     fontWeight: "700",
+    lineHeight: typography.body.lineHeight,
+    color: colors.text,
   },
   date: {
-    ...typography.caption,
+    fontSize: typography.caption.fontSize,
+    fontWeight: typography.caption.fontWeight,
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
   viewsText: {
-    ...typography.caption,
+    fontSize: typography.caption.fontSize,
+    fontWeight: "800",
     color: colors.textSecondary,
     marginTop: spacing.xs,
-    fontWeight: "800",
   },
   viewerNames: {
-    ...typography.caption,
+    fontSize: typography.caption.fontSize,
+    fontWeight: typography.caption.fontWeight,
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
   empty: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
   },
   error: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.error,
     marginBottom: spacing.md,
   },

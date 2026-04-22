@@ -9,10 +9,10 @@ router = APIRouter()
 
 
 @router.post("/generate-itinerary", response_model=ItineraryOut, status_code=201)
-def generate_itinerary_api(payload: ItineraryGenerateRequest, current_user=Depends(get_current_user)):
-    return generate_itinerary(current_user["id"], payload.district_id, payload.days, payload.categories)
+async def generate_itinerary_api(payload: ItineraryGenerateRequest, current_user=Depends(get_current_user)):
+    return await generate_itinerary(current_user["id"], payload.district_id, payload.days, payload.categories)
 
 
 @router.get("/itineraries", response_model=List[ItineraryOut])
-def get_itineraries(current_user=Depends(get_current_user)):
-    return list_itineraries(current_user["id"])
+async def get_itineraries(current_user=Depends(get_current_user)):
+    return await list_itineraries(current_user["id"])

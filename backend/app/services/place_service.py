@@ -3,7 +3,8 @@ from fastapi import HTTPException, status
 from postgrest.exceptions import APIError
 from datetime import datetime, timezone
 
-from ..database import supabase_anon, supabase_admin
+from ..database import get_supabase_client
+from . import notification_service
 
 
 ALLOWED_CATEGORIES = {
@@ -17,9 +18,10 @@ ALLOWED_CATEGORIES = {
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv")
 
 
-def list_place_categories() -> List[str]:
-    result = (
-        supabase_anon.table("places")
+async def list_place_categories() -> List[str]:
+    supabase = await get_supabase_client(anon=True)
+    result = await (
+        supabase.table("places")
         .select("category")
         .eq("approval_status", "approved")
         .order("category")
@@ -89,10 +91,11 @@ def _infer_submission_media(row: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
-def _fetch_place_media_submission(submission_id: int) -> Dict[str, Any]:
+async def _fetch_place_media_submission(submission_id: int) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     try:
-        result = (
-            supabase_admin.table("place_photo_submissions")
+        result = await (
+            admin.table("place_photo_submissions")
             .select("id,place_id,media_type,media_url,image_url,video_url,status")
             .eq("id", submission_id)
             .single()
@@ -106,8 +109,8 @@ def _fetch_place_media_submission(submission_id: int) -> Dict[str, Any]:
             or _is_missing_column_error(error, "video_url")
         ):
             raise
-        legacy_result = (
-            supabase_admin.table("place_photo_submissions")
+        legacy_result = await (
+            admin.table("place_photo_submissions")
             .select("id,place_id,image_url,status")
             .eq("id", submission_id)
             .single()
@@ -120,8 +123,9 @@ def _fetch_place_media_submission(submission_id: int) -> Dict[str, Any]:
     return _infer_submission_media(row)
 
 
-def list_places(district_id: Optional[int] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
-    query = supabase_anon.table("places").select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,approval_status,submitted_by,approved_by,approved_at,rejection_reason")
+async def list_places(district_id: Optional[int] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    supabase = await get_supabase_client(anon=True)
+    query = supabase.table("places").select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,approval_status,submitted_by,approved_by,approved_at,rejection_reason")
     query = query.eq("approval_status", "approved")
 
     if district_id is not None:
@@ -130,18 +134,18 @@ def list_places(district_id: Optional[int] = None, category: Optional[str] = Non
         query = query.eq("category", category)
 
     try:
-        result = query.order("id", desc=True).execute()
+        result = await query.order("id", desc=True).execute()
     except APIError as error:
         _raise_if_missing_approval_columns(error)
         raise
     return result.data or []
 
 
-def get_place(place_id: int) -> Dict[str, Any]:
-    # Include nested details if present (via FK place_id)
+async def get_place(place_id: int) -> Dict[str, Any]:
+    supabase = await get_supabase_client(anon=True)
     try:
-        result = (
-            supabase_anon.table("places")
+        result = await (
+            supabase.table("places")
             .select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,approval_status,submitted_by,approved_by,approved_at,rejection_reason,restaurant_details(*),stay_details(*)")
             .eq("id", place_id)
             .eq("approval_status", "approved")
@@ -156,7 +160,8 @@ def get_place(place_id: int) -> Dict[str, Any]:
     return result.data
 
 
-def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[str, Any]:
+async def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     if payload.get("category") not in ALLOWED_CATEGORIES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid category")
 
@@ -178,7 +183,7 @@ def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[
         payload["rejection_reason"] = None
 
     try:
-        place_result = supabase_admin.table("places").insert(payload).execute()
+        place_result = await admin.table("places").insert(payload).execute()
     except APIError as e:
         _raise_if_missing_approval_columns(e)
         payload_error = e.args[0] if e.args else {}
@@ -187,8 +192,8 @@ def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[
 
         # If the serial sequence drifts, recover by explicitly choosing the next id.
         if code == "23505" and 'places_pkey' in (message or ''):
-            max_id_result = (
-                supabase_admin.table("places")
+            max_id_result = await (
+                admin.table("places")
                 .select("id")
                 .order("id", desc=True)
                 .limit(1)
@@ -198,7 +203,7 @@ def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[
             if max_id_result and max_id_result.data:
                 max_id = int(max_id_result.data[0]["id"])
             retry_payload = {**payload, "id": max_id + 1}
-            place_result = supabase_admin.table("places").insert(retry_payload).execute()
+            place_result = await admin.table("places").insert(retry_payload).execute()
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
@@ -209,15 +214,16 @@ def create_place(payload: Dict[str, Any], user_id: str, user_role: str) -> Dict[
     place_id = place["id"]
 
     if payload.get("category") == "restaurant" and restaurant_details:
-        supabase_admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
+        await admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
 
     if payload.get("category") == "stay" and stay_details:
-        supabase_admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
+        await admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
 
     return place
 
 
-def update_place(place_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+async def update_place(place_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     category = payload.get("category")
     if category and category not in ALLOWED_CATEGORIES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid category")
@@ -227,30 +233,32 @@ def update_place(place_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
 
     _normalize_media_arrays(payload)
 
-    result = supabase_admin.table("places").update(payload).eq("id", place_id).execute()
+    result = await admin.table("places").update(payload).eq("id", place_id).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
     if restaurant_details is not None:
-        supabase_admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
+        await admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
 
     if stay_details is not None:
-        supabase_admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
+        await admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
 
     return result.data[0]
 
 
-def delete_place(place_id: int) -> Dict[str, Any]:
-    result = supabase_admin.table("places").delete().eq("id", place_id).execute()
+async def delete_place(place_id: int) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    result = await admin.table("places").delete().eq("id", place_id).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
     return result.data[0]
 
 
-def list_my_submissions(user_id: str) -> List[Dict[str, Any]]:
+async def list_my_submissions(user_id: str) -> List[Dict[str, Any]]:
+    admin = await get_supabase_client(anon=False)
     try:
-        result = (
-            supabase_admin.table("places")
+        result = await (
+            admin.table("places")
             .select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,approval_status,submitted_by,approved_by,approved_at,rejection_reason")
             .eq("submitted_by", user_id)
             .order("id", desc=True)
@@ -262,9 +270,10 @@ def list_my_submissions(user_id: str) -> List[Dict[str, Any]]:
     return result.data or []
 
 
-def update_my_submission(place_id: int, user_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    existing = (
-        supabase_admin.table("places")
+async def update_my_submission(place_id: int, user_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    existing = await (
+        admin.table("places")
         .select("id,submitted_by,approval_status")
         .eq("id", place_id)
         .single()
@@ -293,22 +302,23 @@ def update_my_submission(place_id: int, user_id: str, payload: Dict[str, Any]) -
 
     _normalize_media_arrays(payload)
 
-    result = supabase_admin.table("places").update(payload).eq("id", place_id).eq("submitted_by", user_id).execute()
+    result = await admin.table("places").update(payload).eq("id", place_id).eq("submitted_by", user_id).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
     if restaurant_details is not None:
-        supabase_admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
+        await admin.table("restaurant_details").upsert({"place_id": place_id, **restaurant_details}).execute()
 
     if stay_details is not None:
-        supabase_admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
+        await admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
 
     return result.data[0]
 
 
-def resubmit_my_submission(place_id: int, user_id: str) -> Dict[str, Any]:
-    existing = (
-        supabase_admin.table("places")
+async def resubmit_my_submission(place_id: int, user_id: str) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    existing = await (
+        admin.table("places")
         .select("id,submitted_by,approval_status")
         .eq("id", place_id)
         .single()
@@ -330,16 +340,17 @@ def resubmit_my_submission(place_id: int, user_id: str) -> Dict[str, Any]:
         "approved_at": None,
         "rejection_reason": None,
     }
-    result = supabase_admin.table("places").update(payload).eq("id", place_id).eq("submitted_by", user_id).execute()
+    result = await admin.table("places").update(payload).eq("id", place_id).eq("submitted_by", user_id).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
     return result.data[0]
 
 
-def list_pending_places() -> List[Dict[str, Any]]:
+async def list_pending_places() -> List[Dict[str, Any]]:
+    admin = await get_supabase_client(anon=False)
     try:
-        result = (
-            supabase_admin.table("places")
+        result = await (
+            admin.table("places")
             .select("id,name,district_id,category,description,address,latitude,longitude,image_urls,video_urls,avg_rating,approval_status,submitted_by,approved_by,approved_at,rejection_reason")
             .eq("approval_status", "pending")
             .order("id", desc=False)
@@ -351,7 +362,8 @@ def list_pending_places() -> List[Dict[str, Any]]:
     return result.data or []
 
 
-def approve_place(place_id: int, admin_user_id: str) -> Dict[str, Any]:
+async def approve_place(place_id: int, admin_user_id: str) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     payload = {
         "approval_status": "approved",
         "approved_by": admin_user_id,
@@ -359,16 +371,27 @@ def approve_place(place_id: int, admin_user_id: str) -> Dict[str, Any]:
         "rejection_reason": None,
     }
     try:
-        result = supabase_admin.table("places").update(payload).eq("id", place_id).execute()
+        result = await admin.table("places").update(payload).eq("id", place_id).execute()
     except APIError as error:
         _raise_if_missing_approval_columns(error)
         raise
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
-    return result.data[0]
+    
+    place = result.data[0]
+    if place.get("submitted_by"):
+        await notification_service.create_notification(
+            user_id=place["submitted_by"],
+            title="Place Approved! 🎉",
+            body=f'Your submission "{place["name"]}" has been approved and is now live.',
+            n_type="place_approval",
+            related_id=place_id
+        )
+    return place
 
 
-def reject_place(place_id: int, admin_user_id: str, rejection_reason: Optional[str] = None) -> Dict[str, Any]:
+async def reject_place(place_id: int, admin_user_id: str, rejection_reason: Optional[str] = None) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     payload = {
         "approval_status": "rejected",
         "approved_by": admin_user_id,
@@ -376,20 +399,32 @@ def reject_place(place_id: int, admin_user_id: str, rejection_reason: Optional[s
         "rejection_reason": rejection_reason or None,
     }
     try:
-        result = supabase_admin.table("places").update(payload).eq("id", place_id).execute()
+        result = await admin.table("places").update(payload).eq("id", place_id).execute()
     except APIError as error:
         _raise_if_missing_approval_columns(error)
         raise
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
-    return result.data[0]
+    
+    place = result.data[0]
+    if place.get("submitted_by"):
+        reason_text = f"\nReason: {rejection_reason}" if rejection_reason else ""
+        await notification_service.create_notification(
+            user_id=place["submitted_by"],
+            title="Place Submission Update",
+            body=f'Your submission "{place["name"]}" was not approved at this time.{reason_text}',
+            n_type="place_rejection",
+            related_id=place_id
+        )
+    return place
 
 
-def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: str) -> Dict[str, Any]:
+async def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: str) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     if not media_url:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Media URL is required")
-    place_result = (
-        supabase_admin.table("places")
+    place_result = await (
+        admin.table("places")
         .select("id,approval_status")
         .eq("id", place_id)
         .single()
@@ -415,7 +450,7 @@ def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: 
         "rejection_reason": None,
     }
     try:
-        result = supabase_admin.table("place_photo_submissions").insert(insert_payload).execute()
+        result = await admin.table("place_photo_submissions").insert(insert_payload).execute()
     except APIError as error:
         if not (
             _is_missing_column_error(error, "media_type")
@@ -432,16 +467,17 @@ def submit_place_photo(place_id: int, user_id: str, media_type: str, media_url: 
             "reviewed_at": None,
             "rejection_reason": None,
         }
-        result = supabase_admin.table("place_photo_submissions").insert(legacy_payload).execute()
+        result = await admin.table("place_photo_submissions").insert(legacy_payload).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission failed")
     return _infer_submission_media(result.data[0])
 
 
-def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
+async def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
+    admin = await get_supabase_client(anon=False)
     try:
-        result = (
-            supabase_admin.table("place_photo_submissions")
+        result = await (
+            admin.table("place_photo_submissions")
             .select("id,place_id,media_type,media_url,image_url,video_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
             .eq("status", "pending")
             .order("created_at", desc=False)
@@ -455,8 +491,8 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
             or _is_missing_column_error(error, "video_url")
         ):
             raise
-        legacy_result = (
-            supabase_admin.table("place_photo_submissions")
+        legacy_result = await (
+            admin.table("place_photo_submissions")
             .select("id,place_id,image_url,submitted_by,status,reviewed_by,reviewed_at,rejection_reason,created_at")
             .eq("status", "pending")
             .order("created_at", desc=False)
@@ -469,16 +505,19 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
     place_ids = list({row["place_id"] for row in rows if row.get("place_id") is not None})
     user_ids = list({row["submitted_by"] for row in rows if row.get("submitted_by")})
 
-    places = (
-        supabase_admin.table("places").select("id,name").in_("id", place_ids).execute().data
+    places_res = await (
+        admin.table("places").select("id,name").in_("id", place_ids).execute()
         if place_ids
-        else []
+        else None
     )
-    users = (
-        supabase_admin.table("users").select("id,name,email").in_("id", user_ids).execute().data
+    places = places_res.data if places_res else []
+    
+    users_res = await (
+        admin.table("users").select("id,name,email").in_("id", user_ids).execute()
         if user_ids
-        else []
+        else None
     )
+    users = users_res.data if users_res else []
 
     place_name_by_id = {place["id"]: place.get("name") for place in (places or [])}
     user_name_by_id = {}
@@ -494,36 +533,37 @@ def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
     return rows
 
 
-def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Dict[str, Any]:
-    submission = _fetch_place_media_submission(submission_id)
+async def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    submission = await _fetch_place_media_submission(submission_id)
     if submission.get("status") != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission is not pending")
 
-    place = (
-        supabase_admin.table("places")
+    place_res = await (
+        admin.table("places")
         .select("id,image_urls,video_urls")
         .eq("id", submission["place_id"])
         .single()
         .execute()
     )
-    if not place or not place.data:
+    if not place_res or not place_res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
     if submission.get("media_type") == "video":
-        video_urls = list(place.data.get("video_urls") or [])
+        video_urls = list(place_res.data.get("video_urls") or [])
         video_url = submission.get("video_url") or submission.get("media_url")
         if video_url and video_url not in video_urls:
             video_urls.append(video_url)
-            supabase_admin.table("places").update({"video_urls": video_urls}).eq("id", submission["place_id"]).execute()
+            await admin.table("places").update({"video_urls": video_urls}).eq("id", submission["place_id"]).execute()
     else:
-        image_urls = list(place.data.get("image_urls") or [])
+        image_urls = list(place_res.data.get("image_urls") or [])
         image_url = submission.get("image_url") or submission.get("media_url")
         if image_url and image_url not in image_urls:
             image_urls.append(image_url)
-            supabase_admin.table("places").update({"image_urls": image_urls}).eq("id", submission["place_id"]).execute()
+            await admin.table("places").update({"image_urls": image_urls}).eq("id", submission["place_id"]).execute()
 
-    result = (
-        supabase_admin.table("place_photo_submissions")
+    result = await (
+        admin.table("place_photo_submissions")
         .update(
             {
                 "status": "approved",
@@ -540,9 +580,10 @@ def approve_place_photo_submission(submission_id: int, admin_user_id: str) -> Di
     return result.data[0]
 
 
-def reject_place_photo_submission(submission_id: int, admin_user_id: str, rejection_reason: Optional[str] = None) -> Dict[str, Any]:
-    existing = (
-        supabase_admin.table("place_photo_submissions")
+async def reject_place_photo_submission(submission_id: int, admin_user_id: str, rejection_reason: Optional[str] = None) -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    existing = await (
+        admin.table("place_photo_submissions")
         .select("id,status")
         .eq("id", submission_id)
         .single()
@@ -553,8 +594,8 @@ def reject_place_photo_submission(submission_id: int, admin_user_id: str, reject
     if existing.data.get("status") != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission is not pending")
 
-    result = (
-        supabase_admin.table("place_photo_submissions")
+    result = await (
+        admin.table("place_photo_submissions")
         .update(
             {
                 "status": "rejected",

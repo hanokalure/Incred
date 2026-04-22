@@ -2,22 +2,24 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from ..database import supabase_admin
+from ..database import get_supabase_client
 
 
-def _fetch_rows(table: str, columns: str) -> List[Dict[str, Any]]:
-    result = supabase_admin.table(table).select(columns).execute()
+async def _fetch_rows(table: str, columns: str) -> List[Dict[str, Any]]:
+    admin = await get_supabase_client(anon=False)
+    result = await admin.table(table).select(columns).execute()
     return result.data or []
 
 
-def get_admin_dashboard() -> Dict[str, Any]:
-    places = _fetch_rows("places", "id,name,category,district_id,address,image_urls,avg_rating")
-    users = _fetch_rows("users", "id,name,email,role,created_at")
-    reviews = _fetch_rows("reviews", "id,rating")
-    itineraries = _fetch_rows("itineraries", "id")
+async def get_admin_dashboard() -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
+    places = await _fetch_rows("places", "id,name,category,district_id,address,image_urls,avg_rating")
+    users = await _fetch_rows("users", "id,name,email,role,created_at")
+    reviews = await _fetch_rows("reviews", "id,rating")
+    itineraries = await _fetch_rows("itineraries", "id")
 
-    recent_places = (
-        supabase_admin.table("places")
+    recent_places_res = await (
+        admin.table("places")
         .select("id,name,category,district_id,address,image_urls,avg_rating")
         .order("id", desc=True)
         .limit(8)
@@ -31,32 +33,33 @@ def get_admin_dashboard() -> Dict[str, Any]:
             "total_reviews": len(reviews),
             "total_itineraries": len(itineraries),
         },
-        "recent_places": recent_places.data or [],
+        "recent_places": recent_places_res.data or [],
     }
 
 
-def get_admin_users() -> Dict[str, Any]:
+async def get_admin_users() -> Dict[str, Any]:
+    admin = await get_supabase_client(anon=False)
     now_iso = datetime.now(timezone.utc).isoformat()
-    users = (
-        supabase_admin.table("users")
+    users_res = await (
+        admin.table("users")
         .select("id,name,email,role,created_at")
         .order("created_at", desc=True)
         .execute()
     )
-    data = users.data or []
-    active_stories = (
-        supabase_admin.table("stories")
+    data = users_res.data or []
+    active_stories_res = await (
+        admin.table("stories")
         .select("id,user_id,media_type,media_url,caption,status,expires_at,created_at")
         .eq("status", "active")
         .gt("expires_at", now_iso)
         .order("created_at", desc=True)
         .execute()
     )
-    stories = active_stories.data or []
-    reviews = _fetch_rows("reviews", "id,user_id")
-    favorites = _fetch_rows("favorites", "id,user_id")
-    itineraries = _fetch_rows("itineraries", "id,user_id")
-    submitted_places = _fetch_rows("places", "id,submitted_by")
+    stories = active_stories_res.data or []
+    reviews = await _fetch_rows("reviews", "id,user_id")
+    favorites = await _fetch_rows("favorites", "id,user_id")
+    itineraries = await _fetch_rows("itineraries", "id,user_id")
+    submitted_places = await _fetch_rows("places", "id,submitted_by")
 
     review_count_by_user: defaultdict[str, int] = defaultdict(int)
     favorite_count_by_user: defaultdict[str, int] = defaultdict(int)
@@ -102,12 +105,12 @@ def get_admin_users() -> Dict[str, Any]:
     }
 
 
-def get_admin_analytics() -> Dict[str, Any]:
-    places = _fetch_rows("places", "id,category,district_id,image_urls,latitude,longitude,avg_rating")
-    districts = _fetch_rows("districts", "id,name")
-    reviews = _fetch_rows("reviews", "id,rating")
-    favorites = _fetch_rows("favorites", "id,place_id")
-    itineraries = _fetch_rows("itineraries", "id,district_id")
+async def get_admin_analytics() -> Dict[str, Any]:
+    places = await _fetch_rows("places", "id,category,district_id,image_urls,latitude,longitude,avg_rating")
+    districts = await _fetch_rows("districts", "id,name")
+    reviews = await _fetch_rows("reviews", "id,rating")
+    favorites = await _fetch_rows("favorites", "id,place_id")
+    itineraries = await _fetch_rows("itineraries", "id,district_id")
 
     district_name_by_id = {district["id"]: district["name"] for district in districts}
 
@@ -145,9 +148,9 @@ def get_admin_analytics() -> Dict[str, Any]:
     }
 
 
-def get_admin_settings() -> Dict[str, Any]:
-    places = _fetch_rows("places", "id,description,image_urls,latitude,longitude")
-    districts = _fetch_rows("districts", "id,name")
+async def get_admin_settings() -> Dict[str, Any]:
+    places = await _fetch_rows("places", "id,description,image_urls,latitude,longitude")
+    districts = await _fetch_rows("districts", "id,name")
 
     return {
         "data_quality": {

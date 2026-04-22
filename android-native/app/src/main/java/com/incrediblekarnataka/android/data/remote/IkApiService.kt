@@ -71,11 +71,29 @@ interface IkApiService {
     @POST("places/detect")
     suspend fun detectPlace(@Body payload: com.incrediblekarnataka.android.data.model.PlaceDetectRequest): com.incrediblekarnataka.android.data.model.PlaceDetectResponse
 
-    @GET("admin/pending-places")
+    @GET("places/pending")
     suspend fun getPendingPlaces(): List<PlaceCardDto>
 
-    @POST("admin/approve-place/{id}")
+    @POST("places/{id}/approve")
     suspend fun approvePlace(@Path("id") placeId: Int): PlaceCardDto
+
+    @POST("places/{id}/reject")
+    suspend fun rejectPlace(
+        @Path("id") placeId: Int,
+        @Body payload: com.incrediblekarnataka.android.data.model.PlaceApprovalAction
+    ): PlaceCardDto
+
+    @GET("places/photo-submissions/pending")
+    suspend fun getPendingPhotoSubmissions(): List<com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto>
+
+    @POST("places/photo-submissions/{id}/approve")
+    suspend fun approvePlacePhotoSubmission(@Path("id") submissionId: Int): com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto
+
+    @POST("places/photo-submissions/{id}/reject")
+    suspend fun rejectPlacePhotoSubmission(
+        @Path("id") submissionId: Int,
+        @Body payload: com.incrediblekarnataka.android.data.model.PlaceApprovalAction
+    ): com.incrediblekarnataka.android.data.model.PlacePhotoSubmissionDto
 
     @retrofit2.http.Multipart
     @POST("uploads/place-image")

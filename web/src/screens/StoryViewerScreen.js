@@ -14,6 +14,7 @@ export default function StoryViewerScreen({ navigation, route }) {
   const currentUserId = useSelector((state) => state.auth.user?.id);
   const stories = route?.params?.stories || [];
   const userName = route?.params?.userName || "Story";
+  const userProfilePic = route?.params?.userProfilePic || null;
   const initialIndex = Number(route?.params?.initialIndex || 0);
   const [index, setIndex] = useState(initialIndex);
   const [actionError, setActionError] = useState("");
@@ -41,7 +42,24 @@ export default function StoryViewerScreen({ navigation, route }) {
 
   return (
     <PageCard>
-      <ScreenHeader title={userName} onBack={() => navigation.goBack()} />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerUserInfo}>
+          <View style={styles.miniAvatar}>
+            {userProfilePic ? (
+              <Image source={{ uri: toDisplayMediaUrl(userProfilePic) }} style={styles.miniAvatarImage} />
+            ) : (
+              <View style={styles.miniAvatarPlaceholder}>
+                <Text style={styles.miniAvatarText}>{(userName || "U").slice(0, 1).toUpperCase()}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.headerUserName}>{userName}</Text>
+        </View>
+      </View>
+      
       <View style={styles.viewer}>
         <View style={styles.progressRow}>
           {stories.map((item, currentIndex) => (
@@ -126,6 +144,49 @@ export default function StoryViewerScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  backBtn: {
+    padding: spacing.xs,
+  },
+  headerUserInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  miniAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  miniAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  miniAvatarPlaceholder: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniAvatarText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  headerUserName: {
+    ...typography.body,
+    fontWeight: "800",
+    color: colors.text,
+  },
   viewer: {
     borderRadius: 28,
     overflow: "hidden",

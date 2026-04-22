@@ -12,20 +12,20 @@ router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(requir
 
 
 @router.get("/dashboard")
-def dashboard():
-    return get_admin_dashboard()
+async def dashboard():
+    return await get_admin_dashboard()
 
 
 @router.get("/users")
-def users():
-    return get_admin_users()
+async def users():
+    return await get_admin_users()
 
 
 @router.get("/analytics")
-def analytics():
-    return get_admin_analytics()
+async def analytics():
+    return await get_admin_analytics()
 
 
 @router.get("/settings")
-def settings():
-    return get_admin_settings()
+async def settings():
+    return await get_admin_settings()

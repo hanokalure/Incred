@@ -13,20 +13,6 @@ do $$ begin
 exception
     when duplicate_object then null;
 end $$;
-
--- Users profile table
-create table if not exists public.users (
-    id uuid primary key references auth.users(id) on delete cascade,
-    email text not null unique,
-    name text,
-    role text not null default 'user',
-    created_at timestamptz not null default now()
-);
-
--- Districts
-create table if not exists public.districts (
-    id bigserial primary key,
-    name text not null unique,
     description text,
     created_at timestamptz not null default now()
 );
@@ -160,6 +146,21 @@ create index if not exists idx_story_views_viewer on public.story_views(viewer_i
 create index if not exists idx_story_reports_story on public.story_reports(story_id);
 create index if not exists idx_story_reports_status on public.story_reports(status);
 
+-- Notifications
+create table if not exists public.notifications (
+    id bigserial primary key,
+    user_id uuid not null references public.users(id) on delete cascade,
+    title text not null,
+    body text not null,
+    type text not null,
+    related_id bigint,
+    is_read boolean not null default false,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists idx_notifications_user_id on public.notifications(user_id);
+create index if not exists idx_notifications_is_read on public.notifications(is_read);
+
 -- Row Level Security (optional but recommended)
 alter table public.users enable row level security;
 alter table public.districts enable row level security;
@@ -173,6 +174,7 @@ alter table public.place_photo_submissions enable row level security;
 alter table public.stories enable row level security;
 alter table public.story_views enable row level security;
 alter table public.story_reports enable row level security;
+alter table public.notifications enable row level security;
 
 -- Example policies (adjust to your needs)
 create policy if not exists "Public read districts" on public.districts
@@ -226,3 +228,9 @@ create policy "Users create story reports" on public.story_reports
 drop policy if exists "Users read own story reports" on public.story_reports;
 create policy "Users read own story reports" on public.story_reports
     for select using (auth.uid() = reported_by);
+
+create policy if not exists "Users can read own notifications" on public.notifications
+    for select using (auth.uid() = user_id);
+
+create policy if not exists "Users can update own notifications" on public.notifications
+    for update using (auth.uid() = user_id);

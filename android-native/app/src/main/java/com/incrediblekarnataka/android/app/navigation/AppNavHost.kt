@@ -33,7 +33,10 @@ import com.incrediblekarnataka.android.app.ui.screens.AdminViewModel
 import com.incrediblekarnataka.android.app.ui.screens.AdminUiState
 import com.incrediblekarnataka.android.app.ui.screens.SubmissionScreen
 import com.incrediblekarnataka.android.app.ui.screens.AdminDashboardScreen
+import com.incrediblekarnataka.android.app.ui.screens.HomeViewModel
+import com.incrediblekarnataka.android.app.ui.screens.HomeUiState
 import androidx.compose.runtime.collectAsState
+
 
 @Composable
 fun AppNavHost(sessionState: SessionState) {
@@ -91,13 +94,20 @@ fun AppNavHost(sessionState: SessionState) {
             )
         }
         composable(AppDestination.Home.route) {
-            val viewModel: com.incrediblekarnataka.android.app.ui.screens.ProfileViewModel = hiltViewModel()
-            val user by viewModel.user.collectAsStateWithLifecycle()
+            val profileViewModel: com.incrediblekarnataka.android.app.ui.screens.ProfileViewModel = hiltViewModel()
+            val homeViewModel: HomeViewModel = hiltViewModel()
+            val user by profileViewModel.user.collectAsStateWithLifecycle()
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            
             MainShell(currentRoute = currentRoute?.destination?.route, navController = navController) {
                 HomeScreen(
                     userName = user?.name,
+                    uiState = homeUiState,
                     onMapClick = { navController.navigate(AppDestination.Map.route) },
-                    onDiscoverClick = { navController.navigate(AppDestination.Discover.route) }
+                    onDiscoverClick = { navController.navigate(AppDestination.Discover.route) },
+                    onPlaceClick = { placeId ->
+                        navController.navigate(AppDestination.PlaceDetails.createRoute(placeId))
+                    }
                 )
             }
         }
@@ -203,9 +213,14 @@ fun AppNavHost(sessionState: SessionState) {
         composable(AppDestination.Profile.route) {
             val viewModel: com.incrediblekarnataka.android.app.ui.screens.ProfileViewModel = hiltViewModel()
             val user by viewModel.user.collectAsStateWithLifecycle()
+            val savedCount by viewModel.savedCount.collectAsStateWithLifecycle()
+            val tripsCount by viewModel.tripsCount.collectAsStateWithLifecycle()
+            
             MainShell(currentRoute = currentRoute?.destination?.route, navController = navController) {
                 ProfileScreen(
                     user = user,
+                    savedCount = savedCount,
+                    tripsCount = tripsCount,
                     onLogoutClick = {
                         viewModel.logout()
                         navController.navigate(AppDestination.Login.route) {
@@ -234,6 +249,9 @@ fun AppNavHost(sessionState: SessionState) {
             AdminDashboardScreen(
                 uiState = uiState,
                 onApprove = viewModel::approve,
+                onReject = viewModel::reject,
+                onApprovePhoto = viewModel::approvePhoto,
+                onRejectPhoto = viewModel::rejectPhoto,
                 onBack = { navController.navigateUp() }
             )
         }

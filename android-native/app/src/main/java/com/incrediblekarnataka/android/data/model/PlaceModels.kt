@@ -8,6 +8,7 @@ data class PlaceCardDto(
     val id: Int,
     val name: String,
     val category: String? = null,
+    @SerialName("district_id") val districtId: Int? = null,
     @SerialName("avg_rating") val avgRating: Double? = null,
     @SerialName("image_urls") val imageUrls: List<String>? = null,
     @SerialName("video_urls") val videoUrls: List<String>? = null,
@@ -18,6 +19,7 @@ data class PlaceCardDto(
     @SerialName("restaurant_details") val restaurantDetails: RestaurantDetailsDto? = null,
     @SerialName("stay_details") val stayDetails: StayDetailsDto? = null
 )
+
 
 @Serializable
 data class RestaurantDetailsDto(
@@ -69,4 +71,23 @@ data class PlaceDetectResponse(
 @Serializable
 data class UploadResponse(
     @SerialName("public_url") val publicUrl: String
+)
+
+@Serializable
+data class PlaceApprovalAction(
+    @SerialName("rejection_reason") val rejectionReason: String? = null
+)
+
+@Serializable
+data class PlacePhotoSubmissionDto(
+    val id: Int,
+    @SerialName("place_id") val placeId: Int,
+    @SerialName("place_name") val placeName: String? = null,
+    @SerialName("submitted_by") val submittedBy: String,
+    @SerialName("submitted_by_name") val submittedByName: String? = null,
+    @SerialName("media_type") val mediaType: String,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("video_url") val videoUrl: String? = null,
+    val status: String
 )

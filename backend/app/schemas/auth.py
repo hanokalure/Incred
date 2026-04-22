@@ -18,6 +18,8 @@ class UserProfile(BaseModel):
     email: EmailStr
     name: Optional[str] = None
     role: str
+    profile_pic: Optional[str] = None
+    push_token: Optional[str] = None
 
 
 class AuthResponse(BaseModel):

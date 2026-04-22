@@ -147,12 +147,9 @@ private fun String.titlecase(): String = replaceFirstChar { it.titlecase() }
 private data class DiscoverPlace(
     val id: String,
     val title: String,
-    val subtitle: String,
-    val category: String,
-    val district: String,
-    val accent: Color,
     val details: String
 )
+
 
 private val BottomNavItems = listOf(
     BottomNavItem(
@@ -187,62 +184,7 @@ private val BottomNavItems = listOf(
     )
 )
 
-private val DiscoverPlaces = listOf(
-    DiscoverPlace(
-        id = "mysuru-palace",
-        title = "Mysuru Palace",
-        subtitle = "Royal architecture, markets, and evening lights",
-        category = "Heritage",
-        district = "Mysuru",
-        accent = Color(0xFFC56B2D),
-        details = "A polished city stop for palace architecture, market streets, silk shopping, and slow evening walks."
-    ),
-    DiscoverPlace(
-        id = "coorg-estates",
-        title = "Coorg Escapes",
-        subtitle = "Coffee estates, viewpoints, and rainy season stays",
-        category = "Hill stations",
-        district = "Kodagu",
-        accent = Color(0xFF4E7A42),
-        details = "Best for two-day drives, plantation stays, short viewpoints, and quieter local food stops."
-    ),
-    DiscoverPlace(
-        id = "gokarna-coast",
-        title = "Gokarna Coast",
-        subtitle = "Beach trails, cafes, and temple-town energy",
-        category = "Adventure",
-        district = "Uttara Kannada",
-        accent = Color(0xFF0C7A71),
-        details = "A coastal route built around sunrise beaches, cliff walks, and a relaxed mix of cafes and shrines."
-    ),
-    DiscoverPlace(
-        id = "hampi-ruins",
-        title = "Hampi Ruins",
-        subtitle = "Boulders, heritage trails, and sunrise viewpoints",
-        category = "Temples",
-        district = "Vijayanagara",
-        accent = Color(0xFFB5622F),
-        details = "A heritage-heavy trip with temple clusters, coracle rides, and sunrise routes across the boulder landscape."
-    ),
-    DiscoverPlace(
-        id = "udupi-food",
-        title = "Udupi Food Streets",
-        subtitle = "Temple food, coastal meals, and market walks",
-        category = "Food",
-        district = "Udupi",
-        accent = Color(0xFF9B4D18),
-        details = "A compact food-first itinerary with classic breakfasts, temple streets, coastal lunches, and dessert stops."
-    ),
-    DiscoverPlace(
-        id = "jog-falls",
-        title = "Jog Falls",
-        subtitle = "Monsoon power, forest roads, and lookout points",
-        category = "Waterfalls",
-        district = "Shivamogga",
-        accent = Color(0xFF1E6B5D),
-        details = "Best during or after the rains, with strong viewpoints, green roads, and quick nature detours nearby."
-    )
-)
+
 
 @Composable
 fun SplashScreen() {
@@ -507,8 +449,10 @@ fun RegisterScreen(
 @Composable
 fun HomeScreen(
     userName: String? = null,
+    uiState: HomeUiState,
     onMapClick: () -> Unit,
-    onDiscoverClick: () -> Unit
+    onDiscoverClick: () -> Unit,
+    onPlaceClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -562,37 +506,43 @@ fun HomeScreen(
             }
         }
 
-        SectionTitle(title = "Popular cities", action = "See all")
+        SectionTitle(title = "Popular places", action = "See all")
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            DestinationCard(
-                title = "Mysuru",
-                subtitle = "Palaces, markets, and evening lights",
-                accent = Color(0xFFC56B2D)
-            )
-            DestinationCard(
-                title = "Bengaluru",
-                subtitle = "Food streets, cafes, and quick escapes",
-                accent = Color(0xFF0C7A71)
-            )
-            DestinationCard(
-                title = "Hampi",
-                subtitle = "Ruins, boulders, and sunrise routes",
-                accent = Color(0xFF567A34)
-            )
+            if (uiState.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                uiState.popularPlaces.forEach { place ->
+                    DestinationCard(
+                        title = place.name,
+                        subtitle = place.category?.replace("_", " ")?.capitalize() ?: "Destination",
+                        accent = Color(0xFF0C7A71),
+                        onClick = { onPlaceClick(place.id.toString()) }
+                    )
+                }
+            }
         }
 
         SectionTitle(title = "Quick planner", action = "Customize")
         ActionRow()
 
-        SectionTitle(title = "This week", action = "Refresh")
-        ActionCard(
-            eyebrow = "Local culture",
-            title = "Temple town mornings and market evenings",
-            body = "A lighter home feed for slow travel: walkable neighborhoods, local breakfasts, and handcrafted shopping stops."
-        )
+        SectionTitle(title = "Featured selection", action = "Show more")
+        uiState.featuredPlace?.let { featured ->
+            FeaturedCard(
+                eyebrow = featured.category?.replace("_", " ")?.capitalize() ?: "Featured",
+                title = featured.name,
+                body = featured.description ?: "Discover the essence of Karnataka through this handpicked location.",
+                onClick = { onPlaceClick(featured.id.toString()) }
+            )
+        } ?: run {
+            ActionCard(
+                eyebrow = "Local culture",
+                title = "Temple town mornings and market evenings",
+                body = "A lighter home feed for slow travel: walkable neighborhoods, local breakfasts, and handcrafted shopping stops."
+            )
+        }
     }
 }
 
@@ -1330,6 +1280,8 @@ fun SavedScreen(
 @Composable
 fun ProfileScreen(
     user: UserDto?,
+    savedCount: Int,
+    tripsCount: Int,
     onLogoutClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
     onAdminClick: () -> Unit
@@ -1397,21 +1349,17 @@ fun ProfileScreen(
             }
         }
 
-        SectionTitle(title = "Travel stats", action = "This year")
+        SectionTitle(title = "Travel stats", action = "Overall")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            QuickActionCard("12", "Saved places")
-            QuickActionCard("4", "Trips planned")
-            QuickActionCard("7", "Cities explored")
+            QuickActionCard(savedCount.toString(), "Saved places")
+            QuickActionCard(tripsCount.toString(), "Trips planned")
+            QuickActionCard("—", "Cities explored")
         }
         
-        SectionTitle(title = "Preferences", action = "Update")
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            DiscoverListCard("Travel style", "Slow weekends and culture-first routes", isSaved = false, onToggleFavorite = {}, onClick = {})
-            DiscoverListCard("Food preference", "Vegetarian-friendly local picks", isSaved = false, onToggleFavorite = {}, onClick = {})
-            DiscoverListCard("Stay type", "Boutique stays and scenic homestays", isSaved = false, onToggleFavorite = {}, onClick = {})
+
             
             Spacer(modifier = Modifier.height(18.dp))
             Button(
@@ -1424,7 +1372,6 @@ fun ProfileScreen(
             }
         }
     }
-}
 
 @Composable
 fun ExplorePlaceholderScreen(
@@ -1536,11 +1483,11 @@ fun ActionRow() {
 }
 
 @Composable
-fun DestinationCard(title: String, subtitle: String, accent: Color) {
+fun DestinationCard(title: String, subtitle: String, accent: Color, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = accent),
-        modifier = Modifier.width(220.dp).height(240.dp)
+        modifier = Modifier.width(220.dp).height(240.dp).clickable { onClick() }
     ) {
         Column(
             modifier = Modifier.padding(20.dp).fillMaxSize(),
@@ -1552,6 +1499,44 @@ fun DestinationCard(title: String, subtitle: String, accent: Color) {
         }
     }
 }
+
+@Composable
+fun FeaturedCard(
+    eyebrow: String,
+    title: String,
+    body: String,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(
+                text = eyebrow.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
 
 @Composable
 fun FavoriteToggle(
@@ -2017,37 +2002,150 @@ fun SubmissionScreen(
 fun AdminDashboardScreen(
     uiState: AdminUiState,
     onApprove: (Int) -> Unit,
+    onReject: (Int, String) -> Unit,
+    onApprovePhoto: (Int) -> Unit,
+    onRejectPhoto: (Int, String) -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             androidx.compose.material3.TopAppBar(
-                title = { Text("Admin Dashboard") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null) } }
+                title = { Text("Place Approvals") },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null) } },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        } else if (uiState.pendingPlaces.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No pending places to review.") }
-        } else {
-            androidx.compose.foundation.lazy.LazyColumn(
-                modifier = Modifier.padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(uiState.pendingPlaces) { place ->
-                    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(place.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("${place.category?.replace("_", " ")?.titlecase() ?: "Place"}", style = MaterialTheme.typography.bodySmall)
-                            Text(place.address ?: "No address provided", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
-                            
-                            Spacer(Modifier.height(12.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onApprove(place.id) }) { Text("Approve") }
-                                androidx.compose.material3.OutlinedButton(onClick = { /* Reject */ }) { Text("Reject") }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (uiState.errorMessage != null) {
+                Text(
+                    text = uiState.errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
+
+            if (uiState.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    item {
+                        Text(
+                            text = "Review and verify community-submitted discovery points.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (uiState.pendingPlaces.isEmpty()) {
+                            Text("No pending submissions right now.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    items(uiState.pendingPlaces) { place ->
+                        var rejectReason by remember { mutableStateOf("") }
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(place.name, style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val catName = place.category?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Place"
+                                Text("$catName • District ${place.districtId ?: "Unknown"}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                OutlinedTextField(
+                                    value = rejectReason,
+                                    onValueChange = { rejectReason = it },
+                                    placeholder = { Text("Optional rejection reason") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Button(
+                                        onClick = { onApprove(place.id) },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) { Text("Approve") }
+                                    OutlinedButton(
+                                        onClick = { onReject(place.id, rejectReason) },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) { Text("Reject") }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Text("Pending media additions", style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (uiState.pendingPhotoSubmissions.isEmpty()) {
+                            Text("No pending media submissions right now.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    items(uiState.pendingPhotoSubmissions) { photo ->
+                        var rejectReason by remember { mutableStateOf("") }
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(photo.placeName ?: "Place ${photo.placeId}", style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Submitted by ${photo.submittedByName ?: "Member"}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val url = photo.mediaUrl ?: photo.imageUrl ?: photo.videoUrl
+                                if (photo.mediaType == "video") {
+                                    Text("Pending video: $url", style = MaterialTheme.typography.bodyMedium)
+                                } else {
+                                    Box(modifier = Modifier.fillMaxWidth().height(180.dp).background(Color.LightGray, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                                        // Normally Coil AsyncImage would go here, fallback to Text for now.
+                                        Text("Image Preview", color = Color.DarkGray)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                OutlinedTextField(
+                                    value = rejectReason,
+                                    onValueChange = { rejectReason = it },
+                                    placeholder = { Text("Optional rejection reason") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Button(
+                                        onClick = { onApprovePhoto(photo.id) },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) { Text("Approve Media") }
+                                    OutlinedButton(
+                                        onClick = { onRejectPhoto(photo.id, rejectReason) },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) { Text("Reject Media") }
+                                }
                             }
                         }
                     }

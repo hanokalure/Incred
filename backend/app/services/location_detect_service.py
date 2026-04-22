@@ -5,7 +5,7 @@ from urllib.parse import unquote, urlparse
 import httpx
 from fastapi import HTTPException, status
 
-from ..database import supabase_anon
+from ..database import get_supabase_client
 
 
 DISTRICT_ALIASES = {
@@ -97,8 +97,9 @@ def _extract_name_from_url(url: str) -> str | None:
     return value
 
 
-def _list_districts() -> List[Dict[str, Any]]:
-    result = supabase_anon.table("districts").select("id,name").execute()
+async def _list_districts() -> List[Dict[str, Any]]:
+    supabase = await get_supabase_client(anon=True)
+    result = await supabase.table("districts").select("id,name").execute()
     return result.data or []
 
 
@@ -129,14 +130,14 @@ def _match_district_id(districts: List[Dict[str, Any]], address: Dict[str, Any],
     return None
 
 
-def detect_place_from_google_maps_link(link: str) -> Dict[str, Any]:
+async def detect_place_from_google_maps_link(link: str) -> Dict[str, Any]:
     try:
-        with httpx.Client(
+        async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=15.0,
             headers={"User-Agent": "Incredible Karnataka/1.0"},
         ) as client:
-            response = client.get(link)
+            response = await client.get(link)
             response.raise_for_status()
     except Exception as exc:
         raise HTTPException(
@@ -155,11 +156,11 @@ def detect_place_from_google_maps_link(link: str) -> Dict[str, Any]:
     latitude, longitude = coords
 
     try:
-        with httpx.Client(
+        async with httpx.AsyncClient(
             timeout=15.0,
             headers={"User-Agent": "Incredible Karnataka/1.0"},
         ) as client:
-            geo = client.get(
+            geo = await client.get(
                 "https://nominatim.openstreetmap.org/reverse",
                 params={
                     "format": "jsonv2",
@@ -180,7 +181,8 @@ def detect_place_from_google_maps_link(link: str) -> Dict[str, Any]:
 
     address = geo_data.get("address") or {}
     display_name = geo_data.get("display_name")
-    district_id = _match_district_id(_list_districts(), address, display_name)
+    districts = await _list_districts()
+    district_id = _match_district_id(districts, address, display_name)
 
     return {
         "name": _extract_name_from_url(final_url),

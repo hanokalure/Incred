@@ -8,6 +8,7 @@ import PrimaryButton from "../components/PrimaryButton";
 import { signup } from "../services/authApi";
 import { setAuthProfile, setAuthToken } from "../services/authStore";
 import { login as loginAction } from "../store/slices/authSlice";
+import PageCard from "../components/PageCard";
 
 export default function RegisterScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -45,44 +46,47 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-      <TextInput placeholder="Name" style={styles.input} value={name} onChangeText={setName} />
-      <TextInput
-        placeholder="Email"
-        style={styles.input}
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <PrimaryButton
-        label={status === "loading" ? "Creating..." : "Sign up"}
-        onPress={handleSignup}
-        disabled={status === "loading"}
-      />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Back to login" onPress={() => navigation.goBack()} variant="ghost" />
-    </View>
+    <PageCard hideHeader={false}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Create Account</Text>
+        <TextInput placeholder="Name" style={styles.input} value={name} onChangeText={setName} />
+        <TextInput
+          placeholder="Email"
+          style={styles.input}
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          placeholder="Password"
+          secureTextEntry
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+        />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <PrimaryButton
+          label={status === "loading" ? "Creating..." : "Sign up"}
+          onPress={handleSignup}
+          disabled={status === "loading"}
+        />
+        <View style={styles.spacer} />
+        <PrimaryButton label="Back to login" onPress={() => navigation.goBack()} variant="ghost" />
+      </View>
+    </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: "center",
   },
   title: {
-    ...typography.h1,
+    fontSize: typography.h1.fontSize,
+    fontWeight: typography.h1.fontWeight,
+    color: typography.h1.color,
+    letterSpacing: typography.h1.letterSpacing,
     marginBottom: spacing.lg,
     textAlign: "center",
   },
@@ -93,14 +97,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.text,
   },
   spacer: {
     height: spacing.sm,
   },
   error: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.error,
     marginBottom: spacing.md,
     textAlign: "center",

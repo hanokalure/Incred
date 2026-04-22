@@ -61,7 +61,15 @@ export default function HomeScreen({ navigation, route }) {
       categories: "ಪ್ರಮುಖ ವರ್ಗಗಳು",
       curated: "ನಿಮಗಾಗಿ ಆಯ್ದವುಗಳು",
       showAll: "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ",
-    }
+    },
+    hi: {
+      greeting: "नमस्ते,",
+      explorer: "अन्वेषक",
+      subtitle: "स्थानीय अनुभवों के माध्यम से कर्नाटक की आत्मा की खोज करें।",
+      categories: "शीर्ष श्रेणियां",
+      curated: "आपके लिए सुझाए गए",
+      showAll: "सभी दिखाएं",
+    },
   }[language];
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput } from "react-native";
+import { View, Text, StyleSheet, TextInput } from "react-native";
 import PageCard from "../components/PageCard";
 import ScreenHeader from "../components/ScreenHeader";
 import PrimaryButton from "../components/PrimaryButton";
@@ -81,7 +81,7 @@ export default function MySubmissionsScreen({ navigation }) {
   return (
     <PageCard>
       <ScreenHeader title="My Submissions" onBack={() => navigation.goBack()} />
-      <ScrollView>
+      <View style={styles.list}>
         <Text style={styles.subtitle}>Track approval status and update your pending or rejected places.</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <PrimaryButton label="Refresh" onPress={load} variant="ghost" />
@@ -134,14 +134,19 @@ export default function MySubmissionsScreen({ navigation }) {
             ) : null}
           </View>
         ))}
-      </ScrollView>
+      </View>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
+  list: {
+    width: "100%",
+  },
   subtitle: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    lineHeight: typography.body.lineHeight,
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
@@ -159,22 +164,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   name: {
-    ...typography.h3,
+    fontSize: typography.h3.fontSize,
+    fontWeight: typography.h3.fontWeight,
     color: colors.text,
     flex: 1,
     marginRight: spacing.sm,
   },
   badge: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: "700",
   },
   meta: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
   rejectReason: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.error,
     marginTop: spacing.xs,
   },
@@ -199,12 +207,14 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   error: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.error,
     marginBottom: spacing.sm,
   },
   empty: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     color: colors.textSecondary,
     marginTop: spacing.md,
   },

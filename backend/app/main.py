@@ -2,11 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import admin, auth, districts, favorites, files, itineraries, places, reviews, stories, uploads
+from .routers import admin, auth, districts, favorites, files, itineraries, notifications, places, reviews, stories, uploads
 
+
+from contextlib import asynccontextmanager
+from .database import close_clients
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic can go here
+    yield
+    # Shutdown logic
+    await close_clients()
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.APP_NAME)
+    app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
     origins = []
     for origin in settings.CORS_ORIGINS.split(","):
@@ -42,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(itineraries.router, tags=["Itineraries"])
     app.include_router(uploads.router, tags=["Uploads"])
     app.include_router(files.router, tags=["Files"])
+    app.include_router(notifications.router)
     app.include_router(admin.router)
 
     return app

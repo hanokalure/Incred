@@ -1,14 +1,119 @@
-import { View, Text, StyleSheet, Switch } from "react-native";
-import { useState } from "react";
+import { View, Text, StyleSheet, Switch, Pressable, FlatList, ActivityIndicator, Alert, Platform } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import ScreenHeader from "../components/ScreenHeader";
 import PageCard from "../components/PageCard";
+import { setLanguage } from "../store/slices/langSlice";
+import { fetchNotifications, markNotificationAsRead, registerPushToken } from "../services/notificationsApi";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
+  const dispatch = useDispatch();
+  const currentLanguage = useSelector((state) => state.lang.language);
+  
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [enabled, setEnabled] = useState(true);
+
+  // --- Push Notification Setup ---
+  useEffect(() => {
+    if (title === "Notifications") {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          registerPushToken(token).catch(err => console.error("Token reg failed", err));
+        }
+      });
+      loadNotifications();
+    }
+  }, [title]);
+
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchNotifications();
+      setNotifications(data || []);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await markNotificationAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error("Failed to mark as read", err);
+    }
+  };
+
+  async function registerForPushNotificationsAsync() {
+    let token;
+    if (Device.isDevice) {
+      const { status:现existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = 现existingStatus;
+      if (现existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        // Alert.alert('Failed to get push token for push notification!');
+        return;
+      }
+      token = (await Notifications.getExpoPushTokenAsync()).data;
+    } else {
+      // Alert.alert('Must use physical device for Push Notifications');
+    }
+
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
+    return token;
+  }
+
+  // --- Rendering Helpers ---
+
+  const renderNotificationItem = ({ item }) => (
+    <Pressable 
+      style={[styles.notifItem, !item.is_read && styles.notifUnread]} 
+      onPress={() => handleMarkAsRead(item.id)}
+    >
+      <View style={styles.notifIconWrap}>
+        <Ionicons 
+            name={item.type === 'place_approval' ? "checkmark-circle" : "alert-circle"} 
+            size={24} 
+            color={item.type === 'place_approval' ? colors.success || '#4CAF50' : colors.error || '#F44336'} 
+        />
+      </View>
+      <View style={styles.notifContent}>
+        <Text style={styles.notifTitle}>{item.title}</Text>
+        <Text style={styles.notifBody}>{item.body}</Text>
+        <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleString()}</Text>
+      </View>
+      {!item.is_read && <View style={styles.unreadDot} />}
+    </Pressable>
+  );
 
   const renderBody = () => {
     if (title === "Achievements") {
@@ -29,18 +134,49 @@ export default function ProfileSubScreen({ navigation, route }) {
       );
     }
     if (title === "Language") {
+      const langs = [
+        { key: "en", label: "English" },
+        { key: "kn", label: "Kannada" },
+        { key: "hi", label: "Hindi" },
+      ];
       return (
         <View>
-          <Text style={styles.item}>English</Text>
-          <Text style={styles.item}>Kannada (coming soon)</Text>
+          {langs.map((lang) => (
+            <Pressable
+              key={lang.key}
+              style={styles.langItem}
+              onPress={() => dispatch(setLanguage(lang.key))}
+            >
+              <Text style={[styles.item, { marginBottom: 0 }]}>{lang.label}</Text>
+              {currentLanguage === lang.key && (
+                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              )}
+            </Pressable>
+          ))}
         </View>
       );
     }
     if (title === "Notifications") {
       return (
-        <View style={styles.row}>
-          <Text style={styles.item}>Push Notifications</Text>
-          <Switch value={enabled} onValueChange={setEnabled} />
+        <View style={{ flex: 1 }}>
+          <View style={[styles.row, { marginBottom: spacing.lg }]}>
+            <Text style={styles.item}>Push Notifications</Text>
+            <Switch value={enabled} onValueChange={setEnabled} />
+          </View>
+          
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+          ) : (
+            <FlatList
+              data={notifications}
+              renderItem={renderNotificationItem}
+              keyExtractor={item => item.id.toString()}
+              contentContainerStyle={styles.notifList}
+              ListEmptyComponent={<Text style={styles.emptyText}>No notifications yet.</Text>}
+              scrollEnabled={false} // PageCard handles scroll
+            />
+          )}
         </View>
       );
     }
@@ -60,14 +196,80 @@ export default function ProfileSubScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   content: {
     marginTop: spacing.md,
+    flex: 1,
   },
   item: {
     ...typography.body,
     marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    marginBottom: spacing.md,
+    color: colors.text,
+  },
+  langItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+  notifList: {
+    paddingBottom: spacing.xl,
+  },
+  notifItem: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+   Lark},
+  notifUnread: {
+    borderColor: colors.primary,
+    backgroundColor: colors.accent + '20', // Light primary tint
+  },
+  notifIconWrap: {
+    marginRight: spacing.md,
+  },
+  notifContent: {
+    flex: 1,
+  },
+  notifTitle: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  notifBody: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  notifTime: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginLeft: spacing.sm,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 40,
+  }
 });

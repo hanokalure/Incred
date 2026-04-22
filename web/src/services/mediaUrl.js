@@ -10,6 +10,11 @@ function toProxyStoryMediaUrl(objectPath) {
   return `${API_BASE_URL}/files/story-media/${objectPath}`;
 }
 
+function toProxyProfilePicUrl(objectPath) {
+  if (!objectPath) return objectPath;
+  return `${API_BASE_URL}/files/profile-pictures/${objectPath}`;
+}
+
 function extractPlaceImagesObjectPath(urlOrPath) {
   if (!urlOrPath) return null;
 
@@ -48,6 +53,13 @@ function extractStoryObjectPath(urlOrPath) {
   return null;
 }
 
+function extractProfilePicObjectPath(urlOrPath) {
+  if (!urlOrPath || typeof urlOrPath !== "string") return null;
+  if (urlOrPath.startsWith("places/profiles/")) return urlOrPath;
+  if (urlOrPath.includes("/files/profile-pictures/")) return null;
+  return null;
+}
+
 export function toDisplayImageUrl(imageUrl) {
   if (!imageUrl) return imageUrl;
 
@@ -57,7 +69,11 @@ export function toDisplayImageUrl(imageUrl) {
 }
 
 export function toDisplayMediaUrl(mediaUrl) {
+  const profileObjectPath = extractProfilePicObjectPath(mediaUrl);
+  if (profileObjectPath) return toProxyProfilePicUrl(profileObjectPath);
+
   const storyObjectPath = extractStoryObjectPath(mediaUrl);
   if (storyObjectPath) return toProxyStoryMediaUrl(storyObjectPath);
+
   return toDisplayImageUrl(mediaUrl);
 }

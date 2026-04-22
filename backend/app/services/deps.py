@@ -11,7 +11,7 @@ try:
 except ImportError:
     from gotrue.errors import AuthApiError
 
-from ..database import supabase_anon, supabase_admin
+from ..database import get_supabase_client
 from ..config import settings
 
 security = HTTPBearer(auto_error=False)
@@ -38,9 +38,10 @@ def _decode_token_claims(token: str) -> Dict[str, Any]:
     return claims
 
 
-def _get_user_id_from_token(token: str) -> str:
+async def _get_user_id_from_token(token: str) -> str:
+    supabase = await get_supabase_client(anon=True)
     try:
-        user_response = supabase_anon.auth.get_user(token)
+        user_response = await supabase.auth.get_user(token)
     except AuthApiError as exc:
         message = (getattr(exc, "message", None) or str(exc)).lower()
         if "expired" in message:
@@ -62,13 +63,14 @@ def _get_user_id_from_token(token: str) -> str:
     return str(user_response.user.id)
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     if not credentials or not credentials.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
     token = credentials.credentials
-    user_id = _get_user_id_from_token(token)
-    profile = supabase_admin.table("users").select("id,email,name,role").eq("id", user_id).single().execute()
+    user_id = await _get_user_id_from_token(token)
+    admin = await get_supabase_client(anon=False)
+    profile = await admin.table("users").select("id,email,name,role,profile_pic").eq("id", user_id).single().execute()
     if not profile or not profile.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
 
@@ -81,17 +83,19 @@ def require_admin(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str,
     return user
 
 
-def get_optional_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any] | None:
+async def get_optional_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any] | None:
     if not credentials or not credentials.credentials:
         return None
 
     token = credentials.credentials
     try:
-        user_id = _get_user_id_from_token(token)
+        user_id = await _get_user_id_from_token(token)
+        admin = await get_supabase_client(anon=False)
+        profile = await admin.table("users").select("id,email,name,role,profile_pic").eq("id", user_id).single().execute()
+        if not profile or not profile.data:
+            return None
+        return profile.data
     except HTTPException:
         return None
-    profile = supabase_admin.table("users").select("id,email,name,role").eq("id", user_id).single().execute()
-    if not profile or not profile.data:
+    except Exception:
         return None
-
-    return profile.data

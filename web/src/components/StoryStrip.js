@@ -8,12 +8,14 @@ import { typography } from "../theme/typography";
 import { fetchMyStories, fetchStoryFeed } from "../services/storiesApi";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 
-function StoryBubble({ label, onPress, active = false, own = false, previewUrl = "", mediaType = "image", seen = false }) {
+function StoryBubble({ label, onPress, active = false, own = false, previewUrl = "", profilePic = "", mediaType = "image", seen = false }) {
   return (
     <Pressable onPress={onPress} style={styles.bubbleWrap}>
       <View style={[styles.ring, active && styles.ringActive, own && styles.ringOwn, seen && styles.ringSeen]}>
         <View style={styles.inner}>
-          {previewUrl ? (
+          {profilePic ? (
+            <Image source={{ uri: toDisplayMediaUrl(profilePic) }} style={styles.previewImage} resizeMode="cover" />
+          ) : previewUrl ? (
             <>
               <Image source={{ uri: previewUrl }} style={styles.previewImage} resizeMode="cover" />
               {mediaType === "video" ? (
@@ -35,7 +37,8 @@ function StoryBubble({ label, onPress, active = false, own = false, previewUrl =
 }
 
 export default function StoryStrip({ navigation, refreshKey = 0 }) {
-  const currentUserId = useSelector((state) => state.auth.user?.id);
+  const { user } = useSelector((state) => state.auth);
+  const currentUserId = user?.id;
   const [feed, setFeed] = useState([]);
   const [myStories, setMyStories] = useState([]);
   const ownPreview = myStories[0] ? toDisplayMediaUrl(myStories[0].media_url) : "";
@@ -68,6 +71,7 @@ export default function StoryStrip({ navigation, refreshKey = 0 }) {
               ? navigation.navigate("StoryViewer", {
                   stories: myStories,
                   userName: "Your Story",
+                  userProfilePic: user?.profile_pic,
                   initialIndex: 0,
                 })
               : navigation.navigate("CreateStory")
@@ -79,10 +83,12 @@ export default function StoryStrip({ navigation, refreshKey = 0 }) {
             label={group.user_name || "Explorer"}
             active={!group.stories.every((story) => story.seen_by_me)}
             seen={group.stories.every((story) => story.seen_by_me)}
+            profilePic={group.user_profile_pic}
             onPress={() =>
               navigation.navigate("StoryViewer", {
                 stories: group.stories,
                 userName: group.user_name || "Explorer",
+                userProfilePic: group.user_profile_pic,
                 initialIndex: 0,
               })
             }
