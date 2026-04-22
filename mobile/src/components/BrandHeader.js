@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleLanguage } from "../store/slices/langSlice";
+import { fetchNotifications } from "../store/slices/notificationsSlice";
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -11,8 +12,16 @@ import { typography } from "../theme/typography";
 export default function BrandHeader() {
     const dispatch = useDispatch();
     const navigation = useNavigation();
+    const { isAuthenticated } = useSelector((state) => state.auth);
+    const { unreadCount } = useSelector((state) => state.notifications);
     const language = useSelector((state) => state.lang.language);
     const [locationName, setLocationName] = useState("Detecting...");
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            dispatch(fetchNotifications());
+        }
+    }, [dispatch, isAuthenticated]);
 
     useEffect(() => {
         (async () => {
@@ -61,12 +70,21 @@ export default function BrandHeader() {
             </View>
 
             <View style={styles.rightActions}>
-                <Pressable
-                    onPress={() => navigation.navigate("Notifications", { title: "Notifications" })}
-                    style={styles.actionBtn}
-                >
-                    <Text style={styles.actionIcon}>🔔</Text>
-                </Pressable>
+                {isAuthenticated && (
+                    <Pressable
+                        onPress={() => navigation.navigate("Notifications", { title: "Notifications" })}
+                        style={styles.bellBtn}
+                    >
+                        <Text style={styles.actionIcon}>🔔</Text>
+                        {unreadCount > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </Text>
+                            </View>
+                        )}
+                    </Pressable>
+                )}
 
                 <Pressable
                     onPress={() => dispatch(toggleLanguage())}
@@ -128,15 +146,31 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 8,
     },
-    actionBtn: {
-        backgroundColor: colors.surface,
-        width: 40,
-        height: 40,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
+    bellBtn: {
+        width: 44,
+        height: 44,
         alignItems: "center",
         justifyContent: "center",
+        position: "relative",
+    },
+    badge: {
+        position: "absolute",
+        top: 4,
+        right: 4,
+        backgroundColor: colors.error || "#FF3B30",
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: colors.background,
+    },
+    badgeText: {
+        color: "#FFF",
+        fontSize: 10,
+        fontWeight: "900",
     },
     actionIcon: {
         fontSize: 18,

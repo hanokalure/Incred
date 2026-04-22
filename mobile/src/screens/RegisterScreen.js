@@ -46,7 +46,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <PageCard hideHeader={false}>
+    <PageCard hideHeader={true}>
       <View style={styles.container}>
         <Text style={styles.title}>Create Account</Text>
         <TextInput placeholder="Name" style={styles.input} value={name} onChangeText={setName} />

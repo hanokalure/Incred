@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from ..schemas.notifications import NotificationOut, PushTokenUpdate
-from ..services.notification_service import list_notifications, mark_notification_as_read, update_user_push_token
+from ..schemas.notifications import NotificationOut, PushTokenUpdate, NotificationSettingsUpdate
+from ..services.notification_service import list_notifications, mark_notification_as_read, update_user_push_token, update_push_preference
 from ..services.deps import get_current_user
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -20,4 +20,9 @@ async def mark_read_api(notification_id: int, user=Depends(get_current_user)):
 @router.post("/push-token")
 async def register_push_token(payload: PushTokenUpdate, user=Depends(get_current_user)):
     await update_user_push_token(user_id=user["id"], push_token=payload.push_token)
+    return {"status": "success"}
+
+@router.put("/settings")
+async def update_settings(payload: NotificationSettingsUpdate, user=Depends(get_current_user)):
+    await update_push_preference(user_id=user["id"], enabled=payload.push_enabled)
     return {"status": "success"}

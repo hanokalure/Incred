@@ -1,13 +1,17 @@
-import apiClient from "./apiClient";
+import { apiGet, apiPost } from "./apiClient";
 
 export const fetchNotifications = async () => {
-    return await apiClient.get("/notifications");
+    return await apiGet("/notifications");
 };
 
 export const markNotificationAsRead = async (id) => {
-    return await apiClient.post(`/notifications/${id}/read`);
+    return await apiPost(`/notifications/${id}/read`);
 };
 
 export const registerPushToken = async (token) => {
-    return await apiClient.post("/notifications/push-token", { push_token: token });
+    return await apiPost("/notifications/push-token", { push_token: token });
+};
+
+export const updateNotificationSettings = async (enabled) => {
+    return await apiPut("/notifications/settings", { push_enabled: enabled });
 };

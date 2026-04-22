@@ -21,14 +21,32 @@ async def create_notification(user_id: str, title: str, body: str, n_type: str, 
     
     result = await admin.table("notifications").insert(payload).execute()
     
-    # 2. Trigger Native Push if token exists
-    user_res = await admin.table("users").select("push_token").eq("id", user_id).single().execute()
-    push_token = user_res.data.get("push_token") if user_res and user_res.data else None
+    # 2. Trigger Native Push if token exists and push is enabled
+    user_res = await admin.table("users").select("push_token, push_enabled").eq("id", user_id).single().execute()
+    user_data = user_res.data if user_res and user_res.data else {}
+    push_token = user_data.get("push_token")
+    push_enabled = user_data.get("push_enabled", True)
     
-    if push_token and push_token.startswith("ExponentPushToken"):
+    if push_enabled and push_token and push_token.startswith("ExponentPushToken"):
         await send_native_push(push_token, title, body, {"related_id": related_id, "type": n_type})
         
     return result.data[0] if result and result.data else None
+
+async def notify_admins(title: str, body: str, n_type: str, related_id: Optional[int] = None):
+    """
+    Sends a notification to all users with the 'admin' role.
+    """
+    admin_client = await get_supabase_client(anon=False)
+    
+    # 1. Find all admins
+    res = await admin_client.table("users").select("id").eq("role", "admin").execute()
+    admin_ids = [row["id"] for row in res.data] if res and res.data else []
+    
+    # 2. Create notifications for each
+    for aid in admin_ids:
+        await create_notification(aid, title, body, n_type, related_id)
+    
+    return len(admin_ids)
 
 async def send_native_push(token: str, title: str, body: str, data: Dict[str, Any]):
     """
@@ -79,6 +97,16 @@ async def update_user_push_token(user_id: str, push_token: str):
     result = await (
         admin.table("users")
         .update({"push_token": push_token})
+        .eq("id", user_id)
+        .execute()
+    )
+    return result.data[0] if result and result.data else None
+
+async def update_push_preference(user_id: str, enabled: bool):
+    admin = await get_supabase_client(anon=False)
+    result = await (
+        admin.table("users")
+        .update({"push_enabled": enabled})
         .eq("id", user_id)
         .execute()
     )

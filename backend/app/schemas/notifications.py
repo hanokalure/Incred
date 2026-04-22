@@ -19,3 +19,6 @@ class NotificationOut(NotificationBase):
 
 class PushTokenUpdate(BaseModel):
     push_token: str
+
+class NotificationSettingsUpdate(BaseModel):
+    push_enabled: bool

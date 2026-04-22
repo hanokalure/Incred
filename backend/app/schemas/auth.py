@@ -20,6 +20,7 @@ class UserProfile(BaseModel):
     role: str
     profile_pic: Optional[str] = None
     push_token: Optional[str] = None
+    push_enabled: Optional[bool] = True
 
 
 class AuthResponse(BaseModel):

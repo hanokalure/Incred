@@ -41,7 +41,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <PageCard hideHeader={false}>
+    <PageCard hideHeader={true}>
       <View style={styles.container}>
         <Text style={styles.title}>Welcome Back</Text>
         <TextInput

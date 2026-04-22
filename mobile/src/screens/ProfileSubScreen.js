@@ -10,7 +10,8 @@ import { typography } from "../theme/typography";
 import ScreenHeader from "../components/ScreenHeader";
 import PageCard from "../components/PageCard";
 import { setLanguage } from "../store/slices/langSlice";
-import { fetchNotifications, markNotificationAsRead, registerPushToken } from "../services/notificationsApi";
+import { fetchNotifications, togglePushEnabled, markReadLocal } from "../store/slices/notificationsSlice";
+import { markNotificationAsRead, registerPushToken } from "../services/notificationsApi";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -24,11 +25,8 @@ export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
   const dispatch = useDispatch();
   const currentLanguage = useSelector((state) => state.lang.language);
+  const { notifications, loading, pushEnabled } = useSelector((state) => state.notifications);
   
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [enabled, setEnabled] = useState(true);
-
   // --- Push Notification Setup ---
   useEffect(() => {
     if (title === "Notifications") {
@@ -37,37 +35,34 @@ export default function ProfileSubScreen({ navigation, route }) {
           registerPushToken(token).catch(err => console.error("Token reg failed", err));
         }
       });
-      loadNotifications();
+      dispatch(fetchNotifications());
     }
-  }, [title]);
+  }, [title, dispatch]);
 
-  const loadNotifications = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchNotifications();
-      setNotifications(data || []);
-    } catch (err) {
-      console.error("Failed to load notifications", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMarkAsRead = async (id) => {
+  const handleMarkAsRead = async (id, type) => {
     try {
       await markNotificationAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      dispatch(markReadLocal(id));
+
+      // Admin workflow: navigate to approvals on tap
+      if (type === "place_submission_request" || type === "media_submission_request") {
+        navigation.navigate("PlaceApprovals");
+      }
     } catch (err) {
       console.error("Failed to mark as read", err);
     }
   };
 
+  const handleTogglePush = (val) => {
+    dispatch(togglePushEnabled(val));
+  };
+
   async function registerForPushNotificationsAsync() {
     let token;
     if (Device.isDevice) {
-      const { status:现existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = 现existingStatus;
-      if (现existingStatus !== 'granted') {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
@@ -94,26 +89,36 @@ export default function ProfileSubScreen({ navigation, route }) {
 
   // --- Rendering Helpers ---
 
-  const renderNotificationItem = ({ item }) => (
-    <Pressable 
-      style={[styles.notifItem, !item.is_read && styles.notifUnread]} 
-      onPress={() => handleMarkAsRead(item.id)}
-    >
-      <View style={styles.notifIconWrap}>
-        <Ionicons 
-            name={item.type === 'place_approval' ? "checkmark-circle" : "alert-circle"} 
-            size={24} 
-            color={item.type === 'place_approval' ? colors.success || '#4CAF50' : colors.error || '#F44336'} 
-        />
-      </View>
-      <View style={styles.notifContent}>
-        <Text style={styles.notifTitle}>{item.title}</Text>
-        <Text style={styles.notifBody}>{item.body}</Text>
-        <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleString()}</Text>
-      </View>
-      {!item.is_read && <View style={styles.unreadDot} />}
-    </Pressable>
-  );
+  const renderNotificationItem = ({ item }) => {
+    const isApprovalReq = item.type === "place_submission_request" || item.type === "media_submission_request";
+    
+    return (
+      <Pressable 
+        style={[styles.notifItem, !item.is_read && styles.notifUnread]} 
+        onPress={() => handleMarkAsRead(item.id, item.type)}
+      >
+        <View style={styles.notifIconWrap}>
+          <Ionicons 
+              name={
+                item.type === 'place_approval' ? "checkmark-circle" : 
+                isApprovalReq ? "shield-checkmark" : "alert-circle"
+              } 
+              size={24} 
+              color={
+                item.type === 'place_approval' ? colors.success : 
+                isApprovalReq ? colors.primary : colors.error
+              } 
+          />
+        </View>
+        <View style={styles.notifContent}>
+          <Text style={styles.notifTitle}>{item.title}</Text>
+          <Text style={styles.notifBody}>{item.body}</Text>
+          <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleString()}</Text>
+        </View>
+        {!item.is_read && <View style={styles.unreadDot} />}
+      </Pressable>
+    );
+  };
 
   const renderBody = () => {
     if (title === "Achievements") {
@@ -161,7 +166,7 @@ export default function ProfileSubScreen({ navigation, route }) {
         <View style={{ flex: 1 }}>
           <View style={[styles.row, { marginBottom: spacing.lg }]}>
             <Text style={styles.item}>Push Notifications</Text>
-            <Switch value={enabled} onValueChange={setEnabled} />
+            <Switch value={pushEnabled} onValueChange={handleTogglePush} />
           </View>
           
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
-   Lark},
+  },
   notifUnread: {
     borderColor: colors.primary,
     backgroundColor: colors.accent + '20', // Light primary tint

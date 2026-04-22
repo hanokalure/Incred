@@ -126,7 +126,7 @@ export async function apiUpload(path, formData, options = {}) {
     method: "POST",
     headers: await buildHeaders({ ...options, contentType: null }),
     body: formData,
-    timeoutMs: options.timeoutMs,
+    timeoutMs: options.timeoutMs || 120000, // 120 seconds for uploads
   });
   return handleResponse(res);
 }

@@ -219,6 +219,15 @@ async def create_place(payload: Dict[str, Any], user_id: str, user_role: str) ->
     if payload.get("category") == "stay" and stay_details:
         await admin.table("stay_details").upsert({"place_id": place_id, **stay_details}).execute()
 
+    # Notify admins of new submission
+    if user_role != "admin":
+        await notification_service.notify_admins(
+            title="Place Review Requested",
+            body=f'A new submission "{place["name"]}" requires your review.',
+            n_type="place_submission_request",
+            related_id=place_id
+        )
+
     return place
 
 
@@ -382,8 +391,8 @@ async def approve_place(place_id: int, admin_user_id: str) -> Dict[str, Any]:
     if place.get("submitted_by"):
         await notification_service.create_notification(
             user_id=place["submitted_by"],
-            title="Place Approved! 🎉",
-            body=f'Your submission "{place["name"]}" has been approved and is now live.',
+            title="Place Submission Approved",
+            body=f'Your submission "{place["name"]}" has been verified and is now live.',
             n_type="place_approval",
             related_id=place_id
         )
@@ -470,7 +479,18 @@ async def submit_place_photo(place_id: int, user_id: str, media_type: str, media
         result = await admin.table("place_photo_submissions").insert(legacy_payload).execute()
     if not result or not result.data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo submission failed")
-    return _infer_submission_media(result.data[0])
+    
+    submission = result.data[0]
+    
+    # Notify admins of new media
+    await notification_service.notify_admins(
+        title="Media Review Requested",
+        body=f"New content has been submitted for review.",
+        n_type="media_submission_request",
+        related_id=submission["id"]
+    )
+    
+    return _infer_submission_media(submission)
 
 
 async def list_pending_place_photo_submissions() -> List[Dict[str, Any]]:
