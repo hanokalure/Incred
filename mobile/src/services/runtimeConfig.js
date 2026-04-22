@@ -4,6 +4,7 @@ import Constants from "expo-constants";
 let resolvedApiBaseUrl = "";
 
 function normalizeBaseUrl(value) {
+  // Always strip trailing slashes to prevent double-slash 308 redirect bugs on Vercel
   return String(value || "").trim().replace(/\/+$/, "");
 }
 
@@ -43,14 +44,15 @@ export function getApiBaseUrls() {
   if (resolvedApiBaseUrl) push(resolvedApiBaseUrl);
 
   const host = hostFromExpoRuntime();
-  if (host) push(`http://${host}:8000`);
-
-  const bundleHost = hostFromBundleUrl();
-  if (bundleHost) push(`http://${bundleHost}:8000`);
-
-  if (Platform.OS === "android") push("http://10.0.2.2:8000");
-  push("http://127.0.0.1:8000");
-  push("http://localhost:8000");
+  // Don't auto-push localhost if an explicit production URL is provided in .env
+  if (!explicit) {
+    if (host) push(`http://${host}:8000`);
+    const bundleHost = hostFromBundleUrl();
+    if (bundleHost) push(`http://${bundleHost}:8000`);
+    if (Platform.OS === "android") push("http://10.0.2.2:8000");
+    push("http://127.0.0.1:8000");
+    push("http://localhost:8000");
+  }
 
   return urls;
 }
@@ -59,6 +61,7 @@ export function getApiBaseUrl() {
   const urls = getApiBaseUrls();
   const next = urls[0] || "http://localhost:8000";
   resolvedApiBaseUrl = normalizeBaseUrl(next);
+  console.log("[RuntimeConfig] Active API Base URL:", resolvedApiBaseUrl);
   return resolvedApiBaseUrl;
 }
 

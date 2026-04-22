@@ -45,6 +45,16 @@ const notificationsSlice = createSlice({
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
     },
+    addNotification: (state, action) => {
+      // Avoid duplicates if polling and realtime overlap
+      const exists = state.notifications.some((n) => n.id === action.payload.id);
+      if (!exists) {
+        state.notifications.unshift(action.payload);
+        if (!action.payload.is_read) {
+          state.unreadCount += 1;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -74,5 +84,5 @@ const notificationsSlice = createSlice({
   },
 });
 
-export const { setPushEnabled, markReadLocal } = notificationsSlice.actions;
+export const { setPushEnabled, markReadLocal, addNotification } = notificationsSlice.actions;
 export default notificationsSlice.reducer;

@@ -77,7 +77,8 @@ async function fetchWithBaseFallback(path, options) {
   }
 
   if (lastError && isNetworkFailure(lastError)) {
-    throw new Error(`Network request failed. Tried: ${candidateBases.join(", ")}`);
+    console.error(`[API Client] Network failure calling ${path}. URL tried: ${candidateBases.join(", ")}. Error:`, lastError.message);
+    throw new Error(`Connection failed (Network Error). This usually means the server's CORS policy is blocking the mobile app or the URL is unreachable.`);
   }
 
   throw lastError || new Error("Network request failed");

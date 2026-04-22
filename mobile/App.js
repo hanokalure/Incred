@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider } from "react-redux";
 import { store } from "./src/store";
 import RootNavigator from "./src/navigation/RootNavigator";
+import NotificationListener from "./src/components/NotificationListener";
 
 LogBox.ignoreLogs([
   "[expo-av]: Video component from `expo-av` is deprecated in favor of `expo-video`.",
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <Provider store={store}>
+        <NotificationListener />
         <RootNavigator />
       </Provider>
     </SafeAreaProvider>
