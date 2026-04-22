@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, useWindowDimensions, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { loadNotifications, markReadLocal } from "../store/slices/notificationsSlice";
+import { markNotificationAsRead } from "../services/notificationsApi";
 import { colors } from "../theme/colors";
 import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -60,6 +62,10 @@ export default function WebShell() {
   const { width } = useWindowDimensions();
   const role = useSelector((state) => state.auth.role);
   const user = useSelector((state) => state.auth.user);
+  const notifications = useSelector((state) => state.notifications.notifications) || [];
+  const unreadCount = useSelector((state) => state.notifications.unreadCount) || 0;
+  
+  const dispatch = useDispatch();
   const { language, setLanguage, t } = useLanguage();
   const navRef = useRef(null);
 
@@ -89,7 +95,6 @@ export default function WebShell() {
   const [collapsed, setCollapsed] = useState(width < 1024);
   const [locationText, setLocationText] = useState(t("locating"));
   const [showNotifs, setShowNotifs] = useState(false);
-  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     setCollapsed(width < 1024);
@@ -104,19 +109,10 @@ export default function WebShell() {
   }, [language, t]);
 
   useEffect(() => {
-    const loadNotifs = async () => {
-      try {
-        const res = await fetch("http://localhost:8000/notifications", {
-          headers: {
-            "Authorization": `Bearer ${useSelector.token}` // Wait, I need proper auth integration
-          }
-        });
-        // Actually I should use the services already defined if possible, or just mock for now
-        // since I'm in a shell.
-      } catch (e) {}
-    };
-    // Let's use a simpler mock fetch or a proper service if it existed for web.
-  }, []);
+    if (user?.id) {
+      dispatch(loadNotifications());
+    }
+  }, [user?.id, dispatch]);
 
   useEffect(() => {
     if (role === "admin") {
@@ -161,6 +157,28 @@ export default function WebShell() {
     go(homeRoute);
   };
 
+  const handleMarkAsRead = async (id, type) => {
+    try {
+      await markNotificationAsRead(id);
+      dispatch(markReadLocal(id));
+
+      if (type === "place_submission_request" || type === "media_submission_request") {
+        setShowNotifs(false);
+        go("Approvals");
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read", err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    for (const notif of notifications) {
+      if (!notif.is_read) {
+        await handleMarkAsRead(notif.id, notif.type);
+      }
+    }
+  };
+
   const sidebarWidth = collapsed ? STRIP_WIDTH : SIDEBAR_WIDTH;
 
   return (
@@ -200,9 +218,9 @@ export default function WebShell() {
               style={[styles.notifBtn, showNotifs && styles.notifBtnActive]}
             >
               <Ionicons name="notifications-outline" size={22} color={colors.text} />
-              {notifications.filter(n => !n.is_read).length > 0 && (
+              {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>{notifications.filter(n => !n.is_read).length}</Text>
+                  <Text style={styles.notifBadgeText}>{unreadCount}</Text>
                 </View>
               )}
             </Pressable>
@@ -211,25 +229,38 @@ export default function WebShell() {
               <View style={styles.notifDropdown}>
                 <View style={styles.notifDropdownHeader}>
                   <Text style={styles.notifDropdownTitle}>Notifications</Text>
-                  <Pressable onPress={() => setNotifications(prev => prev.map(n => ({...n, is_read: true})))}>
-                    <Text style={styles.markAllRead}>Mark all read</Text>
-                  </Pressable>
+                  {unreadCount > 0 && (
+                    <Pressable onPress={handleMarkAllAsRead}>
+                      <Text style={styles.markAllRead}>Mark all read</Text>
+                    </Pressable>
+                  )}
                 </View>
                 <View style={styles.notifList}>
                   {notifications.length === 0 ? (
                     <Text style={styles.emptyNotifs}>No notifications yet</Text>
                   ) : (
-                    notifications.map(n => (
+                    notifications.map(n => {
+                      const isApprovalReq = n.type === "place_submission_request" || n.type === "media_submission_request";
+                      return (
                       <Pressable 
                         key={n.id} 
                         style={[styles.notifItem, !n.is_read && styles.notifItemUnread]}
-                        onPress={() => setNotifications(prev => prev.map(item => item.id === n.id ? {...item, is_read: true} : item))}
+                        onPress={() => handleMarkAsRead(n.id, n.type)}
                       >
-                        <View style={[styles.notifIcon, { backgroundColor: n.type === 'place_approval' ? '#E8F5E9' : '#FFEBEE' }]}>
+                        <View style={[styles.notifIcon, { 
+                          backgroundColor: n.type === 'place_approval' ? '#E8F5E9' : 
+                                           isApprovalReq ? 'rgba(74, 144, 226, 0.1)' : '#FFEBEE' 
+                        }]}>
                           <Ionicons 
-                            name={n.type === 'place_approval' ? "checkmark-circle" : "alert-circle"} 
+                            name={
+                              n.type === 'place_approval' ? "checkmark-circle" : 
+                              isApprovalReq ? "shield-checkmark" : "alert-circle"
+                            } 
                             size={16} 
-                            color={n.type === 'place_approval' ? '#4CAF50' : '#F44336'} 
+                            color={
+                              n.type === 'place_approval' ? '#4CAF50' : 
+                              isApprovalReq ? colors.primary : '#F44336'
+                            } 
                           />
                         </View>
                         <View style={styles.notifInfo}>
@@ -237,7 +268,8 @@ export default function WebShell() {
                           <Text style={styles.notifBody} numberOfLines={2}>{n.body}</Text>
                         </View>
                       </Pressable>
-                    ))
+                      );
+                    })
                   )}
                 </View>
               </View>

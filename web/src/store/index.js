@@ -4,6 +4,7 @@ import savedReducer from "./slices/savedSlice";
 import reviewsReducer from "./slices/reviewsSlice";
 import recommendationsReducer from "./slices/recommendationsSlice";
 import authReducer from "./slices/authSlice";
+import notificationsReducer from "./slices/notificationsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,5 +13,6 @@ export const store = configureStore({
     reviews: reviewsReducer,
     recommendations: recommendationsReducer,
     auth: authReducer,
+    notifications: notificationsReducer,
   },
 });
