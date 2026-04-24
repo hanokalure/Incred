@@ -33,45 +33,71 @@ async function handleResponse(res) {
   return res.json();
 }
 
+async function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function safeFetch(path, options, maxRetries = 2) {
+  const url = `${API_BASE_URL}${path}`;
+  let attempt = 0;
+  
+  while (attempt <= maxRetries) {
+    try {
+      const res = await fetch(url, options);
+      return await handleResponse(res);
+    } catch (err) {
+      const isNetworkError = err.message.includes("Failed to fetch") || err.message.includes("NetworkError");
+      
+      // If it's a network/CORS error (likely Vercel cold-start preflight dropout), retry!
+      if (isNetworkError && attempt < maxRetries) {
+        attempt++;
+        console.warn(`[API Client] CORS/Network drop on ${url}. Server likely waking up. Retrying attempt ${attempt}...`);
+        await delay(2000); // give the server 2 seconds to finish booting
+        continue;
+      }
+      
+      if (isNetworkError) {
+        throw new Error(`Unable to connect to the server at ${url}. It took too long to respond. The network may be blocked by CORS or the server is asleep. Please refresh and try again.`);
+      }
+      throw err;
+    }
+  }
+}
+
 export async function apiGet(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  return safeFetch(path, {
     method: "GET",
     headers: buildHeaders(options),
   });
-  return handleResponse(res);
 }
 
 export async function apiPost(path, body, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  return safeFetch(path, {
     method: "POST",
     headers: buildHeaders(options),
     body: JSON.stringify(body),
   });
-  return handleResponse(res);
 }
 
 export async function apiPut(path, body, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  return safeFetch(path, {
     method: "PUT",
     headers: buildHeaders(options),
     body: JSON.stringify(body),
   });
-  return handleResponse(res);
 }
 
 export async function apiDelete(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  return safeFetch(path, {
     method: "DELETE",
     headers: buildHeaders(options),
   });
-  return handleResponse(res);
 }
 
 export async function apiUpload(path, formData, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  return safeFetch(path, {
     method: "POST",
     headers: buildHeaders({ ...options, contentType: null }),
     body: formData,
   });
-  return handleResponse(res);
 }
