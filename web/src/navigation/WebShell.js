@@ -132,9 +132,9 @@ export default function WebShell() {
       .catch(() => setLocationText(t("locationUnavailable")));
   }, [role, language, t]);
 
-  const go = (key) => {
-    setActive(key);
-    navRef.current?.navigate(key);
+  const go = (key, params = {}) => {
+    setActive(ROUTE_TO_SECTION[key] || key);
+    navRef.current?.navigate(key, params);
   };
 
   const onNavStateChange = (state) => {
@@ -214,8 +214,8 @@ export default function WebShell() {
           </View>
           <View style={styles.headerActions}>
             <Pressable 
-              onPress={() => setShowNotifs(!showNotifs)} 
-              style={[styles.notifBtn, showNotifs && styles.notifBtnActive]}
+              onPress={() => go("ProfileSub", { title: "Notifications" })} 
+              style={styles.notifBtn}
             >
               <Ionicons name="notifications-outline" size={22} color={colors.text} />
               {unreadCount > 0 && (
@@ -224,56 +224,6 @@ export default function WebShell() {
                 </View>
               )}
             </Pressable>
-
-            {showNotifs && (
-              <View style={styles.notifDropdown}>
-                <View style={styles.notifDropdownHeader}>
-                  <Text style={styles.notifDropdownTitle}>Notifications</Text>
-                  {unreadCount > 0 && (
-                    <Pressable onPress={handleMarkAllAsRead}>
-                      <Text style={styles.markAllRead}>Mark all read</Text>
-                    </Pressable>
-                  )}
-                </View>
-                <View style={styles.notifList}>
-                  {notifications.length === 0 ? (
-                    <Text style={styles.emptyNotifs}>No notifications yet</Text>
-                  ) : (
-                    notifications.map(n => {
-                      const isApprovalReq = n.type === "place_submission_request" || n.type === "media_submission_request";
-                      return (
-                      <Pressable 
-                        key={n.id} 
-                        style={[styles.notifItem, !n.is_read && styles.notifItemUnread]}
-                        onPress={() => handleMarkAsRead(n.id, n.type)}
-                      >
-                        <View style={[styles.notifIcon, { 
-                          backgroundColor: n.type === 'place_approval' ? '#E8F5E9' : 
-                                           isApprovalReq ? 'rgba(74, 144, 226, 0.1)' : '#FFEBEE' 
-                        }]}>
-                          <Ionicons 
-                            name={
-                              n.type === 'place_approval' ? "checkmark-circle" : 
-                              isApprovalReq ? "shield-checkmark" : "alert-circle"
-                            } 
-                            size={16} 
-                            color={
-                              n.type === 'place_approval' ? '#4CAF50' : 
-                              isApprovalReq ? colors.primary : '#F44336'
-                            } 
-                          />
-                        </View>
-                        <View style={styles.notifInfo}>
-                          <Text style={styles.notifTitle}>{n.title}</Text>
-                          <Text style={styles.notifBody} numberOfLines={2}>{n.body}</Text>
-                        </View>
-                      </Pressable>
-                      );
-                    })
-                  )}
-                </View>
-              </View>
-            )}
 
             <Pressable onPress={() => go("Profile")} style={styles.profileBtn}>
               {user?.profile_pic ? (
