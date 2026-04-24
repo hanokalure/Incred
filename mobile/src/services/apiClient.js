@@ -1,6 +1,6 @@
 import { getAuthToken } from "./authStore";
 import { getApiBaseUrl, getApiBaseUrls, setApiBaseUrl } from "./runtimeConfig";
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 15000;
 
 async function buildHeaders(options = {}) {
   const headers = {
@@ -78,7 +78,10 @@ async function fetchWithBaseFallback(path, options) {
 
   if (lastError && isNetworkFailure(lastError)) {
     console.error(`[API Client] Network failure calling ${path}. URL tried: ${candidateBases.join(", ")}. Error:`, lastError.message);
-    throw new Error(`Connection failed (Network Error). This usually means the server's CORS policy is blocking the mobile app or the URL is unreachable.`);
+    if (lastError.message === "Request timed out") {
+      throw new Error("The server is taking too long to respond. It may be waking up from sleep. Please try again.");
+    }
+    throw new Error("Unable to connect to the server. Please check your internet connection and try again.");
   }
 
   throw lastError || new Error("Network request failed");
