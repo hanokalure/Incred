@@ -56,6 +56,7 @@ const ROUTE_TO_SECTION = {
   SavedList: "Saved",
   Map: "Map",
   Profile: "Profile",
+  ProfileSub: "Profile",
 };
 
 export default function WebShell() {
@@ -77,6 +78,7 @@ export default function WebShell() {
     { key: "Analytics", label: t("navAnalytics"), icon: "bar-chart-outline" },
     { key: "Users", label: t("navUsers"), icon: "people-outline" },
     { key: "Settings", label: t("navSettings"), icon: "settings-outline" },
+    { key: "Map", label: t("navMap"), icon: "map-outline" },
   ];
   const userNav = [
     { key: "Explore", label: t("navExplore"), icon: "compass-outline" },
