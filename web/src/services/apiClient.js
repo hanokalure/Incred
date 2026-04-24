@@ -37,7 +37,7 @@ async function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function safeFetch(path, options, maxRetries = 2) {
+async function safeFetch(path, options, maxRetries = 4) {
   const url = `${API_BASE_URL}${path}`;
   let attempt = 0;
   
@@ -48,16 +48,16 @@ async function safeFetch(path, options, maxRetries = 2) {
     } catch (err) {
       const isNetworkError = err.message.includes("Failed to fetch") || err.message.includes("NetworkError");
       
-      // If it's a network/CORS error (likely Vercel cold-start preflight dropout), retry!
       if (isNetworkError && attempt < maxRetries) {
         attempt++;
-        console.warn(`[API Client] CORS/Network drop on ${url}. Server likely waking up. Retrying attempt ${attempt}...`);
-        await delay(2000); // give the server 2 seconds to finish booting
+        const waitTime = attempt * 2000; // Exponential backoff: 2s, 4s, 6s...
+        console.warn(`[API Client] Connectivity issue on ${url}. Server may be waking up. Retrying attempt ${attempt} in ${waitTime}ms...`);
+        await delay(waitTime);
         continue;
       }
       
       if (isNetworkError) {
-        throw new Error(`Unable to connect to the server at ${url}. It took too long to respond. The network may be blocked by CORS or the server is asleep. Please refresh and try again.`);
+        throw new Error(`Unable to connect to the server at ${url}. The server is taking too long to respond (likely a cold start). Please try one more time in a few seconds.`);
       }
       throw err;
     }

@@ -18,30 +18,25 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
-    origins = []
-    for origin in settings.CORS_ORIGINS.split(","):
-        normalized = origin.strip().rstrip("/")
-        if normalized and normalized not in origins:
-            origins.append(normalized)
+    # Robust CORS for Vercel/Production
+    origins = [o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+    
+    # If wildcard is requested with credentials, we must use allow_origin_regex or specific lists
+    # for better browser compatibility during cold starts.
+    is_wildcard = "*" in origins
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[] if is_wildcard else origins,
+        allow_origin_regex=".*" if is_wildcard else None,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-    allow_origin_regex = settings.CORS_ALLOW_ORIGIN_REGEX.strip() if settings.CORS_ALLOW_ORIGIN_REGEX else None
-
-    # `*` with allow_credentials=True is unreliable for browser-based auth flows.
-    # When wildcard access is requested, switch to a regex so the middleware
-    # echoes the caller origin instead of returning an unusable wildcard policy.
-    if origins == ["*"]:
-        origins = []
-        allow_origin_regex = allow_origin_regex or ".*"
-
-    if origins or allow_origin_regex:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_origin_regex=allow_origin_regex,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+    @app.get("/health")
+    async def health_check():
+        return {"status": "online", "message": "Server is awake"}
 
     app.include_router(auth.router, prefix="/auth", tags=["Auth"])
     app.include_router(districts.router, prefix="/districts", tags=["Districts"])

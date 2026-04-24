@@ -5,6 +5,7 @@ import reviewsReducer from "./slices/reviewsSlice";
 import recommendationsReducer from "./slices/recommendationsSlice";
 import authReducer from "./slices/authSlice";
 import notificationsReducer from "./slices/notificationsSlice";
+import langReducer from "./slices/langSlice";
 
 export const store = configureStore({
   reducer: {
@@ -14,5 +15,6 @@ export const store = configureStore({
     recommendations: recommendationsReducer,
     auth: authReducer,
     notifications: notificationsReducer,
+    lang: langReducer,
   },
 });
