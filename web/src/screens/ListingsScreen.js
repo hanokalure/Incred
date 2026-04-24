@@ -8,6 +8,8 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
 import PlaceCard from "../components/PlaceCard";
 import SelectField from "../components/SelectField";
+import ScreenHeader from "../components/ScreenHeader";
+import { Ionicons } from "@expo/vector-icons";
 import {
   deletePlace,
   fetchPlaceDetails,
@@ -314,11 +316,14 @@ export default function ListingsScreen({ navigation }) {
 
   return (
     <PageCard>
-      <Text style={styles.title}>{t("listingsTitle")}</Text>
-      <Text style={styles.text}>{t("listingsSubtitle")}</Text>
-
+      <ScreenHeader title={t("listingsTitle")} onBack={() => navigation.goBack()} />
+      
       {role === "admin" ? (
         <>
+          <View style={styles.header}>
+            <Text style={styles.title}>Admin Panel</Text>
+            <Text style={styles.subtitle}>Manage and update verified places in the discovery database.</Text>
+          </View>
           <View style={styles.adminFilters}>
             <Text style={styles.filterTitle}>Manage Places</Text>
             <TextInput
@@ -572,30 +577,43 @@ export default function ListingsScreen({ navigation }) {
       ) : (
         <>
           <View style={styles.userSearchPanel}>
-            <Text style={styles.filterTitle}>{t("discoverSearchTitle")}</Text>
-            <TextInput
-              style={styles.search}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("discoverSearchPlaceholder")}
-              placeholderTextColor={colors.textSecondary}
-            />
-            <View style={styles.filterRow}>
-              <SelectField
-                label={t("category")}
-                value={filterCategory}
-                options={categoryOptions}
-                onChange={setFilterCategory}
-              />
-              <SelectField
-                label={t("district")}
-                value={filterDistrictId}
-                options={districtOptions}
-                onChange={setFilterDistrictId}
-              />
+            <View style={styles.searchBarWrap}>
+                <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={styles.cleanSearch}
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={t("discoverSearchPlaceholder")}
+                  placeholderTextColor={colors.textMuted}
+                />
             </View>
+            
+            <View style={styles.filterRow}>
+              <View style={styles.filterItem}>
+                <SelectField
+                  label={t("category")}
+                  value={filterCategory}
+                  options={categoryOptions}
+                  onChange={setFilterCategory}
+                />
+              </View>
+              <View style={styles.filterItem}>
+                <SelectField
+                  label={t("district")}
+                  value={filterDistrictId}
+                  options={districtOptions}
+                  onChange={setFilterDistrictId}
+                />
+              </View>
+            </View>
+            
             <View style={styles.filterActions}>
-              <PrimaryButton label={t("refresh")} onPress={loadPlaces} variant="ghost" />
+              <PrimaryButton 
+                label={t("refresh")} 
+                onPress={loadPlaces} 
+                variant="ghost" 
+                style={styles.minimalBtn}
+              />
               <PrimaryButton
                 label={t("clear")}
                 onPress={() => {
@@ -604,6 +622,7 @@ export default function ListingsScreen({ navigation }) {
                   setFilterDistrictId("All");
                 }}
                 variant="ghost"
+                style={styles.minimalBtn}
               />
             </View>
           </View>
@@ -628,10 +647,17 @@ export default function ListingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    marginBottom: spacing.lg,
+  },
   title: {
     ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   text: {
     ...typography.body,
@@ -662,23 +688,40 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
   },
-  search: {
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: spacing.md,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  cleanSearch: {
+    flex: 1,
+    padding: spacing.md,
+    color: colors.text,
+    outlineStyle: "none",
+  },
+  filterItem: {
+    flex: 1,
+    minWidth: 160,
   },
   filterRow: {
     flexDirection: "row",
     gap: spacing.md,
     flexWrap: "wrap",
+    marginBottom: spacing.md,
   },
   filterActions: {
     flexDirection: "row",
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    justifyContent: "flex-end",
+  },
+  minimalBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   adminCard: {
     backgroundColor: colors.surface,
