@@ -8,7 +8,7 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
-import { clearAuthToken, clearAuthProfile } from "../services/authStore";
+import { clearAuthToken } from "../services/authStore";
 import { logout, updateUser } from "../store/slices/authSlice";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { useLanguage } from "../context/LanguageContext";
@@ -168,9 +168,8 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.footer}>
           <TouchableOpacity 
             style={styles.logoutBtn} 
-            onPress={async () => { 
-              await clearAuthToken(); 
-              await clearAuthProfile();
+            onPress={() => { 
+              clearAuthToken(); 
               dispatch(logout()); 
             }}
           >
