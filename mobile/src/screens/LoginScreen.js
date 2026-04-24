@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, TextInput, StyleSheet, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
 import { login } from "../services/authApi";
-import { setAuthProfile, setAuthToken } from "../services/authStore";
+import { setAuthProfile, setAuthToken, getSavedCredentials, setSavedCredentials, clearSavedCredentials } from "../services/authStore";
 import { login as loginAction } from "../store/slices/authSlice";
 import PageCard from "../components/PageCard";
 
@@ -16,6 +17,20 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    async function loadSaved() {
+      const creds = await getSavedCredentials();
+      if (creds && creds.email) {
+        setEmail(creds.email);
+        setPassword(creds.password);
+        setRememberMe(true);
+      }
+    }
+    loadSaved();
+  }, []);
 
   const handleLogin = async () => {
     if (status === "loading") return;
@@ -32,6 +47,13 @@ export default function LoginScreen({ navigation }) {
       const normalizedUser = data?.user ? { ...data.user, role: normalizedRole } : null;
       await setAuthToken(data.access_token);
       await setAuthProfile(normalizedUser);
+      
+      if (rememberMe) {
+        await setSavedCredentials({ email: email.trim(), password });
+      } else {
+        await clearSavedCredentials();
+      }
+      
       dispatch(loginAction({ user: normalizedUser, role: normalizedRole, token: data.access_token }));
     } catch (e) {
       setError(e.message || "Login failed");
@@ -51,13 +73,31 @@ export default function LoginScreen({ navigation }) {
           value={email}
           onChangeText={setEmail}
         />
-        <TextInput
-          placeholder="Password"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            placeholder="Password"
+            secureTextEntry={!showPassword}
+            style={styles.passwordInput}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
+        <Pressable 
+          style={styles.rememberMeContainer} 
+          onPress={() => setRememberMe(!rememberMe)}
+        >
+          <Ionicons 
+            name={rememberMe ? "checkbox" : "square-outline"} 
+            size={22} 
+            color={rememberMe ? colors.primary : colors.textMuted} 
+          />
+          <Text style={styles.rememberMeText}>Remember Me</Text>
+        </Pressable>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <PrimaryButton
           label={status === "loading" ? "Signing in..." : "Login"}
@@ -94,6 +134,36 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     fontWeight: typography.body.fontWeight,
     color: colors.text,
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: spacing.lg,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    color: colors.text,
+  },
+  eyeIcon: {
+    padding: spacing.lg,
+  },
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.lg,
+    paddingLeft: spacing.xs,
+  },
+  rememberMeText: {
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+    marginLeft: spacing.sm,
   },
   spacer: {
     height: spacing.sm,

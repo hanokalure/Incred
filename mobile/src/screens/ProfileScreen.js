@@ -15,7 +15,7 @@ import { fetchMySubmissions } from "../services/placesApi";
 import { fetchMyStoryArchive } from "../services/storiesApi";
 import { logout as logoutAction, updateUser } from "../store/slices/authSlice";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
-import { uploadProfilePic } from "../services/authApi";
+import { uploadProfilePic, deleteProfilePic } from "../services/authApi";
 
 function StatCard({ label, value, icon, tone = "default" }) {
   return (
@@ -105,6 +105,33 @@ export default function ProfileScreen({ navigation }) {
         setUploading(false);
       }
     }
+  };
+
+  const handlePhotoRemove = async () => {
+    setIsMenuVisible(false);
+    Alert.alert(
+      "Remove Photo",
+      "Are you sure you want to remove your profile photo?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Remove", 
+          style: "destructive",
+          onPress: async () => {
+            setUploading(true);
+            try {
+              await deleteProfilePic();
+              dispatch(updateUser({ profile_pic: null }));
+            } catch (err) {
+              console.error("Remove failed", err);
+              Alert.alert("Remove Failed", err.message || "Failed to remove profile picture.");
+            } finally {
+              setUploading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const roleLabel = formatRole(role);
@@ -213,14 +240,16 @@ export default function ProfileScreen({ navigation }) {
     <PageCard>
       <View style={styles.topProfileSection}>
         <View style={styles.avatarContainer}>
-          <Pressable onPress={() => setIsMenuVisible(true)} disabled={uploading} style={styles.avatarWrapper}>
-            {user?.profile_pic ? (
-              <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>{(user?.name || "U").slice(0, 1).toUpperCase()}</Text>
-              </View>
-            )}
+          <Pressable onPress={() => setIsMenuVisible(true)} disabled={uploading} style={{ position: "relative" }}>
+            <View style={styles.avatarWrapper}>
+              {user?.profile_pic ? (
+                <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={80} color={colors.primary} />
+                </View>
+              )}
+            </View>
             <View style={styles.editBadge}>
               <Ionicons name={uploading ? "sync" : "camera"} size={20} color="#fff" />
             </View>
@@ -347,6 +376,15 @@ export default function ProfileScreen({ navigation }) {
               </View>
               <Text style={styles.menuItemText}>Change Photo</Text>
             </Pressable>
+
+            {user?.profile_pic && (
+              <Pressable style={styles.menuItem} onPress={handlePhotoRemove}>
+                <View style={[styles.menuIcon, { backgroundColor: "#FFEBEE" }]}>
+                  <Ionicons name="trash-outline" size={20} color="#E53935" />
+                </View>
+                <Text style={styles.menuItemText}>Remove Photo</Text>
+              </Pressable>
+            )}
             
             <Pressable style={[styles.menuItem, { marginTop: spacing.sm }]} onPress={() => setIsMenuVisible(false)}>
               <Text style={[styles.menuItemText, { color: colors.textMuted, width: "100%", textAlign: "center" }]}>Cancel</Text>
@@ -369,7 +407,7 @@ export default function ProfileScreen({ navigation }) {
             />
           ) : (
             <View style={styles.viewerPlaceholder}>
-              <Text style={styles.viewerInitial}>{(user?.name || "U").slice(0, 1).toUpperCase()}</Text>
+              <Ionicons name="person" size={120} color="#fff" />
             </View>
           )}
         </View>
@@ -424,8 +462,8 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: "absolute",
-    right: 4,
-    bottom: 4,
+    right: 0,
+    bottom: 0,
     backgroundColor: colors.primary,
     width: 38,
     height: 38,

@@ -4,6 +4,7 @@ let authToken = null;
 let authProfile = null;
 const TOKEN_KEY = "ik_auth_token";
 const PROFILE_KEY = "ik_auth_profile";
+const CREDENTIALS_KEY = "ik_saved_credentials";
 
 const storageAvailable = () => {
   try {
@@ -94,4 +95,26 @@ export async function setAuthProfile(profile) {
 export async function clearAuthProfile() {
   authProfile = null;
   await deleteItem(PROFILE_KEY);
+}
+
+export async function getSavedCredentials() {
+  const data = await getItem(CREDENTIALS_KEY);
+  if (data) {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+export async function setSavedCredentials(credentials) {
+  if (credentials) {
+    await setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
+  }
+}
+
+export async function clearSavedCredentials() {
+  await deleteItem(CREDENTIALS_KEY);
 }
