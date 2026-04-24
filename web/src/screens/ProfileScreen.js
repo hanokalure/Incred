@@ -69,6 +69,8 @@ export default function ProfileScreen({ navigation }) {
       if (response?.profile_pic) dispatch(updateUser({ profile_pic: response.profile_pic }));
     } catch (err) { alert(`Upload failed: ${err.message}`); }
     finally { setUploading(false); }
+  };
+
   const handleDeletePhoto = async () => {
     setIsMenuVisible(false);
     try {
