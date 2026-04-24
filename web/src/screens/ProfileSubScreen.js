@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, Switch, Pressable, ActivityIndicator } from "react-native";
-import { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Switch, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
@@ -15,9 +15,9 @@ export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
   const dispatch = useDispatch();
   const currentLanguage = useSelector((state) => state.lang?.language || "en");
-  const { notifications, unreadCount, status, pushEnabled } = useSelector((state) => state.notifications);
+  const { notifications, unreadCount, status } = useSelector((state) => state.notifications);
 
-  const [filter, setFilter] = useState("all"); // "all" | "unread"
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     if (title === "Notifications") {
@@ -44,11 +44,11 @@ export default function ProfileSubScreen({ navigation, route }) {
   };
 
   const getIcon = (type) => {
-    if (type === "place_approval") return { name: "checkmark-circle", color: colors.success };
-    if (type === "place_rejection") return { name: "close-circle", color: colors.error };
+    if (type === "place_approval") return { name: "checkmark-circle", color: colors.success, bg: "#E8F5E9" };
+    if (type === "place_rejection") return { name: "close-circle", color: colors.error, bg: "#FFEBEE" };
     if (type === "place_submission_request" || type === "media_submission_request")
-      return { name: "shield-checkmark", color: colors.primary };
-    return { name: "notifications", color: colors.primary };
+      return { name: "shield-checkmark", color: colors.primary, bg: colors.accent };
+    return { name: "notifications", color: colors.primary, bg: colors.accent };
   };
 
   const filteredNotifications = filter === "unread"
@@ -57,22 +57,26 @@ export default function ProfileSubScreen({ navigation, route }) {
 
   const renderBody = () => {
     if (title === "Achievements") {
+      const badges = [
+        { id: "1", title: "Explorer", desc: "12 places visited", icon: "compass", color: "#3498DB", bg: "#EBF5FB" },
+        { id: "2", title: "Foodie", desc: "5 reviews posted", icon: "restaurant", color: "#E67E22", bg: "#FEF5E7" },
+        { id: "3", title: "Local Hero", desc: "2 places submitted", icon: "medal", color: "#F1C40F", bg: "#FEF9E6" },
+      ];
       return (
-        <View>
-          <Text style={styles.item}>Explorer — 12 places visited</Text>
-          <Text style={styles.item}>Foodie — 5 reviews posted</Text>
-          <Text style={styles.item}>Local Hero — 2 places submitted</Text>
+        <View style={styles.badgeGrid}>
+          {badges.map((badge) => (
+            <View key={badge.id} style={styles.badgeCard}>
+              <View style={[styles.badgeIconWrap, { backgroundColor: badge.bg }]}>
+                <Ionicons name={badge.icon} size={28} color={badge.color} />
+              </View>
+              <Text style={styles.badgeTitle}>{badge.title}</Text>
+              <Text style={styles.badgeDesc}>{badge.desc}</Text>
+            </View>
+          ))}
         </View>
       );
     }
-    if (title === "Reviews") {
-      return (
-        <View>
-          <Text style={styles.item}>You have posted 4 reviews.</Text>
-          <Text style={styles.item}>Average rating: 4.5</Text>
-        </View>
-      );
-    }
+
     if (title === "Language") {
       const langs = [
         { key: "en", label: "English" },
@@ -80,42 +84,33 @@ export default function ProfileSubScreen({ navigation, route }) {
         { key: "hi", label: "Hindi" },
       ];
       return (
-        <View>
-          {langs.map((lang) => (
+        <View style={styles.listCard}>
+          {langs.map((lang, idx) => (
             <Pressable
               key={lang.key}
-              style={styles.langItem}
+              style={[styles.listItem, idx === langs.length - 1 && { borderBottomWidth: 0 }]}
               onPress={() => dispatch(setLanguage(lang.key))}
             >
-              <Text style={styles.item}>{lang.label}</Text>
+              <Text style={styles.listItemText}>{lang.label}</Text>
               {currentLanguage === lang.key && (
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
               )}
             </Pressable>
           ))}
         </View>
       );
     }
+
     if (title === "Notifications") {
       return (
         <View style={styles.notifContainer}>
-          {/* Push toggle */}
-          <View style={[styles.row, styles.toggleRow]}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="notifications-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.item}>Push Notifications</Text>
-            </View>
-            <Switch value={pushEnabled} thumbColor={colors.primary} />
-          </View>
-
-          {/* Header row: tabs + mark all read */}
           <View style={styles.notifHeader}>
             <View style={styles.tabs}>
               <Pressable
                 style={[styles.tab, filter === "all" && styles.tabActive]}
                 onPress={() => setFilter("all")}
               >
-                <Text style={[styles.tabText, filter === "all" && styles.tabTextActive]}>All</Text>
+                <Text style={[styles.tabText, filter === "all" && styles.tabTextActive]}>All Alerts</Text>
               </Pressable>
               <Pressable
                 style={[styles.tab, filter === "unread" && styles.tabActive]}
@@ -128,44 +123,48 @@ export default function ProfileSubScreen({ navigation, route }) {
             </View>
             {unreadCount > 0 && (
               <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
-                <Text style={styles.markAllText}>Mark all read</Text>
+                <Text style={styles.markAllText}>Mark all as read</Text>
               </Pressable>
             )}
           </View>
 
-          {/* Notification list */}
           {status === "loading" ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : filteredNotifications.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Ionicons name="notifications-off-outline" size={48} color={colors.textMuted} />
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="notifications-off-outline" size={48} color={colors.textMuted} />
+              </View>
               <Text style={styles.emptyText}>
-                {filter === "unread" ? "No unread notifications." : "No notifications yet."}
+                {filter === "unread" ? "You're all caught up!" : "No notifications yet."}
               </Text>
+              <Text style={styles.emptySubText}>We'll alert you when there's something new.</Text>
             </View>
           ) : (
-            filteredNotifications.map((item) => {
-              const icon = getIcon(item.type);
-              return (
-                <Pressable
-                  key={item.id}
-                  style={[styles.notifItem, !item.is_read && styles.notifUnread]}
-                  onPress={() => handleMarkAsRead(item.id, item.type)}
-                >
-                  <View style={styles.notifIconWrap}>
-                    <Ionicons name={icon.name} size={26} color={icon.color} />
-                  </View>
-                  <View style={styles.notifContent}>
-                    <View style={styles.notifTitleRow}>
-                      <Text style={styles.notifTitle}>{item.title}</Text>
-                      {!item.is_read && <View style={styles.unreadDot} />}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {filteredNotifications.map((item) => {
+                const icon = getIcon(item.type);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.notifItem, !item.is_read && styles.notifUnread]}
+                    onPress={() => handleMarkAsRead(item.id, item.type)}
+                  >
+                    <View style={[styles.notifIconWrap, { backgroundColor: icon.bg }]}>
+                      <Ionicons name={icon.name} size={24} color={icon.color} />
                     </View>
-                    <Text style={styles.notifBody}>{item.body}</Text>
-                    <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleString()}</Text>
-                  </View>
-                </Pressable>
-              );
-            })
+                    <View style={styles.notifContent}>
+                      <View style={styles.notifTitleRow}>
+                        <Text style={styles.notifTitle}>{String(item.title)}</Text>
+                        {!item.is_read && <View style={styles.unreadDot} />}
+                      </View>
+                      <Text style={styles.notifBody}>{String(item.body)}</Text>
+                      <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleDateString()}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           )}
         </View>
       );
@@ -182,141 +181,44 @@ export default function ProfileSubScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    marginTop: spacing.md,
-    flex: 1,
-  },
-  item: {
-    ...typography.body,
-    marginBottom: spacing.md,
-  },
-  langItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  rowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  toggleRow: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  notifContainer: {
-    flex: 1,
-  },
-  notifHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  tabs: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 3,
-  },
-  tab: {
-    paddingVertical: 5,
-    paddingHorizontal: spacing.md,
-    borderRadius: 16,
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#fff",
-  },
-  markAllBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  markAllText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  notifItem: {
-    flexDirection: "row",
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "flex-start",
-  },
-  notifUnread: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + "12",
-  },
-  notifIconWrap: {
-    marginRight: spacing.md,
-    paddingTop: 2,
-  },
-  notifContent: {
-    flex: 1,
-  },
-  notifTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  notifTitle: {
-    ...typography.body,
-    fontWeight: "700",
-    color: colors.text,
-    flex: 1,
-  },
-  notifBody: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  notifTime: {
-    ...typography.caption,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginLeft: spacing.sm,
-    flexShrink: 0,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    marginTop: 60,
-    gap: spacing.md,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
+  content: { marginTop: spacing.md, flex: 1 },
+  item: { ...typography.body, marginBottom: spacing.md },
+
+  // List Card (Language)
+  listCard: { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  listItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
+  listItemText: { fontSize: 16, fontWeight: "600", color: colors.text },
+
+  // Badge Grid
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
+  badgeCard: { flex: 1, minWidth: 200, backgroundColor: colors.surface, borderRadius: 28, padding: 24, alignItems: "center", borderWidth: 1, borderColor: colors.border, elevation: 5, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10 },
+  badgeIconWrap: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", marginBottom: 15 },
+  badgeTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+  badgeDesc: { fontSize: 13, color: colors.textSecondary, textAlign: "center", marginTop: 4 },
+
+  // Notifications
+  notifContainer: { flex: 1 },
+  notifHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 25 },
+  tabs: { flexDirection: "row", backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.border, padding: 4 },
+  tab: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
+  tabActive: { backgroundColor: colors.primary },
+  tabText: { fontSize: 13, color: colors.textSecondary, fontWeight: "700" },
+  tabTextActive: { color: "#fff" },
+  markAllBtn: { padding: 8 },
+  markAllText: { fontSize: 13, color: colors.primary, fontWeight: "800" },
+
+  notifItem: { flexDirection: "row", padding: 20, backgroundColor: colors.surface, borderRadius: 24, marginBottom: 15, borderWidth: 1, borderColor: colors.border, alignItems: "center", elevation: 2, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 5 },
+  notifUnread: { borderColor: colors.primary, backgroundColor: colors.primary + "08" },
+  notifIconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", marginRight: 20 },
+  notifContent: { flex: 1 },
+  notifTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  notifTitle: { fontSize: 15, fontWeight: "800", color: colors.text, flex: 1 },
+  notifBody: { fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 20 },
+  notifTime: { fontSize: 11, color: colors.textMuted, marginTop: 8, fontWeight: "600" },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginLeft: 15 },
+
+  emptyWrap: { alignItems: "center", justifyContent: "center", marginTop: 80, gap: 15 },
+  emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
+  emptyText: { fontSize: 18, fontWeight: "800", color: colors.text },
+  emptySubText: { fontSize: 14, color: colors.textSecondary, textAlign: "center" },
 });

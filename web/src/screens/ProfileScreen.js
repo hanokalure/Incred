@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Modal, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
@@ -14,6 +14,8 @@ import { fetchSavedPlaceCards } from "../services/savedApi";
 import { useLanguage } from "../context/LanguageContext";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadProfilePic, deleteProfilePic } from "../services/authApi";
+import { togglePushEnabled } from "../store/slices/notificationsSlice";
+
 
 function SectionGroup({ title, children }) {
   return (
@@ -39,9 +41,30 @@ function GroupItem({ icon, title, onPress, showDivider = true }) {
   );
 }
 
+function ToggleItem({ icon, title, value, onValueChange, showDivider = true }) {
+  return (
+    <View style={styles.groupItem}>
+      <View style={styles.itemContent}>
+        <Ionicons name={icon} size={20} color={colors.textSecondary} style={styles.itemIcon} />
+        <Text style={styles.itemTitle}>{String(title)}</Text>
+        <Switch 
+          value={value} 
+          onValueChange={onValueChange} 
+          thumbColor={value ? colors.primary : "#f4f3f4"}
+          trackColor={{ false: "#767577", true: colors.primary + "80" }}
+        />
+      </View>
+      {showDivider ? <View style={styles.itemDivider} /> : null}
+    </View>
+  );
+}
+
+
 export default function ProfileScreen({ navigation }) {
   const { user, role } = useSelector((state) => state.auth);
+  const { pushEnabled } = useSelector((state) => state.notifications);
   const dispatch = useDispatch();
+
   const { t } = useLanguage();
   const [stats, setStats] = useState({ saved: 0, stories: 0, submissions: 0 });
   const [uploading, setUploading] = useState(false);
@@ -131,6 +154,7 @@ export default function ProfileScreen({ navigation }) {
 
         <SectionGroup title="PREFERENCES">
           <GroupItem icon="language-outline" title="Language" onPress={() => navigation.navigate("ProfileSub", { title: "Language" })} />
+          <ToggleItem icon="notifications-outline" title="Push Alerts" value={pushEnabled} onValueChange={(val) => dispatch(togglePushEnabled(val))} />
           <GroupItem icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate("ProfileSub", { title: "Notifications" })} showDivider={false} />
         </SectionGroup>
 
