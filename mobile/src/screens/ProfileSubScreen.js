@@ -231,13 +231,6 @@ export default function ProfileSubScreen({ navigation, route }) {
     if (title === "Notifications") {
       return (
         <View style={{ flex: 1 }}>
-          <View style={[styles.row, styles.toggleRow, { marginBottom: spacing.lg }]}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="notifications-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.item}>Push Notifications</Text>
-            </View>
-            <Switch value={pushEnabled} onValueChange={handleTogglePush} thumbColor={colors.primary} />
-          </View>
 
           <View style={styles.notifHeader}>
             <View style={styles.tabs}>

@@ -1,87 +1,116 @@
-import React, { useMemo } from "react";
-import { View, StyleSheet } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import React, { useRef, useEffect, useMemo } from "react";
+import { View, StyleSheet, Platform } from "react-native";
+import { WebView } from "react-native-webview";
 import { colors } from "../theme/colors";
 
-// ─── Default Fallback (Will be overridden by backend data) ─────────────────────
-const DEFAULT_KARNATAKA_BOUNDARY = [
-  { latitude: 18.47, longitude: 77.56 }, { latitude: 17.65, longitude: 77.62 },
-  { latitude: 17.15, longitude: 77.42 }, { latitude: 17.02, longitude: 76.54 },
-  { latitude: 16.55, longitude: 76.35 }, { latitude: 16.35, longitude: 75.82 },
-  { latitude: 16.52, longitude: 75.12 }, { latitude: 15.82, longitude: 74.22 },
-  { latitude: 15.25, longitude: 74.15 }, { latitude: 14.85, longitude: 74.05 },
-  { latitude: 13.82, longitude: 74.52 }, { latitude: 13.12, longitude: 74.75 },
-  { latitude: 12.72, longitude: 74.85 }, { latitude: 12.22, longitude: 75.12 },
-  { latitude: 11.95, longitude: 75.82 }, { latitude: 11.55, longitude: 76.45 },
-  { latitude: 11.85, longitude: 77.12 }, { latitude: 12.35, longitude: 77.42 },
-  { latitude: 12.65, longitude: 78.42 }, { latitude: 13.55, longitude: 78.52 },
-  { latitude: 13.95, longitude: 78.02 }, { latitude: 14.55, longitude: 77.52 },
-  { latitude: 15.25, longitude: 77.22 }, { latitude: 15.85, longitude: 76.82 },
-  { latitude: 16.25, longitude: 77.22 }, { latitude: 17.35, longitude: 77.12 },
-];
+const MAP_TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
-const WORLD_MASK = [
-  { latitude: 90, longitude: -180 }, { latitude: 90, longitude: 180 },
-  { latitude: -90, longitude: 180 }, { latitude: -90, longitude: -180 },
-];
+export default function LeafletPlacesMap({ places, userLocation, activePlaceId, onSelectPlace, mapRef }) {
+  const webViewRef = useRef(null);
 
-const CATEGORY_COLORS = {
-  restaurant: "#D35400", stay: "#2980B9", generational_shop: "#8E44AD",
-  hidden_gem: "#16A085", tourist_place: "#B8860B", other: "#566573",
-};
+  useEffect(() => {
+    if (mapRef) mapRef.current = {
+      animateToRegion: (region) => {
+        const script = `map.flyTo([${region.latitude}, ${region.longitude}], ${region.latitudeDelta < 0.05 ? 15 : 12});`;
+        webViewRef.current?.injectJavaScript(script);
+      },
+      zoomIn: () => { webViewRef.current?.injectJavaScript("map.zoomIn();"); },
+      zoomOut: () => { webViewRef.current?.injectJavaScript("map.zoomOut();"); }
+    };
+  }, [mapRef]);
 
-export default function NativePlacesMap({ places, regionBoundary, userLocation, activePlaceId, onSelectPlace, mapRef }) {
-  // prioritize backend boundary if available
-  const boundary = useMemo(() => regionBoundary || DEFAULT_KARNATAKA_BOUNDARY, [regionBoundary]);
+  const htmlContent = useMemo(() => {
+    const markersJson = JSON.stringify((places || []).map(p => ({
+      id: p.id,
+      lat: Number(p.latitude),
+      lng: Number(p.longitude)
+    })));
 
-  const initialRegion = useMemo(() => {
-    return { latitude: 14.8, longitude: 75.8, latitudeDelta: 6.0, longitudeDelta: 6.0 };
-  }, []);
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          body, html, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #f8f9fa; }
+          
+          /* CLASSIC PUSHPIN EMOJI */
+          .emoji-marker {
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            user-select: none;
+          }
+
+          .marker-active {
+            transform: scale(1.3) translateY(-8px);
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4));
+            z-index: 1000 !important;
+          }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([14.8, 75.8], 7);
+          L.tileLayer('${MAP_TILE_URL}').addTo(map);
+
+          const markers = ${markersJson};
+          const markerLayer = L.layerGroup().addTo(map);
+
+          markers.forEach(m => {
+            const icon = L.divIcon({
+              className: 'leaflet-emoji-pin',
+              html: '<div class="emoji-marker" id="pin-' + m.id + '">📍</div>',
+              iconSize: [40, 40],
+              iconAnchor: [12, 38] // Anchor at the very tip of the pushpin
+            });
+            const marker = L.marker([m.lat, m.lng], { icon }).addTo(markerLayer);
+            marker.on('click', (e) => {
+              document.querySelectorAll('.emoji-marker').forEach(el => el.classList.remove('marker-active'));
+              document.getElementById('pin-' + m.id).classList.add('marker-active');
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_PLACE', id: m.id }));
+            });
+          });
+        </script>
+      </body>
+      </html>
+    `;
+  }, [places]);
+
+  const onMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'SELECT_PLACE') {
+        const place = places.find(p => p.id === data.id);
+        if (place) onSelectPlace(place);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: htmlContent }}
+        onMessage={onMessage}
         style={styles.map}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsMyLocationButton={false}
-        mapType="standard"
-        onPress={() => onSelectPlace(null)}
-      >
-        <Polygon
-          coordinates={WORLD_MASK}
-          holes={[boundary]}
-          fillColor="rgba(0,0,0,0.4)"
-          strokeColor="transparent"
-        />
-        <Polygon
-          coordinates={boundary}
-          fillColor="transparent"
-          strokeColor={colors.primary}
-          strokeWidth={2}
-        />
-
-        {(places || []).map((place) => {
-          const lat = Number(place.latitude);
-          const lng = Number(place.longitude);
-          if (isNaN(lat) || isNaN(lng)) return null;
-          return (
-            <Marker
-              key={String(place.id)}
-              coordinate={{ latitude: lat, longitude: lng }}
-              onPress={() => onSelectPlace(place)}
-              pinColor={CATEGORY_COLORS[place.category] || CATEGORY_COLORS.other}
-              tracksViewChanges={false}
-            />
-          );
-        })}
-      </MapView>
+        scrollEnabled={false}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  map: { ...StyleSheet.absoluteFillObject },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  map: { flex: 1 },
 });

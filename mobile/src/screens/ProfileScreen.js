@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal, Image, Alert, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal, Image, Alert, ScrollView, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "@react-navigation/native";
@@ -16,6 +16,8 @@ import { fetchMyStoryArchive } from "../services/storiesApi";
 import { logout as logoutAction, updateUser } from "../store/slices/authSlice";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadProfilePic, deleteProfilePic } from "../services/authApi";
+import { togglePushEnabled } from "../store/slices/notificationsSlice";
+
 
 function formatRole(role) {
   return String(role || "user").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -45,11 +47,32 @@ function GroupItem({ icon, title, onPress, showDivider = true }) {
   );
 }
 
+function ToggleItem({ icon, title, value, onValueChange, showDivider = true }) {
+  return (
+    <View style={styles.groupItem}>
+      <View style={styles.itemContent}>
+        <Ionicons name={icon} size={20} color={colors.textSecondary} style={styles.itemIcon} />
+        <Text style={styles.itemTitle}>{title}</Text>
+        <Switch 
+          value={value} 
+          onValueChange={onValueChange} 
+          thumbColor={value ? colors.primary : "#f4f3f4"}
+          trackColor={{ false: "#767577", true: colors.primary + "80" }}
+        />
+      </View>
+      {showDivider && <View style={styles.itemDivider} />}
+    </View>
+  );
+}
+
+
 export default function ProfileScreen({ navigation }) {
   const { user, role } = useSelector((state) => state.auth);
+  const { pushEnabled } = useSelector((state) => state.notifications);
   const language = useSelector((state) => state.lang.language);
   const dispatch = useDispatch();
   const [stats, setStats] = useState({ savedCount: 0, storyCount: 0, submissionCount: 0 });
+
   const [uploading, setUploading] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isViewerVisible, setIsViewerVisible] = useState(false);
@@ -138,7 +161,8 @@ export default function ProfileScreen({ navigation }) {
       <SectionGroup title="PREFERENCES">
         <GroupItem icon="language-outline" title="App Language" onPress={() => navigation.navigate("Language", { title: "Language" })} />
         <GroupItem icon="trophy-outline" title="Achievements" onPress={() => navigation.navigate("Achievements", { title: "Achievements" })} />
-        <GroupItem icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate("Notifications", { title: "Notifications" })} showDivider={false} />
+        <ToggleItem icon="notifications-outline" title="Push Alerts" value={pushEnabled} onValueChange={(val) => dispatch(togglePushEnabled(val))} />
+        <GroupItem icon="notifications-outline" title="Notification History" onPress={() => navigation.navigate("Notifications", { title: "Notifications" })} showDivider={false} />
       </SectionGroup>
 
       {role === "admin" && (
