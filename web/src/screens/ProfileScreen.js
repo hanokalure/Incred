@@ -8,14 +8,12 @@ import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
-import { clearAuthToken } from "../services/authStore";
+import { clearAuthToken, clearAuthProfile } from "../services/authStore";
 import { logout, updateUser } from "../store/slices/authSlice";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { useLanguage } from "../context/LanguageContext";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadProfilePic, deleteProfilePic } from "../services/authApi";
-import { supabase } from "../services/supabaseClient";
-import { getAuthToken } from "../services/authStore";
 
 function SectionGroup({ title, children }) {
   return (
@@ -76,9 +74,11 @@ export default function ProfileScreen({ navigation }) {
     try {
       await deleteProfilePic();
       dispatch(updateUser({ profile_pic: null }));
-    } catch (err) { alert(`Delete failed: ${err.message}`); }
+    } catch (err) { 
+      console.error("Delete failed", err);
+      alert("Failed to remove photo. Please try again."); 
+    }
   };
-
 
   return (
     <PageCard>
@@ -87,7 +87,7 @@ export default function ProfileScreen({ navigation }) {
           <input type="file" ref={fileInputRef} style={{ display: "none" }} accept="image/*" onChange={onFileChange} />
         )}
 
-        {/* 1. HERO - Horizontal */}
+        {/* 1. HERO */}
         <View style={styles.heroSection}>
           <TouchableOpacity onPress={() => setIsMenuVisible(true)} style={styles.avatarWrap}>
             <View style={styles.avatarWrapper}>
@@ -104,16 +104,16 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.heroInfo}>
             <Text style={styles.heroName} numberOfLines={1}>{String(user?.name || "Guest User")}</Text>
             <Text style={styles.heroEmail} numberOfLines={1}>{String(user?.email || "Connect your account")}</Text>
-            {role === "admin" ? (
+            {role === "admin" && (
               <View style={styles.adminPill}>
                 <Ionicons name="shield-checkmark" size={10} color={colors.primary} />
                 <Text style={styles.adminPillText}>ADMINISTRATOR</Text>
               </View>
-            ) : null}
+            )}
           </View>
         </View>
 
-        {/* 2. STATS - Instagram Style */}
+        {/* 2. STATS */}
         <View style={styles.statsStrip}>
           <View style={styles.statBox}><Text style={styles.statNum}>{String(stats.saved)}</Text><Text style={styles.statLabel}>Saved</Text></View>
           <View style={styles.statLine} />
@@ -122,6 +122,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.statBox}><Text style={styles.statNum}>0</Text><Text style={styles.statLabel}>Submissions</Text></View>
         </View>
 
+        {/* 3. ACTIONS */}
         <SectionGroup title="CONTENT">
           <GroupItem icon="document-text-outline" title="My Submissions" onPress={() => navigation.navigate("MySubmissions")} />
           <GroupItem icon="images-outline" title="Story Archive" onPress={() => navigation.navigate("StoryArchive")} />
@@ -133,17 +134,21 @@ export default function ProfileScreen({ navigation }) {
           <GroupItem icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate("ProfileSub", { title: "Notifications" })} showDivider={false} />
         </SectionGroup>
 
-        {role === "admin" ? (
+        {role === "admin" && (
           <SectionGroup title="ADMINISTRATION">
             <GroupItem icon="add-circle-outline" title="Submit Place" onPress={() => navigation.navigate("SubmitPlace")} />
             <GroupItem icon="apps-outline" title="Dashboard" onPress={() => navigation.navigate("Analytics")} showDivider={false} />
           </SectionGroup>
-        ) : null}
+        )}
 
         <View style={styles.footer}>
           <TouchableOpacity 
             style={styles.logoutBtn} 
-            onPress={() => { clearAuthToken(); dispatch(logout()); }}
+            onPress={async () => { 
+              await clearAuthToken(); 
+              await clearAuthProfile();
+              dispatch(logout()); 
+            }}
           >
             <Text style={styles.logoutText}>Logout Account</Text>
           </TouchableOpacity>
@@ -152,7 +157,7 @@ export default function ProfileScreen({ navigation }) {
       </ScrollView>
 
       {/* Profile Photo Menu */}
-      {isMenuVisible ? (
+      {isMenuVisible && (
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setIsMenuVisible(false)} />
           <View style={styles.menuCard}>
@@ -165,21 +170,21 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="camera-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
               <Text style={styles.menuItemText}>Change Photo</Text>
             </TouchableOpacity>
-            {user?.profile_pic ? (
+            {user?.profile_pic && (
               <TouchableOpacity style={styles.menuItem} onPress={handleDeletePhoto}>
                 <Ionicons name="trash-outline" size={20} color={colors.error} style={{ marginRight: 12 }} />
                 <Text style={[styles.menuItemText, { color: colors.error }]}>Remove Photo</Text>
               </TouchableOpacity>
-            ) : null}
+            )}
             <TouchableOpacity style={styles.menuItem} onPress={() => setIsMenuVisible(false)}>
               <Text style={{ flex: 1, textAlign: "center", color: colors.textMuted, fontWeight: "700" }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
-      ) : null}
+      )}
 
       {/* Viewer Modal */}
-      {isViewerVisible ? (
+      {isViewerVisible && (
         <View style={styles.viewerOverlay}>
           <TouchableOpacity style={styles.viewerClose} onPress={() => setIsViewerVisible(false)}>
             <Ionicons name="close" size={30} color="#fff" />
@@ -190,33 +195,29 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.viewerPlaceholder}><Ionicons name="person" size={150} color="#fff" /></View>
           )}
         </View>
-      ) : null}
+      )}
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: { padding: spacing.lg, paddingBottom: 60 },
-  
   heroSection: { flexDirection: "row", alignItems: "center", marginBottom: spacing.xl },
   avatarWrap: { position: "relative" },
   avatarWrapper: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   avatarImage: { width: "100%", height: "100%" },
   avatarPlaceholder: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center", backgroundColor: colors.accent },
   editBadge: { position: "absolute", right: 0, bottom: 0, backgroundColor: colors.primary, width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.background, alignItems: "center", justifyContent: "center" },
-  
   heroInfo: { flex: 1, marginLeft: 20 },
   heroName: { ...typography.h2, fontSize: 22, color: colors.text, fontWeight: "900" },
   heroEmail: { ...typography.body, fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   adminPill: { flexDirection: "row", alignItems: "center", backgroundColor: colors.accent, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 8, gap: 4 },
   adminPillText: { fontSize: 10, fontWeight: "900", color: colors.primary, letterSpacing: 1 },
-
   statsStrip: { flexDirection: "row", backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 16, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xl, alignItems: "center" },
   statBox: { flex: 1, alignItems: "center" },
   statNum: { ...typography.h3, fontSize: 18, color: colors.text },
   statLabel: { ...typography.caption, fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   statLine: { width: 1, height: 24, backgroundColor: colors.border },
-
   section: { marginBottom: spacing.xl },
   sectionLabel: { fontSize: 11, fontWeight: "800", color: colors.textMuted, letterSpacing: 1.5, marginLeft: 4, marginBottom: 8 },
   groupCard: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
@@ -225,19 +226,16 @@ const styles = StyleSheet.create({
   itemIcon: { marginRight: 16, width: 24, textAlign: "center" },
   itemTitle: { ...typography.body, flex: 1, color: colors.text, fontWeight: "600" },
   itemDivider: { height: 1, backgroundColor: colors.border, marginLeft: 56 },
-
   footer: { alignItems: "center", marginTop: spacing.md },
   logoutBtn: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 12, borderWidth: 1, borderColor: "#E74C3C", marginBottom: 16 },
   logoutText: { color: "#E74C3C", fontWeight: "700", fontSize: 14 },
   version: { fontSize: 11, color: colors.textMuted, fontWeight: "600" },
-
   modalOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 1000, justifyContent: "center", alignItems: "center" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" },
   menuCard: { width: 300, backgroundColor: colors.background, borderRadius: 24, padding: 24, alignItems: "center" },
   menuTitle: { ...typography.h3, marginBottom: 20 },
   menuItem: { flexDirection: "row", alignItems: "center", width: "100%", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   menuItemText: { ...typography.body, fontWeight: "600", color: colors.text },
-
   viewerOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 2000, backgroundColor: "#000", justifyContent: "center", alignItems: "center" },
   viewerClose: { position: "absolute", top: 40, right: 20, zIndex: 10, padding: 10 },
   fullImage: { width: "90%", height: "70%" },
