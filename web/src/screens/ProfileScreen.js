@@ -13,7 +13,7 @@ import { logout, updateUser } from "../store/slices/authSlice";
 import { fetchSavedPlaceCards } from "../services/savedApi";
 import { useLanguage } from "../context/LanguageContext";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
-import { uploadProfilePic } from "../services/authApi";
+import { uploadProfilePic, deleteProfilePic } from "../services/authApi";
 import { supabase } from "../services/supabaseClient";
 import { getAuthToken } from "../services/authStore";
 
@@ -69,7 +69,14 @@ export default function ProfileScreen({ navigation }) {
       if (response?.profile_pic) dispatch(updateUser({ profile_pic: response.profile_pic }));
     } catch (err) { alert(`Upload failed: ${err.message}`); }
     finally { setUploading(false); }
+  const handleDeletePhoto = async () => {
+    setIsMenuVisible(false);
+    try {
+      await deleteProfilePic();
+      dispatch(updateUser({ profile_pic: null }));
+    } catch (err) { alert(`Delete failed: ${err.message}`); }
   };
+
 
   return (
     <PageCard>
@@ -113,22 +120,21 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.statBox}><Text style={styles.statNum}>0</Text><Text style={styles.statLabel}>Submissions</Text></View>
         </View>
 
-        {/* 3. ACTIONS - iOS Grouped */}
         <SectionGroup title="CONTENT">
           <GroupItem icon="document-text-outline" title="My Submissions" onPress={() => navigation.navigate("MySubmissions")} />
           <GroupItem icon="images-outline" title="Story Archive" onPress={() => navigation.navigate("StoryArchive")} />
-          <GroupItem icon="chatbubble-ellipses-outline" title="My Reviews" onPress={() => navigation.navigate("MyReviews")} showDivider={false} />
+          <GroupItem icon="chatbubble-ellipses-outline" title="My Reviews" onPress={() => navigation.navigate("ReviewsList")} showDivider={false} />
         </SectionGroup>
 
         <SectionGroup title="PREFERENCES">
-          <GroupItem icon="language-outline" title="Language" onPress={() => navigation.navigate("Language")} />
-          <GroupItem icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate("Notifications")} showDivider={false} />
+          <GroupItem icon="language-outline" title="Language" onPress={() => navigation.navigate("ProfileSub", { title: "Language" })} />
+          <GroupItem icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate("ProfileSub", { title: "Notifications" })} showDivider={false} />
         </SectionGroup>
 
         {role === "admin" ? (
           <SectionGroup title="ADMINISTRATION">
             <GroupItem icon="add-circle-outline" title="Submit Place" onPress={() => navigation.navigate("SubmitPlace")} />
-            <GroupItem icon="apps-outline" title="Dashboard" onPress={() => navigation.navigate("AdminDashboard")} showDivider={false} />
+            <GroupItem icon="apps-outline" title="Dashboard" onPress={() => navigation.navigate("Analytics")} showDivider={false} />
           </SectionGroup>
         ) : null}
 
@@ -157,6 +163,12 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="camera-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
               <Text style={styles.menuItemText}>Change Photo</Text>
             </TouchableOpacity>
+            {user?.profile_pic ? (
+              <TouchableOpacity style={styles.menuItem} onPress={handleDeletePhoto}>
+                <Ionicons name="trash-outline" size={20} color={colors.error} style={{ marginRight: 12 }} />
+                <Text style={[styles.menuItemText, { color: colors.error }]}>Remove Photo</Text>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity style={styles.menuItem} onPress={() => setIsMenuVisible(false)}>
               <Text style={{ flex: 1, textAlign: "center", color: colors.textMuted, fontWeight: "700" }}>Cancel</Text>
             </TouchableOpacity>
