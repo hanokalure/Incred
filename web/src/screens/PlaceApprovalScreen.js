@@ -256,7 +256,6 @@ export default function PlaceApprovalScreen({ navigation }) {
                         </View>
                     </View>
                 ))}
-            </View>
 
             <View style={styles.sectionHeader}>
                 <Text style={styles.title}>Moderation Queue</Text>
@@ -315,7 +314,6 @@ export default function PlaceApprovalScreen({ navigation }) {
                         </View>
                     </View>
                 ))}
-            </View>
         </PageCard>
     );
 }
