@@ -45,7 +45,12 @@ async def get_supabase_client(anon: bool = True) -> AsyncClient:
         return _supabase_anon
 
     if not settings.SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required for server-side operations")
+        from fastapi import HTTPException
+        logger.error("SUPABASE_SERVICE_ROLE_KEY is missing from environment variables")
+        raise HTTPException(
+            status_code=500, 
+            detail="Backend configuration error: SUPABASE_SERVICE_ROLE_KEY is missing. Please check Vercel environment variables."
+        )
 
     if _supabase_admin is None:
         options = AsyncClientOptions(httpx_client=get_async_httpx_client())

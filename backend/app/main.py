@@ -18,24 +18,25 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
-    origins = [o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()]
-    is_wildcard = "*" in origins
-    
-    # Explicitly include the new web production domain for safety
-    explicit_origins = [
+    # Explicit whitelist for reliability with credentials
+    origins = [
         "https://karnataka-indol.vercel.app",
         "https://karnataka-app.vercel.app",
         "http://localhost:3000",
         "http://localhost:19006"
     ]
     
-    # Merge with settings origins
-    final_origins = list(set(origins + explicit_origins))
+    # Also add origins from settings
+    settings_origins = [o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+    final_origins = list(set(origins + settings_origins))
+    
+    # Remove wildcard if present as it conflicts with credentials
+    if "*" in final_origins:
+        final_origins.remove("*")
     
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[] if is_wildcard else final_origins,
-        allow_origin_regex=".*" if is_wildcard else None,
+        allow_origins=final_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
