@@ -43,7 +43,6 @@ export default function MapScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
 
       {/* 1. FULL VIEWPORT MAP */}
       <View style={styles.mapContainer}>
