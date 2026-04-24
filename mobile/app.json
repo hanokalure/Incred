@@ -44,7 +44,10 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+      "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY",
+      "eas": {
+        "projectId": "49725175-7aa1-4279-aeec-be23e694b9ea"
+      }
     },
     "plugins": [
       "expo-secure-store",
