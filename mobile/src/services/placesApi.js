@@ -27,3 +27,5 @@ export const fetchPendingPlacePhotoSubmissions = () => apiGet("/places/photo-sub
 export const approvePlacePhotoSubmission = (id) => apiPost(`/places/photo-submissions/${id}/approve`, {});
 export const rejectPlacePhotoSubmission = (id, rejectionReason = "") =>
   apiPost(`/places/photo-submissions/${id}/reject`, { rejection_reason: rejectionReason || null });
+
+export const fetchMapRegionConfig = () => apiGet("/config/map-region");

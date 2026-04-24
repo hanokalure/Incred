@@ -111,8 +111,33 @@ export default function PlaceApprovalScreen({ navigation }) {
           <Text style={styles.meta}>
             {categoryLabel(item.category)} • District {item.district_id}
           </Text>
+
+          {item.image_urls && item.image_urls.length > 0 && (
+            <View style={styles.previewWrap}>
+              <Image source={{ uri: toDisplayImageUrl(item.image_urls[0]) }} style={styles.previewImage} resizeMode="cover" />
+            </View>
+          )}
+
+          {item.description ? (
+            <Text style={styles.detailsText}><Text style={styles.bold}>Description: </Text>{item.description}</Text>
+          ) : null}
+          {item.address ? (
+            <Text style={styles.detailsText}><Text style={styles.bold}>Address: </Text>{item.address}</Text>
+          ) : null}
+          
+          {item.category === "restaurant" && item.restaurant_details && (
+            <Text style={styles.detailsText}>
+              <Text style={styles.bold}>Cuisine:</Text> {item.restaurant_details.cuisine} • <Text style={styles.bold}>Price:</Text> {item.restaurant_details.price_range} • <Text style={styles.bold}>Must Try:</Text> {item.restaurant_details.must_try}
+            </Text>
+          )}
+          {item.category === "stay" && item.stay_details && (
+            <Text style={styles.detailsText}>
+              <Text style={styles.bold}>Type:</Text> {item.stay_details.stay_type} • <Text style={styles.bold}>Price/Night:</Text> ₹{item.stay_details.price_per_night} • <Text style={styles.bold}>Amenities:</Text> {item.stay_details.amenities?.join(", ")}
+            </Text>
+          )}
+
           <TextInput
-            style={styles.input}
+            style={[styles.input, { marginTop: spacing.md }]}
             value={rejectReasonById[item.id] || ""}
             onChangeText={(value) => setRejectReasonById((prev) => ({ ...prev, [item.id]: value }))}
             placeholder="Optional rejection reason"
@@ -195,6 +220,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  detailsText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    lineHeight: 20,
+  },
+  bold: {
+    fontWeight: "700",
+    color: colors.text,
   },
   input: {
     backgroundColor: colors.ivory,

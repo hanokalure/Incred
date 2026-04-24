@@ -156,11 +156,11 @@ export default function HomeScreen({ navigation, route }) {
 
       <View style={styles.promoCard}>
         <View style={styles.promoContent}>
-          <Text style={styles.promoTitle}>AI Guide</Text>
+          <Text style={styles.promoTitle}>AI Itinerary</Text>
           <Text style={styles.promoText}>Let AI plan your perfect weekend getaway based on your interests.</Text>
           <PrimaryButton
-            label="Interactive Map"
-            onPress={() => navigation.navigate("Map")}
+            label="Generate My Plan"
+            onPress={() => navigation.navigate("Itinerary")}
             style={styles.promoBtn}
           />
         </View>

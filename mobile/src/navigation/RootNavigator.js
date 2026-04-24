@@ -7,7 +7,6 @@ import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import MainTabs from "./MainTabs";
-import MapScreen from "../screens/MapScreen";
 import NearbyScreen from "../screens/NearbyScreen";
 import SearchFilterScreen from "../screens/SearchFilterScreen";
 import DayPlanScreen from "../screens/DayPlanScreen";
@@ -90,7 +89,6 @@ export default function RootNavigator() {
         ) : (
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="Map" component={MapScreen} />
             <Stack.Screen name="Nearby" component={NearbyScreen} />
             <Stack.Screen name="SearchFilter" component={SearchFilterScreen} />
             <Stack.Screen name="DayPlan" component={DayPlanScreen} />

@@ -9,19 +9,14 @@ export default function PageCard({ children, scroll = true, contentStyle, cardSt
     const insets = useSafeAreaInsets();
 
     return (
-        <View style={[
-            styles.container,
-            {
-                paddingTop: insets.top + spacing.sm,
-            }
-        ]}>
+        <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
             <View style={styles.headerWrap}>
-                {!hideHeader && <BrandHeader />}
+                {hideHeader ? null : <BrandHeader />}
             </View>
             <Container
                 style={styles.innerContainer}
                 contentContainerStyle={[
-                    scroll && styles.scrollContent,
+                    scroll ? styles.scrollContent : null,
                     contentStyle,
                     { paddingBottom: insets.bottom + spacing.xl }
                 ]}
@@ -36,22 +31,9 @@ export default function PageCard({ children, scroll = true, contentStyle, cardSt
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    innerContainer: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-    },
-    card: {
-        flex: 1,
-        backgroundColor: colors.background,
-        paddingHorizontal: spacing.lg,
-    },
-    headerWrap: {
-        paddingHorizontal: spacing.lg,
-    }
+    container: { flex: 1, backgroundColor: colors.background },
+    innerContainer: { flex: 1 },
+    scrollContent: { flexGrow: 1 },
+    card: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg },
+    headerWrap: { paddingHorizontal: spacing.lg }
 });

@@ -10,7 +10,7 @@ import { typography } from "../theme/typography";
 import ScreenHeader from "../components/ScreenHeader";
 import PageCard from "../components/PageCard";
 import { setLanguage } from "../store/slices/langSlice";
-import { fetchNotifications, togglePushEnabled, markReadLocal } from "../store/slices/notificationsSlice";
+import { fetchNotifications, togglePushEnabled, markReadLocal, markAllReadLocal } from "../store/slices/notificationsSlice";
 import { markNotificationAsRead, registerPushToken } from "../services/notificationsApi";
 
 Notifications.setNotificationHandler({
@@ -25,9 +25,9 @@ export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
   const dispatch = useDispatch();
   const currentLanguage = useSelector((state) => state.lang.language);
-  const { notifications, loading, pushEnabled } = useSelector((state) => state.notifications);
+  const { notifications, loading, pushEnabled, unreadCount, error: notifError } = useSelector((state) => state.notifications);
   
-  // --- Push Notification Setup ---
+  const [filter, setFilter] = useState("all"); // "all" | "unread"
   useEffect(() => {
     if (title === "Notifications") {
       registerForPushNotificationsAsync().then(token => {
@@ -51,6 +51,12 @@ export default function ProfileSubScreen({ navigation, route }) {
     } catch (err) {
       console.error("Failed to mark as read", err);
     }
+  };
+
+  const handleMarkAllRead = async () => {
+    const unread = notifications.filter((n) => !n.is_read);
+    await Promise.allSettled(unread.map((n) => markNotificationAsRead(n.id)));
+    dispatch(markAllReadLocal());
   };
 
   const handleTogglePush = (val) => {
@@ -89,52 +95,113 @@ export default function ProfileSubScreen({ navigation, route }) {
 
   // --- Rendering Helpers ---
 
+  const getIcon = (type) => {
+    if (type === "place_approval") return { name: "checkmark-circle", color: colors.success };
+    if (type === "place_rejection") return { name: "close-circle", color: colors.error };
+    if (type === "place_submission_request" || type === "media_submission_request")
+      return { name: "shield-checkmark", color: colors.primary };
+    return { name: "notifications", color: colors.primary };
+  };
+
+  const filteredNotifications = filter === "unread"
+    ? notifications.filter((n) => !n.is_read)
+    : notifications;
+
   const renderNotificationItem = ({ item }) => {
-    const isApprovalReq = item.type === "place_submission_request" || item.type === "media_submission_request";
-    
+    const icon = getIcon(item.type);
     return (
       <Pressable 
         style={[styles.notifItem, !item.is_read && styles.notifUnread]} 
         onPress={() => handleMarkAsRead(item.id, item.type)}
       >
         <View style={styles.notifIconWrap}>
-          <Ionicons 
-              name={
-                item.type === 'place_approval' ? "checkmark-circle" : 
-                isApprovalReq ? "shield-checkmark" : "alert-circle"
-              } 
-              size={24} 
-              color={
-                item.type === 'place_approval' ? colors.success : 
-                isApprovalReq ? colors.primary : colors.error
-              } 
-          />
+          <Ionicons name={icon.name} size={26} color={icon.color} />
         </View>
         <View style={styles.notifContent}>
-          <Text style={styles.notifTitle}>{item.title}</Text>
+          <View style={styles.notifTitleRow}>
+            <Text style={styles.notifTitle}>{item.title}</Text>
+            {!item.is_read && <View style={styles.unreadDot} />}
+          </View>
           <Text style={styles.notifBody}>{item.body}</Text>
           <Text style={styles.notifTime}>{new Date(item.created_at).toLocaleString()}</Text>
         </View>
-        {!item.is_read && <View style={styles.unreadDot} />}
       </Pressable>
     );
   };
 
   const renderBody = () => {
     if (title === "Achievements") {
+      const badges = [
+        { id: "1", title: "Explorer", desc: "12 places visited", icon: "compass", color: "#3498DB", bg: "#EBF5FB" },
+        { id: "2", title: "Foodie", desc: "5 reviews posted", icon: "restaurant", color: "#E67E22", bg: "#FEF5E7" },
+        { id: "3", title: "Local Hero", desc: "2 places submitted", icon: "medal", color: "#F1C40F", bg: "#FEF9E6" },
+      ];
       return (
-        <View>
-          <Text style={styles.item}>Explorer — 12 places visited</Text>
-          <Text style={styles.item}>Foodie — 5 reviews posted</Text>
-          <Text style={styles.item}>Local Hero — 2 places submitted</Text>
+        <View style={styles.badgeGrid}>
+          {badges.map((badge) => (
+            <View key={badge.id} style={styles.badgeCard}>
+              <View style={[styles.badgeIconWrap, { backgroundColor: badge.bg }]}>
+                <Ionicons name={badge.icon} size={24} color={badge.color} />
+              </View>
+              <Text style={styles.badgeTitle}>{badge.title}</Text>
+              <Text style={styles.badgeDesc}>{badge.desc}</Text>
+            </View>
+          ))}
         </View>
       );
     }
     if (title === "Reviews") {
+      const [userReviews, setUserReviews] = useState([]);
+      const [fetching, setFetching] = useState(false);
+
+      const loadMyReviews = useCallback(async () => {
+        setFetching(true);
+        try {
+          const { fetchMyReviews } = await import("../services/reviewsApi");
+          const data = await fetchMyReviews();
+          setUserReviews(data || []);
+        } catch (err) {
+          console.error("Failed to fetch reviews", err);
+          Alert.alert("Error", "Could not load your reviews. Please try again later.");
+        } finally {
+          setFetching(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        loadMyReviews();
+      }, [loadMyReviews]);
+
+      if (fetching) return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />;
+
       return (
-        <View>
-          <Text style={styles.item}>You have posted 4 reviews.</Text>
-          <Text style={styles.item}>Average rating: 4.5</Text>
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={userReviews}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewPlace}>{item.place_name}</Text>
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={12} color={colors.primary} />
+                    <Text style={styles.ratingText}>{item.rating}</Text>
+                  </View>
+                </View>
+                <Text style={styles.reviewComment}>{item.comment || "(No comment provided)"}</Text>
+                <Text style={styles.reviewDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptyWrap}>
+                <Ionicons name="chatbubble-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyText}>You haven't posted any reviews yet.</Text>
+                <Pressable onPress={() => navigation.navigate("Home")} style={styles.retryBtn}>
+                  <Text style={styles.retryText}>Explore Places</Text>
+                </Pressable>
+              </View>
+            }
+          />
         </View>
       );
     }
@@ -164,22 +231,64 @@ export default function ProfileSubScreen({ navigation, route }) {
     if (title === "Notifications") {
       return (
         <View style={{ flex: 1 }}>
-          <View style={[styles.row, { marginBottom: spacing.lg }]}>
-            <Text style={styles.item}>Push Notifications</Text>
-            <Switch value={pushEnabled} onValueChange={handleTogglePush} />
+          <View style={[styles.row, styles.toggleRow, { marginBottom: spacing.lg }]}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="notifications-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.item}>Push Notifications</Text>
+            </View>
+            <Switch value={pushEnabled} onValueChange={handleTogglePush} thumbColor={colors.primary} />
           </View>
-          
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+
+          <View style={styles.notifHeader}>
+            <View style={styles.tabs}>
+              <Pressable
+                style={[styles.tab, filter === "all" && styles.tabActive]}
+                onPress={() => setFilter("all")}
+              >
+                <Text style={[styles.tabText, filter === "all" && styles.tabTextActive]}>All</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, filter === "unread" && styles.tabActive]}
+                onPress={() => setFilter("unread")}
+              >
+                <Text style={[styles.tabText, filter === "unread" && styles.tabTextActive]}>
+                  Unread {unreadCount > 0 ? `(${unreadCount})` : ""}
+                </Text>
+              </Pressable>
+            </View>
+            {unreadCount > 0 && (
+              <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
+                <Text style={styles.markAllText}>Mark all read</Text>
+              </Pressable>
+            )}
+          </View>
+
           {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          ) : notifError ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons name="cloud-offline-outline" size={48} color={colors.error} />
+              <Text style={[styles.emptyText, { color: colors.error }]}>Failed to load notifications</Text>
+              <Text style={styles.emptySubText}>{notifError}</Text>
+              <Pressable onPress={() => dispatch(fetchNotifications())} style={styles.retryBtn}>
+                <Text style={styles.retryText}>Try Again</Text>
+              </Pressable>
+            </View>
           ) : (
             <FlatList
-              data={notifications}
+              data={filteredNotifications}
               renderItem={renderNotificationItem}
               keyExtractor={item => item.id.toString()}
               contentContainerStyle={styles.notifList}
-              ListEmptyComponent={<Text style={styles.emptyText}>No notifications yet.</Text>}
-              scrollEnabled={false} // PageCard handles scroll
+              ListEmptyComponent={
+                <View style={styles.emptyWrap}>
+                  <Ionicons name="notifications-off-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>
+                    {filter === "unread" ? "No unread notifications." : "No notifications yet."}
+                  </Text>
+                </View>
+              }
+              scrollEnabled={false}
             />
           )}
         </View>
@@ -240,18 +349,25 @@ const styles = StyleSheet.create({
   },
   notifUnread: {
     borderColor: colors.primary,
-    backgroundColor: colors.accent + '20', // Light primary tint
+    backgroundColor: colors.primary + "12",
   },
   notifIconWrap: {
     marginRight: spacing.md,
+    paddingTop: 2,
   },
   notifContent: {
     flex: 1,
+  },
+  notifTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   notifTitle: {
     ...typography.body,
     fontWeight: '700',
     color: colors.text,
+    flex: 1,
   },
   notifBody: {
     ...typography.caption,
@@ -270,11 +386,159 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primary,
     marginLeft: spacing.sm,
+    flexShrink: 0,
+  },
+  emptyWrap: {
+    alignItems: "center",
+    marginTop: 40,
+    gap: spacing.md,
   },
   emptyText: {
     ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 40,
-  }
+    textAlign: "center",
+  },
+  emptySubText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: -spacing.xs,
+  },
+  retryBtn: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+  },
+  retryText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  notifHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  tabs: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 3,
+  },
+  tab: {
+    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+    borderRadius: 16,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  tabTextActive: {
+    color: "#fff",
+  },
+  markAllBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  markAllText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  toggleRow: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  reviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  reviewPlace: {
+    ...typography.body,
+    fontWeight: "700",
+    color: colors.text,
+    flex: 1,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  ratingText: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: "700",
+  },
+  reviewComment: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  reviewDate: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+  },
+  badgeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  badgeCard: {
+    flex: 1,
+    minWidth: 140,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  badgeTitle: {
+    ...typography.body,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  badgeDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: 2,
+  },
 });

@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Image, Alert, Platform, Pressable } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, Image, Alert, Platform, Pressable, Animated, ScrollView, StatusBar, Dimensions, FlatList, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import AppVideo from "../components/AppVideo";
-import ScreenHeader from "../components/ScreenHeader";
-import PrimaryButton from "../components/PrimaryButton";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -14,66 +12,58 @@ import { fetchSavedPlaces, removeSavedPlace, savePlace } from "../services/saved
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 
-import PageCard from "../components/PageCard";
+const { width: W, height: H } = Dimensions.get("window");
+const HERO_H = H * 0.4;
+
+function InfoRow({ icon, iconColor = "#566573", iconBg = "#F2F3F4", label, value, isLast }) {
+  if (!value) return null;
+  return (
+    <View style={styles.infoRowWrapper}>
+      <View style={styles.infoRow}>
+        <View style={[styles.infoIcon, { backgroundColor: iconBg }]}><Ionicons name={icon} size={15} color={iconColor} /></View>
+        <View style={styles.infoText}><Text style={styles.infoLabel}>{String(label)}</Text><Text style={styles.infoValue}>{String(value)}</Text></View>
+      </View>
+      {isLast ? null : <View style={styles.infoRowDivider} />}
+    </View>
+  );
+}
+
+function ActionBtn({ icon, label, onPress, primary }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.actionBtn, primary ? styles.actionBtnPrimary : null, pressed ? { opacity: 0.75 } : null]}>
+      <Ionicons name={icon} size={18} color={primary ? "#1A1A1A" : colors.text} />
+      <Text style={[styles.actionBtnText, primary ? styles.actionBtnTextPrimary : null]}>{String(label)}</Text>
+    </Pressable>
+  );
+}
 
 export default function PlaceDetailScreen({ navigation, route }) {
   const [role, setRole] = useState("user");
-  const placeParam = route?.params?.id;
-  const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
+  const placeId = Number(route?.params?.id) || null;
   const [place, setPlace] = useState(null);
   const [favoriteId, setFavoriteId] = useState(null);
-  const [status, setStatus] = useState("idle");
+  const [loading, setLoading] = useState(true);
   const [photoStatus, setPhotoStatus] = useState("idle");
   const [photoError, setPhotoError] = useState("");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
-
-  const categoryLabel = (value) => {
-    const mapping = {
-      restaurant: "Food",
-      stay: "Stay",
-      generational_shop: "Shops",
-      hidden_gem: "Hidden Gems",
-      tourist_place: "Tourist",
-    };
-    return mapping[value] || value;
-  };
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const isSaved = !!favoriteId;
   const mediaSubmitted = photoStatus === "submitted" || photoStatus === "submitted-video";
-  const mediaBusy = photoStatus.startsWith("uploading") || photoStatus.startsWith("submitting");
-  const mediaStatusLabel =
-    photoStatus === "uploading"
-      ? "Uploading photo..."
-      : photoStatus === "submitting"
-        ? "Submitting photo..."
-        : photoStatus === "uploading-video"
-          ? "Uploading video..."
-          : photoStatus === "submitting-video"
-            ? "Submitting video..."
-            : mediaSubmitted
-              ? "Submitted for approval"
-              : "";
+  const images = place?.image_urls || [];
 
   useEffect(() => {
-    getAuthProfile()
-      .then((profile) => setRole(profile?.role || "user"))
-      .catch(() => setRole("user"));
-  }, []);
-
-  useEffect(() => {
+    getAuthProfile().then((p) => setRole(p?.role || "user")).catch(() => setRole("user"));
     if (!placeId) return;
-    setStatus("loading");
-    fetchPlaceDetails(placeId)
-      .then((data) => setPlace(data))
-      .catch(() => setPlace(null))
-      .finally(() => setStatus("idle"));
-
-    fetchSavedPlaces()
-      .then((favorites) => {
-        const match = (favorites || []).find((f) => f.place_id === placeId);
-        setFavoriteId(match ? match.id : null);
-      })
-      .catch(() => setFavoriteId(null));
+    setLoading(true);
+    Promise.all([fetchPlaceDetails(placeId).catch(() => null), fetchSavedPlaces().catch(() => [])]).then(([data, favorites]) => {
+      setPlace(data);
+      const match = (favorites || []).find((f) => f.place_id === placeId);
+      setFavoriteId(match ? match.id : null);
+    }).finally(() => setLoading(false));
   }, [placeId]);
 
   const handleToggleSaved = async () => {
@@ -81,428 +71,189 @@ export default function PlaceDetailScreen({ navigation, route }) {
     try {
       if (favoriteId) {
         await removeSavedPlace(favoriteId);
-        const favorites = await fetchSavedPlaces();
-        const match = (favorites || []).find((f) => f.place_id === placeId);
-        setFavoriteId(match ? match.id : null);
+        setFavoriteId(null);
       } else {
         await savePlace(placeId);
-        const favorites = await fetchSavedPlaces();
-        const match = (favorites || []).find((f) => f.place_id === placeId);
-        setFavoriteId(match ? match.id : true);
+        setFavoriteId(true);
       }
-    } catch (e) {
-      console.warn("Failed to toggle saved:", e);
-      Alert.alert("Saved", e?.message || "Failed to save this place. Please try again.");
-    }
+    } catch (e) { Alert.alert("Error", e?.message || "Action failed."); }
   };
 
-  const handleAddPhoto = async () => {
-    if (!placeId) return;
-    setMediaMenuOpen(false);
-    setPhotoError("");
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted") {
-      setPhotoError("Photo permission is required.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.length) return;
-
+  const handleMediaAdd = async (type) => {
+    setMediaMenuOpen(false); setPhotoError("");
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: type === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos, quality: 0.8 });
+    if (res.canceled || !res.assets?.length) return;
     setPhotoStatus("uploading");
     try {
-      const upload = await uploadPlaceImage(result.assets[0]);
-      setPhotoStatus("submitting");
-      await submitPlaceMedia(placeId, "image", upload.public_url);
+      const upload = type === 'image' ? await uploadPlaceImage(res.assets[0]) : await uploadPlaceVideo(res.assets[0]);
+      await submitPlaceMedia(placeId, type, upload.public_url);
       setPhotoStatus("submitted");
-      Alert.alert("Photo Submitted", "Your photo was sent for admin approval.");
-    } catch (e) {
-      setPhotoStatus("idle");
-      setPhotoError(e?.message || "Photo submission failed.");
-    }
+    } catch (e) { setPhotoStatus("idle"); setPhotoError(e?.message || "Upload failed."); }
   };
 
-  const handleAddVideo = async () => {
-    if (!placeId) return;
-    setMediaMenuOpen(false);
-    setPhotoError("");
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted") {
-      setPhotoError("Video permission is required.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.length) return;
-
-    setPhotoStatus("uploading-video");
-    try {
-      const upload = await uploadPlaceVideo(result.assets[0]);
-      setPhotoStatus("submitting-video");
-      await submitPlaceMedia(placeId, "video", upload.public_url);
-      setPhotoStatus("submitted-video");
-      Alert.alert("Video Submitted", "Your video was sent for admin approval.");
-    } catch (e) {
-      setPhotoStatus("idle");
-      setPhotoError(e?.message || "Video submission failed.");
-    }
-  };
+  const heroScale = scrollY.interpolate({ inputRange: [-100, 0], outputRange: [1.2, 1], extrapolate: "clamp" });
 
   return (
-    <PageCard>
-      <ScreenHeader title="Place Detail" onBack={() => navigation.goBack()} />
-
-      <View style={styles.hero}>
-        {place?.image_urls?.length ? (
-          <Image
-            source={{ uri: toDisplayImageUrl(place.image_urls[0]) }}
-            style={styles.heroImage}
-            resizeMode="contain"
-            onError={() => {}}
-          />
-        ) : (
-          <Text style={styles.emptyText}>No photos added yet.</Text>
-        )}
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <View style={styles.floatingBar}>
+        <Pressable style={styles.floatBtn} onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={20} color="#fff" /></Pressable>
+        <Pressable style={[styles.floatBtn, isSaved ? styles.floatBtnActive : null]} onPress={handleToggleSaved}><Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={20} color="#fff" /></Pressable>
       </View>
 
-      <View style={styles.mediaSection}>
-        {place?.image_urls?.length > 1 ? (
-          <>
-          <Text style={styles.section}>Photos</Text>
-          <View style={styles.gallery}>
-            {place.image_urls.slice(0, 3).map((imageUrl, index) => (
-              <View key={`${imageUrl}-${index}`} style={styles.galleryItem}>
-                <Image source={{ uri: toDisplayImageUrl(imageUrl) }} style={styles.galleryImage} resizeMode="cover" />
-              </View>
-            ))}
-          </View>
-          </>
-        ) : null}
-
-        <Text style={styles.section}>Videos</Text>
-        {place?.video_urls?.length ? (
-          <View style={styles.videoList}>
-            {place.video_urls.slice(0, 3).map((videoUrl, index) => (
-              <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
-                {Platform.OS === "web" ? (
-                  <video
-                    src={toDisplayMediaUrl(videoUrl)}
-                    muted
-                    autoPlay
-                    loop
-                    playsInline
-                    controls
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <AppVideo
-                    source={{ uri: toDisplayMediaUrl(videoUrl) }}
-                    style={styles.nativeVideo}
-                    contentFit="cover"
-                    nativeControls
-                    autoPlay
-                    loop
-                    muted
-                  />
-                )}
-              </View>
-            ))}
+      <Animated.View style={[styles.heroContainer, { transform: [{ scale: heroScale }] }]}>
+        {images.length > 0 ? (
+          <View style={styles.heroInner}>
+            <FlatList data={images} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onScroll={(e) => { setActiveHeroIndex(Math.round(e.nativeEvent.contentOffset.x / W)); }} keyExtractor={(_, i) => String(i)} renderItem={({ item, index }) => (<Pressable onPress={() => { setViewerIndex(index); setIsViewerVisible(true); }}><Image source={{ uri: toDisplayImageUrl(item) }} style={{ width: W, height: HERO_H }} resizeMode="cover" /></Pressable>)} />
+            <View style={styles.photoBadge}><Ionicons name="camera" size={12} color="#fff" style={{ marginRight: 4 }} /><Text style={styles.photoBadgeText}>{String(activeHeroIndex + 1)} / {String(images.length)}</Text></View>
+            <View style={styles.dotsContainer}>{images.map((_, i) => (<View key={i} style={[styles.dot, activeHeroIndex === i ? styles.dotActive : null]} />))}</View>
           </View>
         ) : (
-          <Text style={styles.emptyText}>No videos added yet.</Text>
+          <View style={styles.heroFallback}><Ionicons name="image-outline" size={64} color="rgba(255,255,255,0.3)" /></View>
         )}
+      </Animated.View>
 
-        {role !== "admin" ? (
-          <View style={styles.mediaActionsLayer} pointerEvents="box-none">
-            {mediaMenuOpen ? (
-              <View style={styles.mediaActionRail}>
-                <Pressable style={styles.mediaActionButton} onPress={handleAddPhoto} disabled={mediaBusy}>
-                  <Ionicons name="image-outline" size={18} color={colors.text} />
-                  <Text style={styles.mediaActionText}>Photo</Text>
-                </Pressable>
-                <Pressable style={styles.mediaActionButton} onPress={handleAddVideo} disabled={mediaBusy}>
-                  <Ionicons name="videocam-outline" size={18} color={colors.text} />
-                  <Text style={styles.mediaActionText}>Video</Text>
-                </Pressable>
+      <Animated.ScrollView style={styles.scroll} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })} scrollEventThrottle={16} showsVerticalScrollIndicator={false}>
+        <View style={{ height: HERO_H - 30 }} />
+        <View style={styles.contentCard}>
+          <View style={styles.dragHandle} />
+          <View style={styles.nameRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.placeName}>{loading ? "Loading..." : String(place?.name || "Place Name")}</Text>
+              <View style={styles.chipRow}>
+                <View style={styles.catPill}><Text style={styles.catPillText}>{String(place?.category || "Place").toUpperCase()}</Text></View>
+                {place?.avg_rating ? (<View style={styles.ratingPill}><Ionicons name="star" size={13} color={colors.primary} /><Text style={styles.ratingText}>{String(place.avg_rating)}</Text></View>) : null}
               </View>
-            ) : null}
-
-            <Pressable
-              style={[styles.mediaFab, mediaBusy && styles.mediaFabDisabled]}
-              onPress={() => setMediaMenuOpen((value) => !value)}
-              disabled={mediaBusy}
-            >
-              <Ionicons name={mediaMenuOpen ? "close" : "add"} size={24} color={colors.text} />
-            </Pressable>
+              {!!photoError || !!mediaSubmitted ? (
+                <View style={[styles.statusChip, mediaSubmitted ? styles.statusChipSuccess : null]}>
+                  <Ionicons name={mediaSubmitted ? "checkmark-circle" : "alert-circle"} size={14} color={mediaSubmitted ? colors.success : colors.error} />
+                  <Text style={[styles.statusText, mediaSubmitted ? { color: colors.success } : null]}>{photoError ? String(photoError) : (mediaSubmitted ? "Submitted for approval" : "")}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
-        ) : null}
-      </View>
 
-      {(mediaStatusLabel || photoError) && role !== "admin" ? (
-        <View style={styles.mediaFeedbackRow}>
-          {mediaStatusLabel ? (
-            <View style={[styles.mediaStatusChip, mediaSubmitted && styles.mediaStatusChipSuccess]}>
-              <Text style={[styles.mediaStatusText, mediaSubmitted && styles.mediaStatusTextSuccess]}>
-                {mediaStatusLabel}
-              </Text>
+          {place?.address ? (<View style={styles.addressRow}><Ionicons name="location-sharp" size={16} color={colors.primary} /><Text style={styles.addressText}>{String(place.address)}</Text></View>) : null}
+
+          <View style={styles.section}><Text style={styles.sectionTitle}>Overview</Text><Text style={styles.descText}>{String(place?.description || "No description available yet.")}</Text></View>
+
+          {place?.restaurant_details ? (
+            <View style={styles.section}><Text style={styles.sectionTitle}>Restaurant Highlights</Text>
+              <View style={styles.groupCard}>
+                <InfoRow icon="restaurant" label="Cuisine" value={place.restaurant_details.cuisine} />
+                <InfoRow icon="wallet" label="Price Range" value={place.restaurant_details.price_range} />
+                <InfoRow icon="ribbon" label="Must Try" value={place.restaurant_details.must_try} isLast />
+              </View>
             </View>
           ) : null}
-          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
-        </View>
-      ) : null}
 
-      <View style={styles.info}>
-        <Text style={styles.title}>{place?.name || "Place Details"}</Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.category}>{categoryLabel(place?.category)}</Text>
-          <Text style={styles.dot}>•</Text>
-          <Text style={styles.rating}>★ {place?.avg_rating ?? "—"}</Text>
-        </View>
-        {place?.address ? <Text style={styles.address}>{place.address}</Text> : null}
-        <Text style={styles.desc}>
-          {place?.description || "No description available yet."}
-        </Text>
+          {place?.stay_details ? (
+            <View style={styles.section}><Text style={styles.sectionTitle}>Stay Information</Text>
+              <View style={styles.groupCard}>
+                <InfoRow icon="bed-outline" label="Type" value={place.stay_details.stay_type} />
+                <InfoRow icon="cash-outline" label="Price / Night" value={place.stay_details.price_per_night ? "₹" + String(place.stay_details.price_per_night) : null} />
+                <InfoRow icon="checkmark-circle-outline" label="Amenities" value={place.stay_details.amenities?.join(", ")} isLast />
+              </View>
+            </View>
+          ) : null}
 
-        {place?.restaurant_details ? (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsTitle}>Restaurant Details</Text>
-            {place.restaurant_details.cuisine ? <Text style={styles.detailsText}>Cuisine: {place.restaurant_details.cuisine}</Text> : null}
-            {place.restaurant_details.price_range ? <Text style={styles.detailsText}>Price: {place.restaurant_details.price_range}</Text> : null}
-            {place.restaurant_details.must_try ? <Text style={styles.detailsText}>Must try: {place.restaurant_details.must_try}</Text> : null}
+          {place?.video_urls?.length ? (
+            <View style={styles.section}><Text style={styles.sectionTitle}>Experience (Videos)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.videoScroll}>
+                {place.video_urls.map((url, i) => (<View key={i} style={styles.videoCard}><AppVideo source={toDisplayMediaUrl(url)} style={styles.video} contentFit="cover" muted loop autoPlay nativeControls={false} /></View>))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <View style={styles.actionsRow}>
+            <ActionBtn icon="map" label="Directions" onPress={() => navigation.navigate("Map")} />
+            <ActionBtn icon="chatbubbles" label="Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId })} />
+            <ActionBtn icon={isSaved ? "bookmark" : "bookmark-outline"} label={isSaved ? "Saved" : "Save"} primary={isSaved} onPress={handleToggleSaved} />
           </View>
-        ) : null}
+          <View style={{ height: 40 }} />
+        </View>
+      </Animated.ScrollView>
 
-        {place?.stay_details ? (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsTitle}>Stay Details</Text>
-            {place.stay_details.stay_type ? <Text style={styles.detailsText}>Type: {place.stay_details.stay_type}</Text> : null}
-            {place.stay_details.price_per_night !== null && place.stay_details.price_per_night !== undefined ? (
-              <Text style={styles.detailsText}>Price/night: {place.stay_details.price_per_night}</Text>
-            ) : null}
-            {place.stay_details.amenities?.length ? (
-              <Text style={styles.detailsText}>Amenities: {place.stay_details.amenities.join(", ")}</Text>
-            ) : null}
+      <Modal visible={isViewerVisible} transparent animationType="fade">
+        <View style={styles.viewerContainer}>
+          <Pressable style={styles.viewerClose} onPress={() => setIsViewerVisible(false)}><Ionicons name="close" size={30} color="#fff" /></Pressable>
+          <FlatList data={images} horizontal pagingEnabled initialScrollIndex={viewerIndex} getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })} keyExtractor={(_, i) => String(i)} renderItem={({ item }) => (<View style={styles.viewerSlide}><Image source={{ uri: toDisplayImageUrl(item) }} style={styles.viewerImage} resizeMode="contain" /></View>)} />
+        </View>
+      </Modal>
+
+      {role !== "admin" ? (<Pressable style={styles.fab} onPress={() => setMediaMenuOpen(true)}><Ionicons name="add" size={28} color="#1A1A1A" /></Pressable>) : null}
+
+      <Modal visible={mediaMenuOpen} transparent animationType="slide">
+        <Pressable style={styles.modalOverlay} onPress={() => setMediaMenuOpen(false)}>
+          <View style={styles.sheet}><Text style={styles.sheetTitle}>Add to this place</Text>
+            <View style={styles.sheetOptions}>
+              <Pressable style={styles.sheetBtn} onPress={() => handleMediaAdd('image')}><View style={[styles.sheetIcon, { backgroundColor: "#FEF5E7" }]}><Ionicons name="image" size={24} color="#D35400" /></View><Text style={styles.sheetText}>Photo</Text></Pressable>
+              <Pressable style={styles.sheetBtn} onPress={() => handleMediaAdd('video')}><View style={[styles.sheetIcon, { backgroundColor: "#EBF5FB" }]}><Ionicons name="videocam" size={24} color="#2980B9" /></View><Text style={styles.sheetText}>Video</Text></Pressable>
+            </View>
           </View>
-        ) : null}
-      </View>
-
-      <PrimaryButton
-        label={isSaved ? "Remove from Saved" : "Save to Collection"}
-        onPress={handleToggleSaved}
-      />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Get Directions" onPress={() => navigation.navigate("Map")} variant="ghost" />
-      <View style={styles.spacer} />
-      <PrimaryButton label="Read Guest Reviews" onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
-    </PageCard>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    height: 250,
-    marginVertical: spacing.lg,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: colors.accent,
-  },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  mediaSection: {
-    position: "relative",
-    marginBottom: spacing.lg,
-  },
-  info: {
-    marginBottom: spacing.xl,
-  },
-  section: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  gallery: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  galleryItem: {
-    flex: 1,
-    height: 88,
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  galleryImage: {
-    width: "100%",
-    height: "100%",
-  },
-  videoList: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  videoWrap: {
-    height: 170,
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  videoFallback: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  nativeVideo: {
-    width: "100%",
-    height: "100%",
-  },
-  mediaActionsLayer: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: spacing.md,
-    alignItems: "flex-end",
-  },
-  mediaActionRail: {
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    alignItems: "flex-end",
-  },
-  mediaActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  mediaActionText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  mediaFab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.primary,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.18,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  mediaFabDisabled: {
-    opacity: 0.7,
-  },
-  mediaFeedbackRow: {
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  mediaStatusChip: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  mediaStatusChipSuccess: {
-    borderColor: colors.success,
-    backgroundColor: colors.background,
-  },
-  mediaStatusText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "700",
-  },
-  mediaStatusTextSuccess: {
-    color: colors.success,
-  },
-  title: {
-    ...typography.h1,
-    fontSize: 28,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  category: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    letterSpacing: 0,
-  },
-  dot: {
-    marginHorizontal: spacing.sm,
-    color: colors.textMuted,
-  },
-  rating: {
-    ...typography.h3,
-    color: colors.primary,
-  },
-  desc: {
-    ...typography.body,
-    lineHeight: 24,
-  },
-  address: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  spacer: {
-    height: spacing.md,
-  },
-  detailsBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  detailsTitle: {
-    ...typography.h3,
-    fontSize: 16,
-    marginBottom: spacing.sm,
-  },
-  detailsText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.error,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
+  heroContainer: { height: HERO_H, position: "absolute", top: 0, left: 0, right: 0 },
+  heroInner: { flex: 1 },
+  heroFallback: { flex: 1, backgroundColor: "#2C2C2C", justifyContent: "center", alignItems: "center" },
+  photoBadge: { position: "absolute", bottom: 50, right: 20, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexDirection: "row", alignItems: "center" },
+  photoBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  dotsContainer: { position: "absolute", bottom: 50, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.4)" },
+  dotActive: { width: 18, backgroundColor: colors.primary },
+  floatingBar: { position: "absolute", top: Platform.OS === "ios" ? 60 : 40, left: 20, right: 20, zIndex: 100, flexDirection: "row", justifyContent: "space-between" },
+  floatBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
+  floatBtnActive: { backgroundColor: colors.primary },
+  scroll: { flex: 1 },
+  contentCard: { backgroundColor: colors.background, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 20, paddingTop: 10 },
+  dragHandle: { width: 40, height: 5, backgroundColor: "#DDD", borderRadius: 3, alignSelf: "center", marginBottom: 20 },
+  nameRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 15 },
+  placeName: { fontSize: 26, fontWeight: "800", color: colors.text, marginBottom: 8, letterSpacing: -0.5 },
+  chipRow: { flexDirection: "row", gap: 10 },
+  catPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  catPillText: { fontSize: 11, fontWeight: "800", color: colors.primary },
+  ratingPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, borderRadius: 20 },
+  ratingText: { fontSize: 13, fontWeight: "800", color: colors.text },
+  statusChip: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  statusChipSuccess: { },
+  statusText: { fontSize: 12, fontWeight: "600", color: colors.error },
+  addressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 25 },
+  addressText: { flex: 1, fontSize: 14, color: colors.textSecondary, fontWeight: "600" },
+  section: { marginBottom: 30 },
+  sectionTitle: { fontSize: 12, fontWeight: "800", color: colors.textMuted, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 },
+  descText: { fontSize: 15, color: colors.textSecondary, lineHeight: 24, fontWeight: "500" },
+  groupCard: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  infoRowWrapper: { width: "100%" },
+  infoRow: { flexDirection: "row", alignItems: "center", padding: 15, gap: 15 },
+  infoIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  infoText: { flex: 1 },
+  infoLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase" },
+  infoValue: { fontSize: 14, fontWeight: "700", color: colors.text },
+  infoRowDivider: { height: 1, backgroundColor: colors.border, marginLeft: 65 },
+  videoScroll: { marginHorizontal: -20, paddingHorizontal: 20 },
+  videoCard: { width: 140, height: 200, borderRadius: 15, overflow: "hidden", marginRight: 15, backgroundColor: "#000" },
+  video: { width: "100%", height: "100%" },
+  actionsRow: { flexDirection: "row", gap: 12, marginTop: 10 },
+  actionBtn: { flex: 1, paddingVertical: 14, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
+  actionBtnPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  actionBtnText: { fontSize: 13, fontWeight: "700", color: colors.text },
+  actionBtnTextPrimary: { },
+  fab: { position: "absolute", bottom: 30, right: 30, width: 60, height: 60, borderRadius: 30, backgroundColor: colors.primary, justifyContent: "center", alignItems: "center", elevation: 5 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: colors.background, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 30, paddingBottom: 50 },
+  sheetTitle: { fontSize: 18, fontWeight: "900", marginBottom: 25, textAlign: "center", color: colors.text },
+  sheetOptions: { flexDirection: "row", gap: 20 },
+  sheetBtn: { flex: 1, alignItems: "center", gap: 10 },
+  sheetIcon: { width: 60, height: 60, borderRadius: 20, justifyContent: "center", alignItems: "center" },
+  sheetText: { fontSize: 13, fontWeight: "700", color: colors.text },
+  viewerContainer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
+  viewerClose: { position: "absolute", top: 60, right: 20, zIndex: 10 },
+  viewerSlide: { width: W, height: H, justifyContent: "center" },
+  viewerImage: { width: W, height: H * 0.8 },
 });

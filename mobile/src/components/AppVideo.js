@@ -22,15 +22,15 @@ export default function AppVideo({
   });
 
   useEffect(() => {
+    if (!player) return;
     player.loop = loop;
     player.muted = muted;
 
     if (autoPlay) {
       player.play();
-      return;
+    } else {
+      player.pause();
     }
-
-    player.pause();
   }, [autoPlay, loop, muted, player]);
 
   return (
