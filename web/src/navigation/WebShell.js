@@ -78,7 +78,6 @@ export default function WebShell() {
     { key: "Analytics", label: t("navAnalytics"), icon: "bar-chart-outline" },
     { key: "Users", label: t("navUsers"), icon: "people-outline" },
     { key: "Settings", label: t("navSettings"), icon: "settings-outline" },
-    { key: "Map", label: t("navMap"), icon: "map-outline" },
   ];
   const userNav = [
     { key: "Explore", label: t("navExplore"), icon: "compass-outline" },
@@ -87,7 +86,6 @@ export default function WebShell() {
     { key: "MySubmissions", label: t("navMySubmissions"), icon: "clipboard-outline" },
     { key: "AI_Itinerary", label: t("navItinerary"), icon: "sparkles-outline" },
     { key: "Saved", label: t("navSaved"), icon: "bookmark-outline" },
-    { key: "Map", label: t("navMap"), icon: "map-outline" },
     { key: "Profile", label: t("navProfile"), icon: "person-outline" },
   ];
   const navItems = role === "admin" ? adminNav : userNav;

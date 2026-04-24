@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TextInput } from "react-native";
+import { View, Text, StyleSheet, FlatList, TextInput, ScrollView, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
@@ -16,6 +17,8 @@ import {
 import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { actOnAdminStoryReport, fetchAdminStoryReports } from "../services/adminApi";
 
+import ScreenHeader from "../components/ScreenHeader";
+
 const categoryLabel = (value) => {
     const mapping = {
         restaurant: "Food",
@@ -27,7 +30,7 @@ const categoryLabel = (value) => {
     return mapping[value] || value;
 };
 
-export default function PlaceApprovalScreen() {
+export default function PlaceApprovalScreen({ navigation }) {
     const [pendingPlaces, setPendingPlaces] = useState([]);
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState("");
@@ -181,9 +184,11 @@ export default function PlaceApprovalScreen() {
 
     return (
         <PageCard>
+            <ScreenHeader title="Approvals Hub" onBack={() => navigation.goBack()} />
+            
             <View style={styles.header}>
-                <Text style={styles.title}>Place Approvals</Text>
-                <Text style={styles.subtitle}>Review and verify community-submitted discovery points.</Text>
+                <Text style={styles.title}>Place Requests</Text>
+                <Text style={styles.subtitle}>Review new discovery points submitted by the community.</Text>
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             {pendingPlaces.length === 0 ? (
@@ -198,9 +203,9 @@ export default function PlaceApprovalScreen() {
                 contentContainerStyle={styles.list}
             />
 
-            <View style={styles.photoSection}>
-                <Text style={styles.title}>Media Approvals</Text>
-                <Text style={styles.subtitle}>Review photo and video additions submitted by members for approved places.</Text>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.title}>Media Submissions</Text>
+            </View>
                 {pendingPhotoSubmissions.length === 0 ? (
                     <Text style={styles.empty}>No pending media submissions right now.</Text>
                 ) : null}
@@ -253,9 +258,9 @@ export default function PlaceApprovalScreen() {
                 ))}
             </View>
 
-            <View style={styles.photoSection}>
-                <Text style={styles.title}>Story Reports</Text>
-                <Text style={styles.subtitle}>Review stories reported by members and decide whether to dismiss or remove them.</Text>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.title}>Moderation Queue</Text>
+            </View>
                 {storyReports.length === 0 ? (
                     <Text style={styles.empty}>No open story reports right now.</Text>
                 ) : null}
@@ -317,14 +322,23 @@ export default function PlaceApprovalScreen() {
 
 const styles = StyleSheet.create({
     header: {
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
+    },
+    sectionHeader: {
+        marginTop: spacing.xxl,
+        marginBottom: spacing.md,
+        paddingTop: spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
     },
     title: {
-        ...typography.h1,
+        ...typography.h2,
+        color: colors.text,
     },
     subtitle: {
         ...typography.body,
-        marginTop: spacing.xs,
+        color: colors.textSecondary,
+        marginTop: 4,
     },
     list: {
         paddingVertical: spacing.md,
@@ -367,13 +381,14 @@ const styles = StyleSheet.create({
     actions: {
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "flex-end",
+        marginTop: spacing.md,
     },
     actionBtn: {
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
+        minWidth: 120,
     },
     spacer: {
-        width: spacing.sm,
+        width: spacing.md,
     },
     separator: {
         height: 1,

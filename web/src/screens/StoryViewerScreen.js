@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import PageCard from "../components/PageCard";
 import PrimaryButton from "../components/PrimaryButton";
