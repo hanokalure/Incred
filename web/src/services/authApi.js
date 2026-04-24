@@ -9,3 +9,5 @@ export const uploadProfilePic = (file) => {
   formData.append("file", file);
   return apiUpload("/uploads/profile-pic", formData);
 };
+
+export const deleteProfilePic = () => apiPost("/uploads/profile-pic/remove", {});

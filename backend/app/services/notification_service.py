@@ -69,10 +69,10 @@ async def send_native_push(token: str, title: str, body: str, data: Dict[str, An
             print(f"Failed to send native push: {e}")
             return None
 
-async def list_notifications(user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-    supabase = await get_supabase_client(anon=True)
+async def list_notifications(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    admin = await get_supabase_client(anon=False)
     result = await (
-        supabase.table("notifications")
+        admin.table("notifications")
         .select("*")
         .eq("user_id", user_id)
         .order("created_at", desc=True)

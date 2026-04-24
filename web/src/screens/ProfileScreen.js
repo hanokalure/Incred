@@ -14,6 +14,8 @@ import { fetchSavedPlaceCards } from "../services/savedApi";
 import { useLanguage } from "../context/LanguageContext";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 import { uploadProfilePic } from "../services/authApi";
+import { supabase } from "../services/supabaseClient";
+import { getAuthToken } from "../services/authStore";
 
 function QuickActionCard({ value, label }) {
   return (
@@ -85,6 +87,31 @@ export default function ProfileScreen({ navigation }) {
     } catch (err) {
       console.error("Upload failed", err);
       alert(`Failed to upload profile picture: ${err.message}`);
+      } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePhotoRemove = async () => {
+    setIsMenuVisible(false);
+    if (!window.confirm("Are you sure you want to remove your profile photo?")) return;
+
+    setUploading(true);
+    try {
+      // Update Supabase directly — no backend deploy required
+      const token = getAuthToken();
+      if (token) {
+        await supabase.auth.setSession({ access_token: token, refresh_token: token });
+      }
+      const { error } = await supabase
+        .from("users")
+        .update({ profile_pic: null })
+        .eq("id", user?.id);
+      if (error) throw new Error(error.message);
+      dispatch(updateUser({ profile_pic: null }));
+    } catch (err) {
+      console.error("Remove failed", err);
+      alert(`Failed to remove profile picture: ${err.message}`);
     } finally {
       setUploading(false);
     }
@@ -106,14 +133,16 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={styles.topProfileSection}>
           <View style={styles.avatarContainer}>
-            <TouchableOpacity onPress={() => setIsMenuVisible(true)} disabled={uploading} style={styles.avatarWrapper}>
-              {user?.profile_pic ? (
-                <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>{(user?.name || "IK").slice(0, 1).toUpperCase()}</Text>
-                </View>
-              )}
+            <TouchableOpacity onPress={() => setIsMenuVisible(true)} disabled={uploading} style={{ position: "relative" }}>
+              <View style={styles.avatarWrapper}>
+                {user?.profile_pic ? (
+                  <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={100} color={colors.primary} />
+                  </View>
+                )}
+              </View>
               <View style={styles.editBadge}>
                 {uploading ? (
                   <Ionicons name="sync" size={20} color="#fff" />
@@ -204,6 +233,15 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.menuItemText}>Change Photo</Text>
             </TouchableOpacity>
             
+            {user?.profile_pic && (
+              <TouchableOpacity style={styles.menuItem} onPress={handlePhotoRemove}>
+                <View style={[styles.menuIcon, { backgroundColor: "#FFEBEE" }]}>
+                  <Ionicons name="trash-outline" size={20} color="#E53935" />
+                </View>
+                <Text style={styles.menuItemText}>Remove Photo</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity style={[styles.menuItem, { marginTop: spacing.sm }]} onPress={() => setIsMenuVisible(false)}>
               <Text style={[styles.menuItemText, { color: colors.textMuted, width: "100%", textAlign: "center" }]}>Cancel</Text>
             </TouchableOpacity>
@@ -223,7 +261,7 @@ export default function ProfileScreen({ navigation }) {
               <Image source={{ uri: toDisplayMediaUrl(user.profile_pic) }} style={styles.fullImage} resizeMode="contain" />
             ) : (
               <View style={styles.viewerPlaceholder}>
-                <Text style={styles.viewerInitial}>{(user?.name || "U").slice(0, 1).toUpperCase()}</Text>
+                <Ionicons name="person" size={150} color="#fff" />
               </View>
             )}
           </View>
@@ -278,8 +316,8 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: "absolute",
-    right: 8,
-    bottom: 8,
+    right: 0,
+    bottom: 0,
     backgroundColor: colors.primary,
     width: 44,
     height: 44,

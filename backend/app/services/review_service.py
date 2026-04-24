@@ -61,3 +61,37 @@ async def list_reviews(place_id: int) -> List[Dict[str, Any]]:
         review["user_name"] = user_name_by_id.get(review.get("user_id"))
 
     return reviews
+
+async def list_user_reviews(user_id: str) -> List[Dict[str, Any]]:
+    supabase = await get_supabase_client(anon=True)
+    admin = await get_supabase_client(anon=False)
+
+    result = await (
+        supabase.table("reviews")
+        .select("id,place_id,user_id,rating,comment,image_url,created_at")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    reviews = result.data or []
+    if not reviews:
+        return []
+
+    place_ids = list({review["place_id"] for review in reviews if review.get("place_id")})
+    places_result = await (
+        admin.table("places")
+        .select("id,name")
+        .in_("id", place_ids)
+        .execute()
+        if place_ids
+        else None
+    )
+    place_name_by_id = {}
+    if places_result and places_result.data:
+        for p in places_result.data:
+            place_name_by_id[p["id"]] = p["name"]
+
+    for review in reviews:
+        review["place_name"] = place_name_by_id.get(review.get("place_id"), "Unknown Place")
+
+    return reviews

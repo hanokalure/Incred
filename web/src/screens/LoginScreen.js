@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Text, TextInput, StyleSheet, View } from "react-native";
+import { useState, useEffect } from "react";
+import { Text, TextInput, StyleSheet, View, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { login } from "../store/slices/authSlice";
 import { colors } from "../theme/colors";
@@ -8,7 +9,7 @@ import { typography } from "../theme/typography";
 import PrimaryButton from "../components/PrimaryButton";
 import PageCard from "../components/PageCard";
 import { login as loginApi } from "../services/authApi";
-import { setAuthToken } from "../services/authStore";
+import { setAuthToken, getSavedCredentials, setSavedCredentials, clearSavedCredentials } from "../services/authStore";
 
 export default function LoginScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -16,6 +17,17 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    const creds = getSavedCredentials();
+    if (creds && creds.email) {
+      setEmail(creds.email);
+      setPassword(creds.password);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async () => {
     setStatus("loading");
@@ -28,6 +40,13 @@ export default function LoginScreen({ navigation }) {
       }
       const data = await loginApi({ email, password });
       setAuthToken(data.access_token);
+      
+      if (rememberMe) {
+        setSavedCredentials({ email: email.trim(), password });
+      } else {
+        clearSavedCredentials();
+      }
+      
       dispatch(login({ user: data.user, role: data.user.role, token: data.access_token }));
     } catch (e) {
       setError(e.message || "Login failed");
@@ -49,14 +68,31 @@ export default function LoginScreen({ navigation }) {
         onChangeText={setEmail}
         autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor={colors.textMuted}
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Password"
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry={!showPassword}
+          style={styles.passwordInput}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+          <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <Pressable 
+        style={styles.rememberMeContainer} 
+        onPress={() => setRememberMe(!rememberMe)}
+      >
+        <Ionicons 
+          name={rememberMe ? "checkbox" : "square-outline"} 
+          size={22} 
+          color={rememberMe ? colors.primary : colors.textMuted} 
+        />
+        <Text style={styles.rememberMeText}>Remember me</Text>
+      </Pressable>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton label={status === "loading" ? "Signing in..." : "Login"} onPress={handleLogin} />
@@ -102,6 +138,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     color: colors.text,
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: spacing.md,
+    color: colors.text,
+    outlineStyle: "none",
+  },
+  eyeIcon: {
+    padding: spacing.md,
+  },
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.lg,
+    width: "100%",
+    justifyContent: "center",
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: spacing.sm,
   },
   helper: {
     marginTop: spacing.xl,

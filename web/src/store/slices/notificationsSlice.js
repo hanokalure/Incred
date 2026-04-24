@@ -35,6 +35,10 @@ const notificationsSlice = createSlice({
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
     },
+    markAllReadLocal: (state) => {
+      state.notifications.forEach((n) => { n.is_read = true; });
+      state.unreadCount = 0;
+    },
     addNotification: (state, action) => {
       // Avoid duplicates
       const exists = state.notifications.some((n) => n.id === action.payload.id);
@@ -63,5 +67,5 @@ const notificationsSlice = createSlice({
   },
 });
 
-export const { setPushEnabled, markReadLocal, addNotification } = notificationsSlice.actions;
+export const { setPushEnabled, markReadLocal, markAllReadLocal, addNotification } = notificationsSlice.actions;
 export default notificationsSlice.reducer;

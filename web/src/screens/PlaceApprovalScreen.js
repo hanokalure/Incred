@@ -123,8 +123,37 @@ export default function PlaceApprovalScreen() {
                 <Text style={styles.itemMeta}>
                     {categoryLabel(item.category)} • District {item.district_id}
                 </Text>
+
+                {item.image_urls && item.image_urls.length > 0 && (
+                    <View style={styles.placePreviewWrap}>
+                        <img
+                            src={toDisplayImageUrl(item.image_urls[0])}
+                            alt={item.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                    </View>
+                )}
+
+                {item.description ? (
+                    <Text style={styles.detailsText}><Text style={styles.bold}>Description: </Text>{item.description}</Text>
+                ) : null}
+                {item.address ? (
+                    <Text style={styles.detailsText}><Text style={styles.bold}>Address: </Text>{item.address}</Text>
+                ) : null}
+
+                {item.category === "restaurant" && item.restaurant_details && (
+                    <Text style={styles.detailsText}>
+                        <Text style={styles.bold}>Cuisine:</Text> {item.restaurant_details.cuisine} • <Text style={styles.bold}>Price:</Text> {item.restaurant_details.price_range} • <Text style={styles.bold}>Must Try:</Text> {item.restaurant_details.must_try}
+                    </Text>
+                )}
+                {item.category === "stay" && item.stay_details && (
+                    <Text style={styles.detailsText}>
+                        <Text style={styles.bold}>Type:</Text> {item.stay_details.stay_type} • <Text style={styles.bold}>Price/Night:</Text> ₹{item.stay_details.price_per_night} • <Text style={styles.bold}>Amenities:</Text> {item.stay_details.amenities?.join(", ")}
+                    </Text>
+                )}
+
                 <TextInput
-                    style={styles.input}
+                    style={[styles.input, { marginTop: spacing.md }]}
                     value={rejectReasonById[item.id] || ""}
                     onChangeText={(value) =>
                         setRejectReasonById((prev) => ({ ...prev, [item.id]: value }))
@@ -301,9 +330,9 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
     },
     item: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: "column",
+        alignItems: "stretch",
+
         paddingVertical: spacing.lg,
     },
     itemName: {
@@ -315,6 +344,16 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         marginTop: 4,
         marginBottom: spacing.sm,
+    },
+    detailsText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        marginBottom: 4,
+        lineHeight: 20,
+    },
+    bold: {
+        fontWeight: "700",
+        color: colors.text,
     },
     input: {
         backgroundColor: colors.background,
@@ -369,6 +408,17 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         marginBottom: spacing.md,
+    },
+    placePreviewWrap: {
+        width: "100%",
+        maxWidth: 400,
+        height: 200,
+        borderRadius: 12,
+        overflow: "hidden",
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginVertical: spacing.sm,
     },
     reportCaption: {
         ...typography.body,

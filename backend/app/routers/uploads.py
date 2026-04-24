@@ -47,3 +47,11 @@ async def upload_profile_pic_api(file: UploadFile = File(...), current_user=Depe
     await admin.table("users").update({"profile_pic": object_path}).eq("id", user_id).execute()
     
     return {"profile_pic": object_path}
+
+
+@router.post("/uploads/profile-pic/remove")
+async def delete_profile_pic_api(current_user=Depends(get_current_user)):
+    user_id = current_user["id"]
+    admin = await get_supabase_client(anon=False)
+    await admin.table("users").update({"profile_pic": None}).eq("id", user_id).execute()
+    return {"message": "Profile picture removed", "profile_pic": None}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from typing import List
 
 from ..schemas.reviews import ReviewCreate, ReviewOut
-from ..services.review_service import create_review, list_reviews
+from ..services.review_service import create_review, list_reviews, list_user_reviews
 from ..services.deps import get_current_user
 
 router = APIRouter()
@@ -11,6 +11,11 @@ router = APIRouter()
 @router.post("", response_model=ReviewOut, status_code=201)
 async def create_review_api(payload: ReviewCreate, current_user=Depends(get_current_user)):
     return await create_review(current_user["id"], payload.model_dump())
+
+
+@router.get("/me", response_model=List[ReviewOut])
+async def get_my_reviews(current_user=Depends(get_current_user)):
+    return await list_user_reviews(current_user["id"])
 
 
 @router.get("/{place_id}", response_model=List[ReviewOut])
