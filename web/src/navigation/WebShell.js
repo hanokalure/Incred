@@ -281,6 +281,7 @@ export default function WebShell() {
                     <Stack.Screen name="Users" component={UsersScreen} />
                     <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="Profile" component={ProfileScreen} />
+                    <Stack.Screen name="Map" component={MapScreen} />
                   </>
                 ) : (
                   <>

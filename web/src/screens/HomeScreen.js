@@ -99,9 +99,18 @@ export default function HomeScreen({ navigation, route }) {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>SYSTEM OVERVIEW</Text>
             <View style={styles.statsGrid}>
-              <View style={styles.statBox}><Text style={styles.statVal}>{String(adminStats.stats?.total_places || 0)}</Text><Text style={styles.statLab}>Places</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{String(adminStats.stats?.total_users || 0)}</Text><Text style={styles.statLab}>Users</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{String(adminStats.stats?.total_reviews || 0)}</Text><Text style={styles.statLab}>Reviews</Text></View>
+              <Pressable style={styles.statBox} onPress={() => navigation.navigate("Listings")}>
+                <Text style={styles.statVal}>{String(adminStats.stats?.total_places || 0)}</Text>
+                <Text style={styles.statLab}>Places</Text>
+              </Pressable>
+              <Pressable style={styles.statBox} onPress={() => navigation.navigate("Users")}>
+                <Text style={styles.statVal}>{String(adminStats.stats?.total_users || 0)}</Text>
+                <Text style={styles.statLab}>Users</Text>
+              </Pressable>
+              <Pressable style={styles.statBox} onPress={() => navigation.navigate("Analytics")}>
+                <Text style={styles.statVal}>{String(adminStats.stats?.total_reviews || 0)}</Text>
+                <Text style={styles.statLab}>Reviews</Text>
+              </Pressable>
             </View>
           </View>
         )}
