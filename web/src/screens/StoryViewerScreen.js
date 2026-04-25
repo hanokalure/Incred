@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Image, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import PageCard from "../components/PageCard";
@@ -19,10 +19,16 @@ export default function StoryViewerScreen({ navigation, route }) {
   const initialIndex = Number(route?.params?.initialIndex || 0);
   const [index, setIndex] = useState(initialIndex);
   const [actionError, setActionError] = useState("");
+  const [loadingMedia, setLoadingMedia] = useState(true);
 
   useEffect(() => {
     setIndex(initialIndex);
+    setLoadingMedia(true);
   }, [initialIndex]);
+
+  useEffect(() => {
+    setLoadingMedia(true);
+  }, [index]);
 
   const story = stories[index];
   const isOwnStory = useMemo(() => !!story && story.user_id === currentUserId, [story, currentUserId]);
@@ -68,9 +74,26 @@ export default function StoryViewerScreen({ navigation, route }) {
           ))}
         </View>
         {story.media_type === "video" ? (
-          <video src={toDisplayMediaUrl(story.media_url)} style={styles.video} controls autoPlay playsInline />
+          <video 
+            src={toDisplayMediaUrl(story.media_url)} 
+            style={[styles.video, loadingMedia && styles.hiddenMedia]} 
+            controls 
+            autoPlay 
+            playsInline 
+            onLoadedData={() => setLoadingMedia(false)}
+          />
         ) : (
-          <Image source={{ uri: toDisplayMediaUrl(story.media_url) }} style={styles.media} resizeMode="cover" />
+          <Image 
+            source={{ uri: toDisplayMediaUrl(story.media_url) }} 
+            style={[styles.media, loadingMedia && styles.hiddenMedia]} 
+            resizeMode="cover" 
+            onLoad={() => setLoadingMedia(false)}
+          />
+        )}
+        {loadingMedia && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
         )}
         <View style={styles.captionBox}>
           <Text style={styles.userName}>{userName}</Text>
@@ -216,12 +239,28 @@ const styles = StyleSheet.create({
   media: {
     width: "100%",
     height: 560,
+    transition: "opacity 0.3s ease-in-out",
   },
   video: {
     width: "100%",
     height: 560,
     objectFit: "cover",
     backgroundColor: "#111",
+    transition: "opacity 0.3s ease-in-out",
+  },
+  hiddenMedia: {
+    opacity: 0,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#111",
+    zIndex: 1,
   },
   captionBox: {
     position: "absolute",
