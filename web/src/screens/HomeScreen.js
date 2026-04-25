@@ -10,12 +10,12 @@ import { toDisplayImageUrl } from "../services/mediaUrl";
 import { fetchAdminDashboard } from "../services/adminApi";
 import StoryStrip from "../components/StoryStrip";
 import { useLanguage } from "../context/LanguageContext";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { useResponsive } from "../hooks/useResponsive";
 
 function FeatureCard({ item, onPress }) {
+  const { isMobile, width } = useResponsive();
   return (
-    <Pressable style={styles.featureCard} onPress={onPress}>
+    <Pressable style={[styles.featureCard, isMobile && { width: width - 48 }]} onPress={onPress}>
       <Image source={{ uri: toDisplayImageUrl(item.image_urls?.[0]) }} style={styles.featureImage} />
       <View style={styles.featureOverlay}>
         <View style={styles.featureBadge}><Text style={styles.featureBadgeText}>FEATURED</Text></View>
@@ -43,6 +43,7 @@ function ActionTile({ icon, title, color, onPress }) {
 export default function HomeScreen({ navigation, route }) {
   const { role, user } = useSelector(state => state.auth);
   const { t } = useLanguage();
+  const { isMobile, isTablet, width: SCREEN_WIDTH } = useResponsive();
   const [places, setPlaces] = useState([]);
   const [adminStats, setAdminStats] = useState(null);
 
@@ -84,13 +85,13 @@ export default function HomeScreen({ navigation, route }) {
             data={featured}
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={SCREEN_WIDTH > 800 ? 520 : SCREEN_WIDTH - 60}
+            snapToInterval={isMobile ? SCREEN_WIDTH - 48 : 520}
             decelerationRate="fast"
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
               <FeatureCard item={item} onPress={() => navigation.navigate("PlaceDetail", { id: item.id })} />
             )}
-            contentContainerStyle={{ gap: 20 }}
+            contentContainerStyle={{ gap: isMobile ? 12 : 20 }}
           />
         </View>
 
@@ -98,7 +99,7 @@ export default function HomeScreen({ navigation, route }) {
         {role === "admin" && adminStats && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>SYSTEM OVERVIEW</Text>
-            <View style={styles.statsGrid}>
+            <View style={[styles.statsGrid, isMobile && styles.gridMobile]}>
               <Pressable style={styles.statBox} onPress={() => navigation.navigate("Listings")}>
                 <Text style={styles.statVal}>{String(adminStats.stats?.total_places || 0)}</Text>
                 <Text style={styles.statLab}>Places</Text>
@@ -116,7 +117,7 @@ export default function HomeScreen({ navigation, route }) {
         )}
 
         {/* 5. QUICK TILES */}
-        <View style={styles.actionGrid}>
+        <View style={[styles.actionGrid, isMobile && styles.gridMobile]}>
           <ActionTile icon="map-outline" title="Map Hub" color="#3498DB" onPress={() => navigation.navigate("Map")} />
           <ActionTile icon="sparkles-outline" title="AI Planner" color="#9B59B6" onPress={() => navigation.navigate("Itinerary")} />
           <ActionTile icon="navigate-outline" title="Near Me" color="#27AE60" onPress={() => navigation.navigate("Discover")} />
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 12, fontWeight: "900", color: colors.textMuted, letterSpacing: 1.5, marginBottom: 16 },
   seeAll: { fontSize: 14, fontWeight: "700", color: colors.primary },
 
-  featureCard: { width: 500, height: 280, borderRadius: 24, overflow: "hidden" },
+  featureCard: { width: Platform.OS === 'web' ? '100%' : 500, maxWidth: 500, height: 280, borderRadius: 24, overflow: "hidden" },
   featureImage: { width: "100%", height: "100%" },
   featureOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', padding: 30, justifyContent: "flex-end" },
   featureBadge: { backgroundColor: colors.primary, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginBottom: 12 },
@@ -186,6 +187,7 @@ const styles = StyleSheet.create({
   statLab: { fontSize: 12, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", marginTop: 4 },
 
   actionGrid: { flexDirection: "row", gap: 20, marginBottom: 40 },
+  gridMobile: { flexDirection: "column", gap: 12 },
   actionTile: { flex: 1, height: 120, backgroundColor: colors.surface, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: colors.border, justifyContent: "center" },
   actionIconWrap: { width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 12 },
   actionTitle: { fontSize: 16, fontWeight: "800", color: colors.text },

@@ -1,20 +1,35 @@
 import { View, ScrollView, StyleSheet, Platform } from "react-native";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
+import { useResponsive } from "../hooks/useResponsive";
 
 export default function PageCard({ children, scroll = true, contentStyle, cardStyle }) {
+  const { isMobile } = useResponsive();
+  
+  const dynamicContentStyle = [
+    styles.content,
+    isMobile && styles.contentMobile,
+    contentStyle,
+  ];
+
+  const dynamicCardStyle = [
+    styles.card,
+    isMobile && styles.cardMobile,
+    cardStyle,
+  ];
+
   if (scroll) {
     return (
-      <ScrollView style={styles.page} contentContainerStyle={[styles.content, contentStyle]}>
-        <View style={[styles.card, cardStyle]}>{children}</View>
+      <ScrollView style={styles.page} contentContainerStyle={dynamicContentStyle}>
+        <View style={dynamicCardStyle}>{children}</View>
       </ScrollView>
     );
   }
 
   return (
     <View style={styles.page}>
-      <View style={[styles.content, contentStyle]}>
-        <View style={[styles.card, cardStyle]}>{children}</View>
+      <View style={dynamicContentStyle}>
+        <View style={dynamicCardStyle}>{children}</View>
       </View>
     </View>
   );
@@ -29,6 +44,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: "center",
     justifyContent: "flex-start",
+  },
+  contentMobile: {
+    padding: spacing.sm,
   },
   card: {
     width: "100%",
@@ -50,6 +68,22 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 4,
+      },
+    }),
+  },
+  cardMobile: {
+    padding: spacing.md,
+    borderRadius: 16,
+    borderWidth: 0,
+    ...Platform.select({
+      web: {
+        boxShadow: "none",
+      },
+      ios: {
+        shadowOpacity: 0,
+      },
+      android: {
+        elevation: 0,
       },
     }),
   },

@@ -13,9 +13,11 @@ import { toDisplayImageUrl, toDisplayMediaUrl } from "../services/mediaUrl";
 import { getPlaceCategoryLabel } from "../constants/placeCategories";
 import { uploadPlaceImage, uploadPlaceVideo } from "../services/uploadsApi";
 import { useLanguage } from "../context/LanguageContext";
+import { useResponsive } from "../hooks/useResponsive";
 
 export default function PlaceDetailScreen({ navigation, route }) {
   const { t } = useLanguage();
+  const { isMobile } = useResponsive();
   const role = useSelector((state) => state.auth.role);
   const placeParam = route?.params?.id;
   const placeId = Number.isFinite(Number(placeParam)) ? Number(placeParam) : null;
@@ -137,116 +139,143 @@ export default function PlaceDetailScreen({ navigation, route }) {
   return (
     <PageCard>
       <ScreenHeader title={t("placeDetailTitle")} onBack={() => navigation.goBack()} />
-      <Text style={styles.title}>{place?.name || t("placeDetailsFallback")}</Text>
-      <Text style={styles.meta}>
-        {t("categoryLabel")}: {categoryLabel(place?.category)} • {t("ratingLabel")}: {place?.avg_rating ?? "—"}
-      </Text>
-      {place?.address ? <Text style={styles.address}>{place.address}</Text> : null}
-      <Text style={styles.desc}>
-        {place?.description || t("noDescription")}
-      </Text>
-
-      {place?.restaurant_details ? (
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailsTitle}>{t("restaurantDetails")}</Text>
-          {place.restaurant_details.cuisine ? <Text style={styles.detailsText}>{t("cuisine")}: {place.restaurant_details.cuisine}</Text> : null}
-          {place.restaurant_details.price_range ? <Text style={styles.detailsText}>{t("price")}: {place.restaurant_details.price_range}</Text> : null}
-          {place.restaurant_details.must_try ? <Text style={styles.detailsText}>{t("mustTry")}: {place.restaurant_details.must_try}</Text> : null}
-        </View>
-      ) : null}
-
-      {place?.stay_details ? (
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailsTitle}>{t("stayDetails")}</Text>
-          {place.stay_details.stay_type ? <Text style={styles.detailsText}>{t("type")}: {place.stay_details.stay_type}</Text> : null}
-          {place.stay_details.price_per_night !== null && place.stay_details.price_per_night !== undefined ? (
-            <Text style={styles.detailsText}>{t("pricePerNight")}: {place.stay_details.price_per_night}</Text>
-          ) : null}
-          {place.stay_details.amenities?.length ? (
-            <Text style={styles.detailsText}>{t("amenities")}: {place.stay_details.amenities.join(", ")}</Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      <Text style={styles.section}>{t("photos")}</Text>
-      {place?.image_urls?.length ? (
-        <View style={styles.photoList}>
-          {place.image_urls.map((imageUrl, index) => (
-            <View key={`${imageUrl}-${index}`} style={styles.photoCard}>
-              <Image
-                source={{ uri: toDisplayImageUrl(imageUrl) }}
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
+      
+      <View style={[styles.layout, !isMobile && styles.layoutDesktop]}>
+        {/* MEDIA COLUMN */}
+        <View style={[styles.column, !isMobile && styles.mediaColumnDesktop]}>
+          <Text style={styles.section}>{t("photos")}</Text>
+          {place?.image_urls?.length ? (
+            <View style={styles.photoList}>
+              {place.image_urls.map((imageUrl, index) => (
+                <View key={`${imageUrl}-${index}`} style={styles.photoCard}>
+                  <Image
+                    source={{ uri: toDisplayImageUrl(imageUrl) }}
+                    style={styles.heroImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      ) : (
-        <Text style={styles.emptyText}>{t("noPhotos")}</Text>
-      )}
-      {role !== "admin" ? (
-        <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>{t("addYourPhoto")}</Text>
-          <Text style={styles.detailsText}>{t("addYourPhotoHint")}</Text>
-          <View style={styles.fileInputWrap}>
-            <input type="file" accept="image/*" onChange={handlePhotoAdd} />
-          </View>
-          {photoStatus === "uploading" ? <Text style={styles.statusText}>{t("uploadPhoto")}</Text> : null}
-          {photoStatus === "submitting" ? <Text style={styles.statusText}>{t("submitApproval")}</Text> : null}
-          {photoStatus === "submitted" ? <Text style={styles.successText}>{t("photoSubmitted")}</Text> : null}
-          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
-        </View>
-      ) : null}
-
-      <Text style={styles.section}>{t("videos")}</Text>
-      {place?.video_urls?.length ? (
-        <View style={styles.videoList}>
-          {place.video_urls.map((videoUrl, index) => (
-            <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
-              {Platform.OS === "web" ? (
-                <video
-                  controls
-                  playsInline
-                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
-                  src={toDisplayMediaUrl(videoUrl)}
-                />
-              ) : (
-                <Text style={styles.detailsText}>Video available: {videoUrl}</Text>
-              )}
+          ) : (
+            <Text style={styles.emptyText}>{t("noPhotos")}</Text>
+          )}
+          {role !== "admin" ? (
+            <View style={styles.photoSubmitBox}>
+              <Text style={styles.detailsTitle}>{t("addYourPhoto")}</Text>
+              <Text style={styles.detailsText}>{t("addYourPhotoHint")}</Text>
+              <View style={styles.fileInputWrap}>
+                <input type="file" accept="image/*" onChange={handlePhotoAdd} />
+              </View>
+              {photoStatus === "uploading" ? <Text style={styles.statusText}>{t("uploadPhoto")}</Text> : null}
+              {photoStatus === "submitting" ? <Text style={styles.statusText}>{t("submitApproval")}</Text> : null}
+              {photoStatus === "submitted" ? <Text style={styles.successText}>{t("photoSubmitted")}</Text> : null}
+              {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
             </View>
-          ))}
-        </View>
-      ) : (
-        <Text style={styles.emptyText}>{t("noVideos")}</Text>
-      )}
-      {role !== "admin" ? (
-        <View style={styles.photoSubmitBox}>
-          <Text style={styles.detailsTitle}>{t("addYourVideo")}</Text>
-          <Text style={styles.detailsText}>{t("addYourVideoHint")}</Text>
-          <View style={styles.fileInputWrap}>
-            <input type="file" accept="video/*" onChange={handleVideoAdd} />
-          </View>
-          {photoStatus === "uploading-video" ? <Text style={styles.statusText}>{t("uploadVideo")}</Text> : null}
-          {photoStatus === "submitting-video" ? <Text style={styles.statusText}>{t("submitVideoApproval")}</Text> : null}
-          {photoStatus === "submitted-video" ? <Text style={styles.successText}>{t("videoSubmitted")}</Text> : null}
-          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
-        </View>
-      ) : null}
+          ) : null}
 
-      <View style={styles.buttonContainer}>
-        <PrimaryButton
-          label={favoriteId ? t("removeFromSaved") : t("savePlace")}
-          onPress={handleToggleSaved}
-        />
-        <PrimaryButton label={t("addToItinerary")} onPress={handleAddToItinerary} variant="ghost" />
-        <PrimaryButton label={t("getDirections")} onPress={openDirections} variant="ghost" />
-        <PrimaryButton label={t("readReviews")} onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
+          <Text style={styles.section}>{t("videos")}</Text>
+          {place?.video_urls?.length ? (
+            <View style={styles.videoList}>
+              {place.video_urls.map((videoUrl, index) => (
+                <View key={`${videoUrl}-${index}`} style={styles.videoWrap}>
+                  {Platform.OS === "web" ? (
+                    <video
+                      controls
+                      playsInline
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+                      src={toDisplayMediaUrl(videoUrl)}
+                    />
+                  ) : (
+                    <Text style={styles.detailsText}>Video available: {videoUrl}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>{t("noVideos")}</Text>
+          )}
+          {role !== "admin" ? (
+            <View style={styles.photoSubmitBox}>
+              <Text style={styles.detailsTitle}>{t("addYourVideo")}</Text>
+              <Text style={styles.detailsText}>{t("addYourVideoHint")}</Text>
+              <View style={styles.fileInputWrap}>
+                <input type="file" accept="video/*" onChange={handleVideoAdd} />
+              </View>
+              {photoStatus === "uploading-video" ? <Text style={styles.statusText}>{t("uploadVideo")}</Text> : null}
+              {photoStatus === "submitting-video" ? <Text style={styles.statusText}>{t("submitVideoApproval")}</Text> : null}
+              {photoStatus === "submitted-video" ? <Text style={styles.successText}>{t("videoSubmitted")}</Text> : null}
+              {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+            </View>
+          ) : null}
+        </View>
+
+        {/* DETAILS COLUMN */}
+        <View style={[styles.column, !isMobile && styles.detailsColumnDesktop]}>
+          <Text style={styles.title}>{place?.name || t("placeDetailsFallback")}</Text>
+          <Text style={styles.meta}>
+            {t("categoryLabel")}: {categoryLabel(place?.category)} • {t("ratingLabel")}: {place?.avg_rating ?? "—"}
+          </Text>
+          {place?.address ? <Text style={styles.address}>{place.address}</Text> : null}
+          <Text style={styles.desc}>
+            {place?.description || t("noDescription")}
+          </Text>
+
+          {place?.restaurant_details ? (
+            <View style={styles.detailsBox}>
+              <Text style={styles.detailsTitle}>{t("restaurantDetails")}</Text>
+              {place.restaurant_details.cuisine ? <Text style={styles.detailsText}>{t("cuisine")}: {place.restaurant_details.cuisine}</Text> : null}
+              {place.restaurant_details.price_range ? <Text style={styles.detailsText}>{t("price")}: {place.restaurant_details.price_range}</Text> : null}
+              {place.restaurant_details.must_try ? <Text style={styles.detailsText}>{t("mustTry")}: {place.restaurant_details.must_try}</Text> : null}
+            </View>
+          ) : null}
+
+          {place?.stay_details ? (
+            <View style={styles.detailsBox}>
+              <Text style={styles.detailsTitle}>{t("stayDetails")}</Text>
+              {place.stay_details.stay_type ? <Text style={styles.detailsText}>{t("type")}: {place.stay_details.stay_type}</Text> : null}
+              {place.stay_details.price_per_night !== null && place.stay_details.price_per_night !== undefined ? (
+                <Text style={styles.detailsText}>{t("pricePerNight")}: {place.stay_details.price_per_night}</Text>
+              ) : null}
+              {place.stay_details.amenities?.length ? (
+                <Text style={styles.detailsText}>{t("amenities")}: {place.stay_details.amenities.join(", ")}</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles.buttonContainer}>
+            <PrimaryButton
+              label={favoriteId ? t("removeFromSaved") : t("savePlace")}
+              onPress={handleToggleSaved}
+            />
+            <PrimaryButton label={t("addToItinerary")} onPress={handleAddToItinerary} variant="ghost" />
+            <PrimaryButton label={t("getDirections")} onPress={openDirections} variant="ghost" />
+            <PrimaryButton label={t("readReviews")} onPress={() => navigation.navigate("ReviewsList", { id: placeId || placeParam })} variant="ghost" />
+          </View>
+        </View>
+
       </View>
     </PageCard>
   );
 }
 
 const styles = StyleSheet.create({
+  layout: {
+    flexDirection: "column",
+    gap: spacing.lg,
+  },
+  layoutDesktop: {
+    flexDirection: "row-reverse", // Details on left, media on right
+    alignItems: "flex-start",
+  },
+  column: {
+    flex: 1,
+  },
+  mediaColumnDesktop: {
+    flex: 0.8,
+  },
+  detailsColumnDesktop: {
+    flex: 1,
+  },
   title: {
     ...typography.h1,
     color: colors.text,

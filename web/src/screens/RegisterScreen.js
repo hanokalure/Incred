@@ -42,7 +42,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <PageCard scroll={false} contentStyle={styles.center}>
+    <PageCard scroll={false} contentStyle={styles.center} cardStyle={styles.card}>
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Join the local-first discovery community.</Text>
       <TextInput
@@ -83,15 +83,28 @@ const styles = StyleSheet.create({
   center: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: colors.surface,
+    padding: spacing.xl * 1.5,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.05)",
   },
   title: {
     ...typography.h1,
     color: colors.text,
+    textAlign: "center",
     marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
+    textAlign: "center",
     marginBottom: spacing.lg,
   },
   input: {

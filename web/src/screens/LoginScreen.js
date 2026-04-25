@@ -56,7 +56,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <PageCard scroll={false} contentStyle={styles.center}>
+    <PageCard scroll={false} contentStyle={styles.center} cardStyle={styles.card}>
       <Text style={styles.title}>Welcome Back</Text>
       <Text style={styles.subtitle}>Sign in to continue your Karnataka journey.</Text>
 
