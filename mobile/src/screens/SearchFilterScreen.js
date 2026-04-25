@@ -78,7 +78,7 @@ export default function SearchFilterScreen({ navigation }) {
     if (showTopRated) filtered = filtered.filter(p => Number(p.avg_rating || p.rating || 0) >= 4.5);
     if (query.trim().length > 0) {
       const q = query.toLowerCase();
-      filtered = filtered.filter(p => p.name.toLowerCase().includes(q));
+      filtered = filtered.filter((p) => String(p?.name || "").toLowerCase().includes(q));
     }
     return filtered.sort((a,b) => (a.distance || 999) - (b.distance || 999));
   }, [places, userLocation, selectedCategory, query, showTopRated]);

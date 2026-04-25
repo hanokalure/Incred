@@ -12,12 +12,12 @@ export const fetchNotifications = createAsyncThunk(
       if (!userId) return rejectWithValue("Not logged in");
 
       // Inject the user's JWT so Supabase RLS can evaluate auth.uid() correctly.
-      // Without this, the anon client has no session → auth.uid() = null → RLS
+      // Without this, the anon client has no session -> auth.uid() = null -> RLS
       // silently returns 0 rows even though data exists.
       if (token) {
         await supabase.auth.setSession({
           access_token: token,
-          refresh_token: token, // placeholder — we only need access_token for RLS
+          refresh_token: token, // placeholder; we only need access_token for RLS
         });
       }
 
@@ -29,13 +29,13 @@ export const fetchNotifications = createAsyncThunk(
         .limit(50);
 
       if (error) {
-        console.warn("[Notifications] Supabase query failed:", error.message, "— falling back to API");
+        console.warn("[Notifications] Supabase query failed:", error.message, "- falling back to API");
         return await apiFetchNotifications();
       }
 
       return data || [];
     } catch (err) {
-      console.warn("[Notifications] Exception:", err.message, "— falling back to API");
+      console.warn("[Notifications] Exception:", err.message, "- falling back to API");
       try {
         return await apiFetchNotifications();
       } catch (apiErr) {
@@ -78,11 +78,12 @@ const notificationsSlice = createSlice({
       }
     },
     markAllReadLocal: (state) => {
-      state.notifications.forEach((n) => { n.is_read = true; });
+      state.notifications.forEach((n) => {
+        n.is_read = true;
+      });
       state.unreadCount = 0;
     },
     addNotification: (state, action) => {
-      // Avoid duplicates if polling and realtime overlap
       const exists = state.notifications.some((n) => n.id === action.payload.id);
       if (!exists) {
         state.notifications.unshift(action.payload);

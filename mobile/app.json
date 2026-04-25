@@ -51,6 +51,12 @@
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default"
+        }
+      ],
       "expo-video"
     ]
   }

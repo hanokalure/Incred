@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./apiClient";
+import { apiGet, apiPost, apiPut } from "./apiClient";
 
 export const fetchNotifications = async () => {
     return await apiGet("/notifications");

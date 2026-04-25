@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Switch, Pressable, FlatList, ActivityIndicator,
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { colors } from "../theme/colors";
@@ -20,6 +21,64 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
+
+function ReviewsBody({ navigation }) {
+  const [userReviews, setUserReviews] = useState([]);
+  const [fetching, setFetching] = useState(false);
+
+  const loadMyReviews = useCallback(async () => {
+    setFetching(true);
+    try {
+      const { fetchMyReviews } = await import("../services/reviewsApi");
+      const data = await fetchMyReviews();
+      setUserReviews(data || []);
+    } catch (err) {
+      console.error("Failed to fetch reviews", err);
+      Alert.alert("Error", "Could not load your reviews. Please try again later.");
+    } finally {
+      setFetching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMyReviews();
+  }, [loadMyReviews]);
+
+  if (fetching) {
+    return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />;
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={userReviews}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.reviewCard}>
+            <View style={styles.reviewHeader}>
+              <Text style={styles.reviewPlace}>{item.place_name}</Text>
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={12} color={colors.primary} />
+                <Text style={styles.ratingText}>{item.rating}</Text>
+              </View>
+            </View>
+            <Text style={styles.reviewComment}>{item.comment || "(No comment provided)"}</Text>
+            <Text style={styles.reviewDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Ionicons name="chatbubble-outline" size={48} color={colors.textMuted} />
+            <Text style={styles.emptyText}>You haven't posted any reviews yet.</Text>
+            <Pressable onPress={() => navigation.navigate("Home")} style={styles.retryBtn}>
+              <Text style={styles.retryText}>Explore Places</Text>
+            </Pressable>
+          </View>
+        }
+      />
+    </View>
+  );
+}
 
 export default function ProfileSubScreen({ navigation, route }) {
   const title = route?.params?.title || "Details";
@@ -65,6 +124,10 @@ export default function ProfileSubScreen({ navigation, route }) {
 
   async function registerForPushNotificationsAsync() {
     let token;
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ||
+      Constants?.easConfig?.projectId ||
+      undefined;
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -76,7 +139,7 @@ export default function ProfileSubScreen({ navigation, route }) {
         // Alert.alert('Failed to get push token for push notification!');
         return;
       }
-      token = (await Notifications.getExpoPushTokenAsync()).data;
+      token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
     } else {
       // Alert.alert('Must use physical device for Push Notifications');
     }
@@ -151,59 +214,7 @@ export default function ProfileSubScreen({ navigation, route }) {
       );
     }
     if (title === "Reviews") {
-      const [userReviews, setUserReviews] = useState([]);
-      const [fetching, setFetching] = useState(false);
-
-      const loadMyReviews = useCallback(async () => {
-        setFetching(true);
-        try {
-          const { fetchMyReviews } = await import("../services/reviewsApi");
-          const data = await fetchMyReviews();
-          setUserReviews(data || []);
-        } catch (err) {
-          console.error("Failed to fetch reviews", err);
-          Alert.alert("Error", "Could not load your reviews. Please try again later.");
-        } finally {
-          setFetching(false);
-        }
-      }, []);
-
-      useEffect(() => {
-        loadMyReviews();
-      }, [loadMyReviews]);
-
-      if (fetching) return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />;
-
-      return (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={userReviews}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <Text style={styles.reviewPlace}>{item.place_name}</Text>
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color={colors.primary} />
-                    <Text style={styles.ratingText}>{item.rating}</Text>
-                  </View>
-                </View>
-                <Text style={styles.reviewComment}>{item.comment || "(No comment provided)"}</Text>
-                <Text style={styles.reviewDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
-              </View>
-            )}
-            ListEmptyComponent={
-              <View style={styles.emptyWrap}>
-                <Ionicons name="chatbubble-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>You haven't posted any reviews yet.</Text>
-                <Pressable onPress={() => navigation.navigate("Home")} style={styles.retryBtn}>
-                  <Text style={styles.retryText}>Explore Places</Text>
-                </Pressable>
-              </View>
-            }
-          />
-        </View>
-      );
+      return <ReviewsBody navigation={navigation} />;
     }
     if (title === "Language") {
       const langs = [

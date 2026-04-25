@@ -49,9 +49,10 @@ export default function MapScreen({ navigation }) {
   // Filter logic
   const filteredPlaces = useMemo(() => {
     if (!searchQuery.trim()) return allPlaces;
-    return allPlaces.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.category || "").toLowerCase().includes(searchQuery.toLowerCase())
+    const normalizedQuery = searchQuery.toLowerCase();
+    return allPlaces.filter((p) =>
+      String(p?.name || "").toLowerCase().includes(normalizedQuery) ||
+      String(p?.category || "").toLowerCase().includes(normalizedQuery)
     );
   }, [allPlaces, searchQuery]);
 

@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useMemo } from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
-import { colors } from "../theme/colors";
 
 const MAP_TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
@@ -9,21 +8,27 @@ export default function LeafletPlacesMap({ places, userLocation, activePlaceId, 
   const webViewRef = useRef(null);
 
   useEffect(() => {
-    if (mapRef) mapRef.current = {
-      animateToRegion: (region) => {
-        const script = `map.flyTo([${region.latitude}, ${region.longitude}], ${region.latitudeDelta < 0.05 ? 15 : 12});`;
-        webViewRef.current?.injectJavaScript(script);
-      },
-      zoomIn: () => { webViewRef.current?.injectJavaScript("map.zoomIn();"); },
-      zoomOut: () => { webViewRef.current?.injectJavaScript("map.zoomOut();"); }
-    };
+    if (mapRef) {
+      mapRef.current = {
+        animateToRegion: (region) => {
+          const script = `map.flyTo([${region.latitude}, ${region.longitude}], ${region.latitudeDelta < 0.05 ? 15 : 12});`;
+          webViewRef.current?.injectJavaScript(script);
+        },
+        zoomIn: () => {
+          webViewRef.current?.injectJavaScript("map.zoomIn();");
+        },
+        zoomOut: () => {
+          webViewRef.current?.injectJavaScript("map.zoomOut();");
+        },
+      };
+    }
   }, [mapRef]);
 
   const htmlContent = useMemo(() => {
-    const markersJson = JSON.stringify((places || []).map(p => ({
+    const markersJson = JSON.stringify((places || []).map((p) => ({
       id: p.id,
       lat: Number(p.latitude),
-      lng: Number(p.longitude)
+      lng: Number(p.longitude),
     })));
 
     return `
@@ -35,8 +40,7 @@ export default function LeafletPlacesMap({ places, userLocation, activePlaceId, 
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <style>
           body, html, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #f8f9fa; }
-          
-          /* CLASSIC PUSHPIN EMOJI */
+
           .emoji-marker {
             font-size: 32px;
             display: flex;
@@ -64,17 +68,18 @@ export default function LeafletPlacesMap({ places, userLocation, activePlaceId, 
           const markers = ${markersJson};
           const markerLayer = L.layerGroup().addTo(map);
 
-          markers.forEach(m => {
+          markers.forEach((m) => {
             const icon = L.divIcon({
               className: 'leaflet-emoji-pin',
-              html: '<div class="emoji-marker" id="pin-' + m.id + '">📍</div>',
+              html: '<div class="emoji-marker" id="pin-' + m.id + '">&#128205;</div>',
               iconSize: [40, 40],
-              iconAnchor: [12, 38] // Anchor at the very tip of the pushpin
+              iconAnchor: [12, 38]
             });
             const marker = L.marker([m.lat, m.lng], { icon }).addTo(markerLayer);
-            marker.on('click', (e) => {
-              document.querySelectorAll('.emoji-marker').forEach(el => el.classList.remove('marker-active'));
-              document.getElementById('pin-' + m.id).classList.add('marker-active');
+            marker.on('click', () => {
+              document.querySelectorAll('.emoji-marker').forEach((el) => el.classList.remove('marker-active'));
+              const markerEl = document.getElementById('pin-' + m.id);
+              if (markerEl) markerEl.classList.add('marker-active');
               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_PLACE', id: m.id }));
             });
           });
@@ -86,25 +91,29 @@ export default function LeafletPlacesMap({ places, userLocation, activePlaceId, 
 
   const onMessage = (event) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'SELECT_PLACE') {
-        const place = places.find(p => p.id === data.id);
+      const rawData = event?.nativeEvent?.data;
+      if (!rawData) return;
+      const data = JSON.parse(rawData);
+      if (data.type === "SELECT_PLACE") {
+        const place = places.find((p) => String(p?.id) === String(data.id));
         if (place) onSelectPlace(place);
       }
-    } catch (e) { console.error(e); }
+    } catch (error) {
+      console.warn("[LeafletPlacesMap] Failed to parse WebView message", error);
+    }
   };
 
   return (
     <View style={styles.container}>
       <WebView
         ref={webViewRef}
-        originWhitelist={['*']}
+        originWhitelist={["*"]}
         source={{ html: htmlContent }}
         onMessage={onMessage}
         style={styles.map}
         scrollEnabled={false}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
+        javaScriptEnabled
+        domStorageEnabled
       />
     </View>
   );

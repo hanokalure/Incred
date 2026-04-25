@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
+import { Ionicons } from "@expo/vector-icons";
 import { toggleLanguage } from "../store/slices/langSlice";
 import { fetchNotifications } from "../store/slices/notificationsSlice";
 import * as Location from "expo-location";
@@ -26,8 +27,8 @@ export default function BrandHeader() {
     useEffect(() => {
         (async () => {
             try {
-                let { status } = await Location.requestForegroundPermissionsAsync();
-                if (status !== 'granted') {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== "granted") {
                     setLocationName("Karnataka, IN");
                     return;
                 }
@@ -36,11 +37,14 @@ export default function BrandHeader() {
                     setLocationName("Karnataka, IN");
                     return;
                 }
-                let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                let reverse = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+                const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                const reverse = await Location.reverseGeocodeAsync({
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                });
                 if (reverse && reverse[0]) {
                     const city = reverse[0].city || reverse[0].district || reverse[0].subregion;
-                    setLocationName(city ? String(city) + ", Karnataka" : "Karnataka, IN");
+                    setLocationName(city ? `${city}, Karnataka` : "Karnataka, IN");
                 }
             } catch (e) {
                 setLocationName("Karnataka, IN");
@@ -56,14 +60,14 @@ export default function BrandHeader() {
                     <Text style={styles.brandSubtitle}>Karnataka</Text>
                 </View>
                 <View style={styles.locWrap}>
-                    <Text style={styles.locIcon}>📍</Text>
+                    <Ionicons name="location" size={12} color={colors.textSecondary} style={styles.locIcon} />
                     <Text style={styles.locText} numberOfLines={1}>{String(locationName)}</Text>
                 </View>
             </View>
             <View style={styles.rightActions}>
                 {isAuthenticated ? (
                     <Pressable onPress={() => navigation.navigate("Notifications", { title: "Notifications" })} style={styles.bellBtn}>
-                        <Text style={styles.actionIcon}>🔔</Text>
+                        <Ionicons name="notifications-outline" size={18} color={colors.text} style={styles.actionIcon} />
                         {!!unreadCount && unreadCount > 0 ? (
                             <View style={styles.badge}>
                                 <Text style={styles.badgeText}>{String(unreadCount > 9 ? "9+" : unreadCount)}</Text>
@@ -86,13 +90,13 @@ const styles = StyleSheet.create({
     brand: { fontSize: 24, fontWeight: "900", color: colors.primary, letterSpacing: -1 },
     brandSubtitle: { fontSize: 18, fontWeight: "700", color: colors.text, letterSpacing: 0.5 },
     locWrap: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-    locIcon: { fontSize: 12, marginRight: 4 },
+    locIcon: { marginRight: 4 },
     locText: { fontSize: 12, fontWeight: "600", color: colors.textSecondary, maxWidth: "80%" },
     rightActions: { flexDirection: "row", alignItems: "center", gap: 8 },
     bellBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center", position: "relative" },
     badge: { position: "absolute", top: 4, right: 4, backgroundColor: colors.error || "#FF3B30", minWidth: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: colors.background },
     badgeText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
-    actionIcon: { fontSize: 18 },
+    actionIcon: {},
     langToggle: { backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.border, ...Platform.select({ ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8 }, android: { elevation: 2 } }) },
     langText: { fontSize: 13, fontWeight: "800", color: colors.primary },
 });
