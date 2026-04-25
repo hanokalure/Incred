@@ -52,11 +52,9 @@ async def _load_story_views(
     counts: Dict[int, int] = defaultdict(int)
     seen: set[int] = set()
     viewer_ids = list({row.get("viewer_id") for row in rows if row.get("viewer_id")})
-    users_result = await (
-        admin.table("users").select("id,name,email,profile_pic").in_("id", viewer_ids).execute()
-        if viewer_ids
-        else None
-    )
+    users_result = None
+    if viewer_ids:
+        users_result = await admin.table("users").select("id,name,email,profile_pic").in_("id", viewer_ids).execute()
     viewer_data = users_result.data if users_result else []
     viewer_name_by_id = {user["id"]: _display_name(user) for user in viewer_data}
     viewer_pic_by_id = {user["id"]: user.get("profile_pic") for user in viewer_data}
@@ -292,22 +290,22 @@ async def list_story_reports() -> List[Dict[str, Any]]:
 
     story_ids = list({report["story_id"] for report in reports if report.get("story_id")})
     reporter_ids = list({report["reported_by"] for report in reports if report.get("reported_by")})
-    stories_result = await (
-        admin.table("stories")
-        .select("id,user_id,media_type,media_url,caption,status,is_highlighted,expires_at,created_at")
-        .in_("id", story_ids)
-        .execute()
-        if story_ids
-        else None
-    )
-    users_result = await (
-        admin.table("users")
-        .select("id,name,email")
-        .in_("id", reporter_ids)
-        .execute()
-        if reporter_ids
-        else None
-    )
+    stories_result = None
+    if story_ids:
+        stories_result = await (
+            admin.table("stories")
+            .select("id,user_id,media_type,media_url,caption,status,is_highlighted,expires_at,created_at")
+            .in_("id", story_ids)
+            .execute()
+        )
+    users_result = None
+    if reporter_ids:
+        users_result = await (
+            admin.table("users")
+            .select("id,name,email")
+            .in_("id", reporter_ids)
+            .execute()
+        )
     stories_by_id = {row["id"]: row for row in (stories_result.data if stories_result else [])}
     user_name_by_id = {row["id"]: _display_name(row) for row in (users_result.data if users_result else [])}
     enriched_stories = await _enrich_stories(list(stories_by_id.values()))

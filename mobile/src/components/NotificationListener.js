@@ -12,7 +12,7 @@ export default function NotificationListener() {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
+    if (!supabase || !isAuthenticated || !user?.id) return;
 
     // Subscribe to new rows in the 'notifications' table for this specific user
     const channel = supabase

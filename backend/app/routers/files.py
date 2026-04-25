@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import Response
 from starlette.responses import StreamingResponse
 from anyio.to_thread import run_sync
+from storage3.exceptions import StorageApiError
 
 from ..config import settings
 from ..database import get_supabase_client
@@ -133,6 +134,12 @@ async def _download_legacy_supabase_image(object_path: str):
     try:
         admin = await get_supabase_client(anon=False)
         data = await admin.storage.from_("place-images").download(object_path)
+    except StorageApiError as exc:
+        # Expected when object does not exist in the legacy bucket.
+        if str(exc).find("404") != -1 or str(exc).find("not_found") != -1:
+            return None
+        logger.exception("Legacy Supabase fallback failed for %s", object_path)
+        return None
     except Exception:
         logger.exception("Legacy Supabase fallback failed for %s", object_path)
         return None

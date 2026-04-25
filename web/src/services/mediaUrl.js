@@ -15,11 +15,24 @@ function toProxyProfilePicUrl(objectPath) {
   return `${API_BASE_URL}/files/profile-pictures/${objectPath}`;
 }
 
+function extractPlacesObjectPath(urlOrPath) {
+  if (!urlOrPath || typeof urlOrPath !== "string") return null;
+  const clean = urlOrPath.split("?")[0];
+
+  if (clean.startsWith("places/")) return clean;
+
+  // Handles s3://bucket/places/... and https://...amazonaws.com/.../places/...
+  const placesIndex = clean.indexOf("places/");
+  if (placesIndex !== -1) return clean.slice(placesIndex);
+
+  return null;
+}
+
 function extractPlaceImagesObjectPath(urlOrPath) {
   if (!urlOrPath) return null;
 
-  // Already a relative object path stored in DB, e.g. "places/<uuid>.jpg".
-  if (typeof urlOrPath === "string" && urlOrPath.startsWith("places/")) return urlOrPath;
+  const placesPath = extractPlacesObjectPath(urlOrPath);
+  if (placesPath) return placesPath;
 
   if (typeof urlOrPath !== "string") return null;
 
@@ -48,6 +61,8 @@ function extractPlaceImagesObjectPath(urlOrPath) {
 
 function extractStoryObjectPath(urlOrPath) {
   if (!urlOrPath || typeof urlOrPath !== "string") return null;
+  const placesPath = extractPlacesObjectPath(urlOrPath);
+  if (placesPath && placesPath.includes("/stories/")) return placesPath;
   if (urlOrPath.startsWith("places/stories/")) return urlOrPath;
   if (urlOrPath.includes("/files/story-media/")) return null;
   return null;
@@ -55,6 +70,8 @@ function extractStoryObjectPath(urlOrPath) {
 
 function extractProfilePicObjectPath(urlOrPath) {
   if (!urlOrPath || typeof urlOrPath !== "string") return null;
+  const placesPath = extractPlacesObjectPath(urlOrPath);
+  if (placesPath && placesPath.includes("/profiles/")) return placesPath;
   if (urlOrPath.startsWith("places/profiles/")) return urlOrPath;
   if (urlOrPath.includes("/files/profile-pictures/")) return null;
   return null;

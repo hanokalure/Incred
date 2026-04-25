@@ -40,19 +40,20 @@ export function getApiBaseUrls() {
     if (!urls.includes(normalized)) urls.push(normalized);
   };
 
-  if (explicit) push(explicit);
+  // Prefer the last known working URL over the static .env URL.
+  // This helps when laptop IP changes and fallback discovers a new reachable host.
   if (resolvedApiBaseUrl) push(resolvedApiBaseUrl);
+  if (explicit) push(explicit);
 
   const host = hostFromExpoRuntime();
-  // Don't auto-push localhost if an explicit production URL is provided in .env
-  if (!explicit) {
-    if (host) push(`http://${host}:8000`);
-    const bundleHost = hostFromBundleUrl();
-    if (bundleHost) push(`http://${bundleHost}:8000`);
-    if (Platform.OS === "android") push("http://10.0.2.2:8000");
-    push("http://127.0.0.1:8000");
-    push("http://localhost:8000");
-  }
+  // Keep local fallbacks even when .env has an explicit URL.
+  // This avoids total signup/login failure if laptop IP changes on Wi-Fi.
+  if (host) push(`http://${host}:8000`);
+  const bundleHost = hostFromBundleUrl();
+  if (bundleHost) push(`http://${bundleHost}:8000`);
+  if (Platform.OS === "android") push("http://10.0.2.2:8000");
+  push("http://127.0.0.1:8000");
+  push("http://localhost:8000");
 
   return urls;
 }
