@@ -57,7 +57,11 @@ async function safeFetch(path, options, maxRetries = 4) {
       }
       
       if (isNetworkError) {
-        throw new Error(`Unable to connect to the server at ${url}. The server is taking too long to respond (likely a cold start). Please try one more time in a few seconds.`);
+        throw new Error(
+          `Unable to connect to the server at ${url}. ` +
+          `This could be a cold start, a CORS issue, or a missing backend environment variable. ` +
+          `Please check your Vercel Environment Variables and try again in a few seconds.`
+        );
       }
       throw err;
     }

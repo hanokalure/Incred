@@ -6,19 +6,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_env(name: str, default: Optional[str] = None) -> str:
-    value = os.getenv(name, default)
-    if value is None:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
+def get_env(name: str, default: Optional[str] = None) -> Optional[str]:
+    return os.getenv(name, default)
 
 
 class Settings:
     ENV: str = os.getenv("ENV", "development")
     APP_NAME: str = os.getenv("APP_NAME", "Incredible Karnataka")
 
-    SUPABASE_URL: str = get_env("SUPABASE_URL")
-    SUPABASE_ANON_KEY: str = get_env("SUPABASE_ANON_KEY")
+    SUPABASE_URL: Optional[str] = get_env("SUPABASE_URL")
+    SUPABASE_ANON_KEY: Optional[str] = get_env("SUPABASE_ANON_KEY")
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")

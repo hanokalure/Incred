@@ -32,9 +32,25 @@ def get_async_httpx_client() -> httpx.AsyncClient:
 async def get_supabase_client(anon: bool = True) -> AsyncClient:
     global _supabase_anon, _supabase_admin
 
+    if not settings.SUPABASE_URL:
+        from fastapi import HTTPException
+        logger.error("SUPABASE_URL is missing from environment variables")
+        raise HTTPException(
+            status_code=500,
+            detail="Backend configuration error: SUPABASE_URL is missing. Please check Vercel environment variables."
+        )
+
     url = settings.SUPABASE_URL.strip().strip('"').strip("'")
     
     if anon:
+        if not settings.SUPABASE_ANON_KEY:
+            from fastapi import HTTPException
+            logger.error("SUPABASE_ANON_KEY is missing from environment variables")
+            raise HTTPException(
+                status_code=500,
+                detail="Backend configuration error: SUPABASE_ANON_KEY is missing. Please check Vercel environment variables."
+            )
+
         if _supabase_anon is None:
             options = AsyncClientOptions(httpx_client=get_async_httpx_client())
             _supabase_anon = await acreate_client(
