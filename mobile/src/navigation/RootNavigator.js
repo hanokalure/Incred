@@ -11,7 +11,6 @@ import NearbyScreen from "../screens/NearbyScreen";
 import SearchFilterScreen from "../screens/SearchFilterScreen";
 import DayPlanScreen from "../screens/DayPlanScreen";
 import SavedListScreen from "../screens/SavedListScreen";
-import ProfileSubScreen from "../screens/ProfileSubScreen";
 import PlaceDetailScreen from "../screens/PlaceDetailScreen";
 import ReviewsListScreen from "../screens/ReviewsListScreen";
 import ReviewSubmitScreen from "../screens/ReviewSubmitScreen";
@@ -26,6 +25,7 @@ import { clearAuthProfile, clearAuthToken, getAuthToken, setAuthProfile, setAuth
 import { login as loginAction, logout as logoutAction } from "../store/slices/authSlice";
 
 const Stack = createNativeStackNavigator();
+const getProfileSubScreen = () => require("../screens/ProfileSubScreen").default;
 
 export default function RootNavigator() {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -106,10 +106,10 @@ export default function RootNavigator() {
             <Stack.Screen name="StoryArchive" component={StoryArchiveScreen} />
             <Stack.Screen name="ReviewsList" component={ReviewsListScreen} />
             <Stack.Screen name="ReviewSubmit" component={ReviewSubmitScreen} />
-            <Stack.Screen name="Achievements" component={ProfileSubScreen} />
-            <Stack.Screen name="ProfileReviews" component={ProfileSubScreen} />
-            <Stack.Screen name="Language" component={ProfileSubScreen} />
-            <Stack.Screen name="Notifications" component={ProfileSubScreen} />
+            <Stack.Screen name="Achievements" getComponent={getProfileSubScreen} />
+            <Stack.Screen name="ProfileReviews" getComponent={getProfileSubScreen} />
+            <Stack.Screen name="Language" getComponent={getProfileSubScreen} />
+            <Stack.Screen name="Notifications" getComponent={getProfileSubScreen} />
           </>
         )}
       </Stack.Navigator>

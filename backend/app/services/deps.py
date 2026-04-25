@@ -9,7 +9,10 @@ import httpx
 try:
     from supabase_auth.errors import AuthApiError
 except ImportError:
-    from gotrue.errors import AuthApiError
+    try:
+        from gotrue.errors import AuthApiError
+    except ImportError:
+        AuthApiError = Exception
 
 from ..database import get_supabase_client
 from ..config import settings

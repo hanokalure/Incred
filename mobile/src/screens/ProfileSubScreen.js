@@ -14,14 +14,6 @@ import { setLanguage } from "../store/slices/langSlice";
 import { fetchNotifications, togglePushEnabled, markReadLocal, markAllReadLocal } from "../store/slices/notificationsSlice";
 import { markNotificationAsRead, registerPushToken } from "../services/notificationsApi";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-
 function ReviewsBody({ navigation }) {
   const [userReviews, setUserReviews] = useState([]);
   const [fetching, setFetching] = useState(false);
@@ -85,18 +77,28 @@ export default function ProfileSubScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const currentLanguage = useSelector((state) => state.lang.language);
   const { notifications, loading, pushEnabled, unreadCount, error: notifError } = useSelector((state) => state.notifications);
+  const isExpoGo = Constants?.appOwnership === "expo";
   
   const [filter, setFilter] = useState("all"); // "all" | "unread"
   useEffect(() => {
     if (title === "Notifications") {
-      registerForPushNotificationsAsync().then(token => {
-        if (token) {
-          registerPushToken(token).catch(err => console.error("Token reg failed", err));
-        }
-      });
+      if (!isExpoGo) {
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
+        registerForPushNotificationsAsync().then((token) => {
+          if (token) {
+            registerPushToken(token).catch((err) => console.error("Token reg failed", err));
+          }
+        });
+      }
       dispatch(fetchNotifications());
     }
-  }, [title, dispatch]);
+  }, [title, dispatch, isExpoGo]);
 
   const handleMarkAsRead = async (id, type) => {
     try {
@@ -128,6 +130,12 @@ export default function ProfileSubScreen({ navigation, route }) {
       Constants?.expoConfig?.extra?.eas?.projectId ||
       Constants?.easConfig?.projectId ||
       undefined;
+
+    if (Constants.appOwnership === 'expo') {
+      console.log('Push notifications are not supported in Expo Go. Skipping token registration.');
+      return null;
+    }
+
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -139,7 +147,12 @@ export default function ProfileSubScreen({ navigation, route }) {
         // Alert.alert('Failed to get push token for push notification!');
         return;
       }
-      token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
+      try {
+        token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
+      } catch (error) {
+        console.warn("[Notifications] Push token unavailable in this environment:", error?.message || error);
+        return;
+      }
     } else {
       // Alert.alert('Must use physical device for Push Notifications');
     }
