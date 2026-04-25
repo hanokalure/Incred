@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions, FlatList } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions, FlatList, Platform } from "react-native";
 import { useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
