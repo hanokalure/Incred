@@ -13,6 +13,7 @@ ALLOWED_CATEGORIES = {
     "tourist_place",
     "hidden_gem",
     "stay",
+    "artisan",
 }
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv")

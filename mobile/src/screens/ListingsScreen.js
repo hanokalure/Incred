@@ -27,6 +27,7 @@ export default function ListingsScreen({ navigation }) {
       generational_shop: "Shops",
       hidden_gem: "Hidden Gems",
       tourist_place: "Tourist",
+      artisan: "Artisan",
     };
     return mapping[value] || value;
   };

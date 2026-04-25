@@ -18,6 +18,7 @@ const CATEGORIES = [
   { label: "Hotels & Stays", value: "stay", icon: "bed-outline" },
   { label: "Hidden Gems", value: "hidden_gem", icon: "diamond-outline" },
   { label: "Heritage Sites", value: "tourist_place", icon: "camera-outline" },
+  { label: "Artisans", value: "artisan", icon: "brush-outline" },
 ];
 
 function SectionGroup({ title, children }) {

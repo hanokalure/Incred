@@ -36,6 +36,7 @@ export default function HomeScreen({ navigation, route }) {
       generational_shop: "Shops",
       hidden_gem: "Hidden Gems",
       tourist_place: "Tourist",
+      artisan: "Artisan",
     };
     return mapping[value] || String(value).toUpperCase();
   };

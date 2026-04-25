@@ -26,6 +26,7 @@ const categoryLabel = (value) => {
         generational_shop: "Shops",
         hidden_gem: "Hidden Gems",
         tourist_place: "Tourist",
+        artisan: "Artisan",
     };
     return mapping[value] || value;
 };

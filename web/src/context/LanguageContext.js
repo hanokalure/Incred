@@ -127,6 +127,7 @@ const dictionaries = {
     categoryTouristPlace: "Tourist Place",
     categoryHiddenGem: "Hidden Gem",
     categoryStay: "Stay",
+    categoryArtisan: "Artisan",
   },
   kn: {
     navExplore: "ಅನ್ವೇಷಿಸಿ",
@@ -252,6 +253,7 @@ const dictionaries = {
     categoryTouristPlace: "ಪ್ರವಾಸಿ ಸ್ಥಳ",
     categoryHiddenGem: "ಮರೆವಿನ ಮಣಿ",
     categoryStay: "ವಾಸ್ತವ್ಯ",
+    categoryArtisan: "ಕುಶಲಕರ್ಮಿ",
   },
   hi: {
     navExplore: "एक्सप्लोर",
@@ -377,6 +379,7 @@ const dictionaries = {
     categoryTouristPlace: "पर्यटन स्थल",
     categoryHiddenGem: "छुपा हुआ रत्न",
     categoryStay: "स्टे",
+    categoryArtisan: "कारीगर",
   },
 };
 

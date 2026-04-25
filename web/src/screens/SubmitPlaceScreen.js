@@ -65,6 +65,7 @@ export default function SubmitPlaceScreen({ navigation }) {
       { label: "Tourist Place", value: "tourist_place" },
       { label: "Hidden Gem", value: "hidden_gem" },
       { label: "Stay", value: "stay" },
+      { label: "Artisan", value: "artisan" },
     ],
     []
   );

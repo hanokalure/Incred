@@ -70,6 +70,7 @@ export default function ListingsScreen({ navigation }) {
       generational_shop: t("categoryGenerationalShop"),
       hidden_gem: t("categoryHiddenGem"),
       tourist_place: t("categoryTouristPlace"),
+      artisan: t("categoryArtisan"),
     };
     return mapping[value] || value;
   };
