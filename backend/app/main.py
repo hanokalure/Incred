@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import traceback
 
 from .config import settings
 from .routers import admin, auth, districts, favorites, files, itineraries, notifications, places, reviews, stories, uploads
@@ -42,6 +44,20 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["*"],
     )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        origin = request.headers.get("origin")
+        headers = {}
+        if origin and (origin in final_origins or "*" in settings_origins):
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "error_message": str(exc), "traceback": traceback.format_exc()},
+            headers=headers
+        )
 
     @app.get("/health")
     async def health_check():
