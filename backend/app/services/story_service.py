@@ -253,6 +253,7 @@ async def set_story_highlight(story_id: int, user_id: str, is_highlighted: bool)
         admin.table("stories")
         .update({"is_highlighted": is_highlighted})
         .eq("id", story_id)
+        .select()
         .execute()
     )
     if not result or not result.data:
@@ -268,6 +269,7 @@ async def delete_story(story_id: int, user_id: str, actor_role: str | None = Non
         admin.table("stories")
         .update({"status": "deleted", "is_highlighted": False})
         .eq("id", story_id)
+        .select()
         .execute()
     )
     if not result or not result.data:
@@ -350,6 +352,7 @@ async def act_on_story_report(report_id: int, admin_user_id: str, action: str, a
             "admin_note": (admin_note or "").strip() or None,
         })
         .eq("id", report_id)
+        .select()
         .execute()
     )
     if not updated or not updated.data:
