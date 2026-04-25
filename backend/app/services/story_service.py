@@ -253,12 +253,13 @@ async def set_story_highlight(story_id: int, user_id: str, is_highlighted: bool)
         admin.table("stories")
         .update({"is_highlighted": is_highlighted})
         .eq("id", story_id)
-        .select()
         .execute()
     )
-    if not result or not result.data:
+    if not result:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Story update failed")
-    enriched = await _enrich_stories(result.data, viewer_user_id=user_id)
+    
+    data = result.data if result.data else [await _get_story_for_read(story_id)]
+    enriched = await _enrich_stories(data, viewer_user_id=user_id)
     return enriched[0]
 
 
@@ -269,12 +270,13 @@ async def delete_story(story_id: int, user_id: str, actor_role: str | None = Non
         admin.table("stories")
         .update({"status": "deleted", "is_highlighted": False})
         .eq("id", story_id)
-        .select()
         .execute()
     )
-    if not result or not result.data:
+    if not result:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Story delete failed")
-    enriched = await _enrich_stories(result.data, viewer_user_id=user_id)
+    
+    data = result.data if result.data else [await _get_story_for_read(story_id)]
+    enriched = await _enrich_stories(data, viewer_user_id=user_id)
     return enriched[0]
 
 
@@ -352,10 +354,9 @@ async def act_on_story_report(report_id: int, admin_user_id: str, action: str, a
             "admin_note": (admin_note or "").strip() or None,
         })
         .eq("id", report_id)
-        .select()
         .execute()
     )
-    if not updated or not updated.data:
+    if not updated:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Story report update failed")
     
     # Needs to return fresh list

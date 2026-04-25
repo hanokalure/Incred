@@ -81,6 +81,7 @@ export default function StoryViewerScreen({ navigation, route }) {
             autoPlay 
             playsInline 
             onLoadedData={() => setLoadingMedia(false)}
+            onError={() => setLoadingMedia(false)}
           />
         ) : (
           <Image 
@@ -88,6 +89,7 @@ export default function StoryViewerScreen({ navigation, route }) {
             style={[styles.media, loadingMedia && styles.hiddenMedia]} 
             resizeMode="cover" 
             onLoad={() => setLoadingMedia(false)}
+            onError={() => setLoadingMedia(false)}
           />
         )}
         {loadingMedia && (
