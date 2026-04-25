@@ -22,6 +22,7 @@ import { fetchDistricts } from "../services/districtsApi";
 import { haversineKm } from "../utils/geo";
 import { getBrowserLocation } from "../utils/browserLocation";
 import { useLanguage } from "../context/LanguageContext";
+import { useResponsive } from "../hooks/useResponsive";
 
 function createEmptyForm() {
   return {
@@ -50,6 +51,7 @@ function createEmptyForm() {
 export default function ListingsScreen({ navigation }) {
   const role = useSelector((state) => state.auth.role);
   const { t } = useLanguage();
+  const { isMobile, isTablet } = useResponsive();
   const [places, setPlaces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -333,7 +335,7 @@ export default function ListingsScreen({ navigation }) {
               placeholder="Search by name, address, description..."
               placeholderTextColor={colors.textSecondary}
             />
-            <View style={styles.filterRow}>
+            <View style={[styles.filterRow, isMobile && styles.filterRowMobile]}>
               <SelectField
                 label={t("category")}
                 value={filterCategory}
@@ -588,8 +590,8 @@ export default function ListingsScreen({ navigation }) {
                 />
             </View>
             
-            <View style={styles.filterRow}>
-              <View style={styles.filterItem}>
+            <View style={[styles.filterRow, isMobile && styles.filterRowMobile]}>
+              <View style={[styles.filterItem, isMobile && styles.filterItemMobile]}>
                 <SelectField
                   label={t("category")}
                   value={filterCategory}
@@ -597,7 +599,7 @@ export default function ListingsScreen({ navigation }) {
                   onChange={setFilterCategory}
                 />
               </View>
-              <View style={styles.filterItem}>
+              <View style={[styles.filterItem, isMobile && styles.filterItemMobile]}>
                 <SelectField
                   label={t("district")}
                   value={filterDistrictId}
@@ -626,20 +628,21 @@ export default function ListingsScreen({ navigation }) {
               />
             </View>
           </View>
-          <ScrollView style={styles.list}>
+          <View style={[styles.list, !isMobile && styles.listDesktop]}>
             {visibleUserPlaces.map((p) => (
-              <PlaceCard
-                key={p.id}
-                name={p.name}
-                category={categoryLabel(p.category)}
-                distance={p.distance}
-                rating={p.avg_rating ?? p.rating}
-                imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
-                videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
-                onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
-              />
+              <View key={p.id} style={!isMobile ? styles.gridCard : null}>
+                <PlaceCard
+                  name={p.name}
+                  category={categoryLabel(p.category)}
+                  distance={p.distance}
+                  rating={p.avg_rating ?? p.rating}
+                  imageUrl={toDisplayImageUrl(p.image_urls?.[0])}
+                  videoUrl={toDisplayMediaUrl(p.video_urls?.[0])}
+                  onPress={() => navigation.navigate("PlaceDetail", { id: p.id })}
+                />
+              </View>
             ))}
-          </ScrollView>
+          </View>
         </>
       )}
     </PageCard>
@@ -666,6 +669,16 @@ const styles = StyleSheet.create({
   },
   list: {
     marginTop: spacing.lg,
+  },
+  listDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  gridCard: {
+    flex: 1,
+    minWidth: 300,
+    maxWidth: "50%",
   },
   adminFilters: {
     backgroundColor: colors.surface,
@@ -708,11 +721,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 160,
   },
+  filterItemMobile: {
+    minWidth: "100%",
+  },
   filterRow: {
     flexDirection: "row",
     gap: spacing.md,
     flexWrap: "wrap",
     marginBottom: spacing.md,
+  },
+  filterRowMobile: {
+    flexDirection: "column",
   },
   filterActions: {
     flexDirection: "row",

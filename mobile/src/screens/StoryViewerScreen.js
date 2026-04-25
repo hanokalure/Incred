@@ -1,230 +1,589 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Modal,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import AppVideo from "../components/AppVideo";
-import PageCard from "../components/PageCard";
-import PrimaryButton from "../components/PrimaryButton";
-import ScreenHeader from "../components/ScreenHeader";
-import { colors } from "../theme/colors";
-import { spacing } from "../theme/spacing";
-import { typography } from "../theme/typography";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
 import { deleteStory, recordStoryView, reportStory, setStoryHighlight } from "../services/storiesApi";
 import { getAuthProfile } from "../services/authStore";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const STORY_DURATION_MS = 5000;
 
 export default function StoryViewerScreen({ navigation, route }) {
   const stories = route?.params?.stories || [];
   const userName = route?.params?.userName || "Story";
   const initialIndex = Number(route?.params?.initialIndex || 0);
+
   const [index, setIndex] = useState(initialIndex);
+  const [paused, setPaused] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [actionError, setActionError] = useState("");
+  const [loadingMedia, setLoadingMedia] = useState(true);
+  const [showViews, setShowViews] = useState(false);
 
-  useEffect(() => {
-    setIndex(initialIndex);
-  }, [initialIndex]);
-  useEffect(() => {
-    getAuthProfile().then((profile) => setCurrentUserId(profile?.id || null)).catch(() => setCurrentUserId(null));
-  }, []);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressAnimRef = useRef(null);
+  const isPausedRef = useRef(false);
 
   const story = stories[index];
   const isOwnStory = useMemo(() => !!story && story.user_id === currentUserId, [story, currentUserId]);
+  const isVideo = story?.media_type === "video";
+
+  const safeGoBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("MainTabs");
+    }
+  }, [navigation]);
+
+  useEffect(() => {
+    getAuthProfile()
+      .then((p) => setCurrentUserId(p?.id || null))
+      .catch(() => setCurrentUserId(null));
+  }, []);
+
   useEffect(() => {
     if (!story?.id || isOwnStory) return;
     recordStoryView(story.id).catch(() => {});
   }, [story?.id, isOwnStory]);
 
+  useEffect(() => {
+    setLoadingMedia(true);
+    setActionError("");
+  }, [index]);
+
+  const startProgress = useCallback(() => {
+    progressAnim.setValue(0);
+    progressAnimRef.current?.stop();
+    progressAnimRef.current = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: STORY_DURATION_MS,
+      useNativeDriver: false,
+    });
+    progressAnimRef.current.start(({ finished }) => {
+      if (finished && !isPausedRef.current) goNext();
+    });
+  }, [index]);
+
+  useEffect(() => {
+    if (isVideo || loadingMedia) {
+      progressAnim.setValue(0);
+      progressAnimRef.current?.stop();
+      return;
+    }
+    if (!paused) startProgress();
+    return () => progressAnimRef.current?.stop();
+  }, [index, paused, loadingMedia, isVideo]);
+
+  useEffect(() => {
+    isPausedRef.current = paused;
+    if (paused) {
+      progressAnimRef.current?.stop();
+    } else if (!isVideo && !loadingMedia) {
+      startProgress();
+    }
+  }, [paused]);
+
+  const goNext = useCallback(() => {
+    if (index >= stories.length - 1) {
+      safeGoBack();
+    } else {
+      setIndex((v) => v + 1);
+    }
+  }, [index, stories.length, safeGoBack]);
+
+  const goPrev = useCallback(() => {
+    if (index <= 0) {
+      safeGoBack();
+    } else {
+      setIndex((v) => v - 1);
+    }
+  }, [index, safeGoBack]);
+
+  const handleLongPressIn = () => setPaused(true);
+  const handleLongPressOut = () => setPaused(false);
+
+  const handleDelete = () => {
+    Alert.alert("Delete Story", "Delete this story permanently?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteStory(story.id);
+            safeGoBack();
+          } catch (err) {
+            setActionError(err?.message || "Delete failed");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleReport = () => {
+    Alert.alert("Report Story", "Report this story as inappropriate?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Report",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await reportStory(story.id, "Inappropriate story");
+            Alert.alert("Reported", "Thanks for keeping the community safe.");
+          } catch (err) {
+            setActionError(err?.message || "Report failed");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleHighlight = async () => {
+    try {
+      await setStoryHighlight(story.id, !story.is_highlighted);
+      safeGoBack();
+    } catch (err) {
+      setActionError(err?.message || "Story update failed");
+    }
+  };
+
   if (!story) {
-    return (
-      <PageCard>
-        <ScreenHeader title="Story" onBack={() => navigation.goBack()} />
-        <Text style={styles.empty}>No story available.</Text>
-      </PageCard>
-    );
+    safeGoBack();
+    return null;
   }
 
   return (
-    <PageCard>
-      <ScreenHeader title={userName} onBack={() => navigation.goBack()} />
-      <View style={styles.viewer}>
-        <View style={styles.progressRow}>
-          {stories.map((item, currentIndex) => (
-            <View key={item.id || currentIndex} style={[styles.progressBar, currentIndex <= index && styles.progressBarActive]} />
-          ))}
-        </View>
-        {story.media_type === "video" ? (
-          <AppVideo
-            source={{ uri: toDisplayMediaUrl(story.media_url) }}
-            style={styles.media}
-            contentFit="cover"
-            autoPlay
-            nativeControls
-          />
-        ) : (
-          <Image source={{ uri: toDisplayMediaUrl(story.media_url) }} style={styles.media} resizeMode="cover" />
-        )}
-        <View style={styles.captionBox}>
-          <Text style={styles.userName}>{userName}</Text>
-          {story.caption ? <Text style={styles.caption}>{story.caption}</Text> : <Text style={styles.captionMuted}>No caption</Text>}
-          {isOwnStory ? <Text style={styles.viewsText}>Views: {story.view_count ?? 0}</Text> : null}
-          {isOwnStory && story.viewer_names?.length ? (
-            <Text style={styles.viewerNames}>Viewed by: {story.viewer_names.join(", ")}</Text>
-          ) : isOwnStory ? (
-            <Text style={styles.viewerNames}>No viewers yet</Text>
-          ) : null}
-        </View>
-      </View>
-      {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
-      <View style={styles.actions}>
-        <PrimaryButton label="Previous" variant="ghost" onPress={() => setIndex((value) => Math.max(0, value - 1))} />
-        <PrimaryButton label="Add Story" variant="ghost" onPress={() => navigation.navigate("CreateStory")} />
-        {isOwnStory ? (
-          <PrimaryButton
-            label={story.is_highlighted ? "Unhighlight" : "Highlight"}
-            variant="ghost"
-            onPress={async () => {
-              setActionError("");
-              try {
-                await setStoryHighlight(story.id, !story.is_highlighted);
-                navigation.goBack();
-              } catch (err) {
-                setActionError(err?.message || "Story update failed");
-              }
-            }}
-          />
-        ) : (
-          <PrimaryButton
-            label="Report"
-            variant="ghost"
-            onPress={() =>
-              Alert.alert("Report story", "Report this story as inappropriate?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Report",
-                  style: "destructive",
-                  onPress: async () => {
-                    setActionError("");
-                    try {
-                      await reportStory(story.id, "Inappropriate story");
-                      Alert.alert("Reported", "Story reported.");
-                    } catch (err) {
-                      setActionError(err?.message || "Story report failed");
-                    }
-                  },
-                },
-              ])
-            }
-          />
-        )}
-        {isOwnStory ? (
-          <PrimaryButton
-            label="Delete"
-            variant="ghost"
-            onPress={() =>
-              Alert.alert("Delete story", "Delete this story?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete",
-                  style: "destructive",
-                  onPress: async () => {
-                    setActionError("");
-                    try {
-                      await deleteStory(story.id);
-                      navigation.goBack();
-                    } catch (err) {
-                      setActionError(err?.message || "Story delete failed");
-                    }
-                  },
-                },
-              ])
-            }
-          />
-        ) : null}
-        <PrimaryButton
-          label={index >= stories.length - 1 ? "Done" : "Next"}
-          onPress={() => (index >= stories.length - 1 ? navigation.goBack() : setIndex((value) => value + 1))}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#000" hidden />
+
+      {/* ─── Full-screen media background ─── */}
+      {isVideo ? (
+        <AppVideo
+          source={{ uri: toDisplayMediaUrl(story.media_url) }}
+          style={styles.media}
+          contentFit="cover"
+          autoPlay
+          nativeControls={false}
+          onLoad={() => setLoadingMedia(false)}
         />
-      </View>
-    </PageCard>
+      ) : (
+        <Image
+          source={{ uri: toDisplayMediaUrl(story.media_url) }}
+          style={styles.media}
+          resizeMode="cover"
+          onLoad={() => setLoadingMedia(false)}
+          onError={() => setLoadingMedia(false)}
+        />
+      )}
+
+      {/* Loading shimmer */}
+      {loadingMedia && <View style={styles.loadingOverlay} pointerEvents="none" />}
+
+      {/* ─── Single full-screen tap handler ─── */}
+      <TouchableWithoutFeedback
+        onPress={(e) => {
+          const x = e.nativeEvent.locationX;
+          if (x < SCREEN_WIDTH * 0.4) goPrev();
+          else goNext();
+        }}
+        onLongPress={handleLongPressIn}
+        onPressOut={handleLongPressOut}
+        delayLongPress={200}
+      >
+        <View style={styles.touchLayer} />
+      </TouchableWithoutFeedback>
+
+      {/* ─── UI Overlay — pointerEvents=box-none so touches pass to the gesture layer below ─── */}
+      <SafeAreaView style={styles.overlay} pointerEvents="box-none">
+
+        {/* TOP: Progress bars + header */}
+        <View style={styles.topBar} pointerEvents="box-none">
+          <View style={styles.progressRow} pointerEvents="none">
+            {stories.map((item, i) => (
+              <View key={item.id || i} style={styles.progressTrack}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width:
+                        i < index
+                          ? "100%"
+                          : i === index && !isVideo
+                          ? progressAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ["0%", "100%"],
+                            })
+                          : "0%",
+                    },
+                  ]}
+                />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.header} pointerEvents="box-none">
+            <View style={styles.userInfo} pointerEvents="none">
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={16} color="#fff" />
+              </View>
+              <Text style={styles.userName}>{userName}</Text>
+            </View>
+
+            <View style={styles.headerActions}>
+              {/* Eye icon — view count */}
+              {isOwnStory && (
+                <TouchableOpacity onPress={() => setShowViews(true)} style={styles.iconBtn}>
+                  <Ionicons name="eye-outline" size={22} color="#fff" />
+                  {(story.view_count ?? 0) > 0 && (
+                    <Text style={styles.viewBadge}>{story.view_count}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {isOwnStory ? (
+                <>
+                  <TouchableOpacity onPress={handleHighlight} style={styles.iconBtn}>
+                    <Ionicons
+                      name={story.is_highlighted ? "star" : "star-outline"}
+                      size={21}
+                      color={story.is_highlighted ? "#FFD700" : "#fff"}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleDelete} style={styles.iconBtn}>
+                    <Ionicons name="trash-outline" size={21} color="#FF6B6B" />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity onPress={handleReport} style={styles.iconBtn}>
+                  <Ionicons name="flag-outline" size={21} color="#fff" />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity onPress={safeGoBack} style={styles.iconBtn}>
+                <Ionicons name="close" size={25} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* BOTTOM: Caption + Add story */}
+        <View style={styles.bottomBar} pointerEvents="box-none">
+          {actionError ? (
+            <View style={styles.errorBanner} pointerEvents="none">
+              <Ionicons name="alert-circle-outline" size={14} color="#fff" />
+              <Text style={styles.errorText}>{actionError}</Text>
+            </View>
+          ) : null}
+
+          {story.caption ? (
+            <Text style={styles.caption} pointerEvents="none">{story.caption}</Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.addStoryBtn}
+            onPress={() => navigation.navigate("CreateStory")}
+          >
+            <Ionicons name="add-circle-outline" size={17} color="#fff" />
+            <Text style={styles.addStoryText}>Add your story</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+
+      {/* ─── Views Modal ─── */}
+      <Modal
+        visible={showViews}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowViews(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowViews(false)}>
+          <View style={styles.viewsSheet}>
+            <View style={styles.viewsHandle} />
+            <View style={styles.viewsHeader}>
+              <Ionicons name="eye" size={18} color="#fff" />
+              <Text style={styles.viewsTitle}>
+                {story.view_count ?? 0} View{(story.view_count ?? 0) !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            {story.viewer_names?.length ? (
+              story.viewer_names.map((name, i) => (
+                <View key={i} style={styles.viewerRow}>
+                  <View style={styles.viewerAvatar}>
+                    <Ionicons name="person" size={14} color="#aaa" />
+                  </View>
+                  <Text style={styles.viewerName}>{name}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noViewers}>No viewers yet</Text>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  viewer: {
-    borderRadius: 28,
-    overflow: "hidden",
-    backgroundColor: "#111",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  progressRow: {
-    position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: "row",
-    gap: spacing.xs,
-    zIndex: 2,
-  },
-  progressBar: {
+  container: {
     flex: 1,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.22)",
-  },
-  progressBarActive: {
-    backgroundColor: "#fff",
+    backgroundColor: "#000",
   },
   media: {
-    width: "100%",
-    height: 520,
+    position: "absolute",
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
     backgroundColor: "#111",
   },
-  captionBox: {
+  topGradient: {
     position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: 20,
-    backgroundColor: "rgba(17,17,17,0.58)",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+    backgroundColor: "transparent",
+    // Simulated gradient with opacity layers
+    borderTopWidth: 0,
+  },
+  bottomGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 260,
+    backgroundColor: "transparent",
+  },
+
+  // Touch layer — full screen, below UI overlay
+  touchLayer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+
+  // Overlay
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "space-between",
+  },
+
+  // TOP BAR
+  topBar: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 12,
+    // No backgroundColor — transparent so touches fall through to gesture layer
+    zIndex: 10,
+  },
+  progressRow: {
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 10,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 2.5,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 999,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.6)",
   },
   userName: {
-    ...typography.body,
     color: "#fff",
-    fontWeight: "800",
-    marginBottom: spacing.xs,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    position: "relative",
+  },
+  viewBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "#fff",
+    color: "#000",
+    fontSize: 9,
+    fontWeight: "900",
+    borderRadius: 8,
+    minWidth: 14,
+    paddingHorizontal: 2,
+    textAlign: "center",
+    overflow: "hidden",
+  },
+
+  // BOTTOM BAR
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 16,
+    gap: 10,
+    // No backgroundColor — transparent so touches fall through to gesture layer
+    zIndex: 10,
   },
   caption: {
-    ...typography.body,
     color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
-  captionMuted: {
-    ...typography.body,
-    color: "rgba(255,255,255,0.72)",
-  },
-  viewsText: {
-    ...typography.caption,
-    color: "#fff",
-    marginTop: spacing.sm,
-    fontWeight: "800",
-  },
-  viewerNames: {
-    ...typography.caption,
-    color: "rgba(255,255,255,0.86)",
-    marginTop: spacing.xs,
-  },
-  actions: {
+  addStoryBtn: {
     flexDirection: "row",
-    gap: spacing.md,
-    marginTop: spacing.lg,
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
-  empty: {
-    ...typography.body,
-    color: colors.textSecondary,
+  addStoryText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
-  error: {
-    ...typography.body,
-    color: colors.error,
-    marginTop: spacing.md,
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(220,50,50,0.85)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+
+  // Views Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  viewsSheet: {
+    backgroundColor: "#1a1a1a",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 12,
+    maxHeight: SCREEN_HEIGHT * 0.55,
+  },
+  viewsHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#444",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  viewsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
+  viewsTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  viewerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  viewerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerName: {
+    color: "#ddd",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  noViewers: {
+    color: "#666",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 24,
   },
 });

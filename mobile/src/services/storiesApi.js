@@ -1,5 +1,4 @@
-import { apiGet, apiPost } from "./apiClient";
-import { apiUpload } from "./apiClient";
+import { apiGet, apiPost, apiDelete, apiUpload } from "./apiClient";
 
 export const fetchStoryFeed = () => apiGet("/stories/feed", { auth: false });
 
@@ -11,10 +10,7 @@ export const createStory = (payload) => apiPost("/stories", payload);
 export const recordStoryView = (storyId) => apiPost(`/stories/${storyId}/view`, {});
 export const reportStory = (storyId, reason) => apiPost(`/stories/${storyId}/report`, { reason });
 export const setStoryHighlight = (storyId, isHighlighted) => apiPost(`/stories/${storyId}/highlight`, { is_highlighted: isHighlighted });
-export const deleteStory = async (storyId) => {
-  const { apiDelete } = await import("./apiClient");
-  return apiDelete(`/stories/${storyId}`);
-};
+export const deleteStory = (storyId) => apiDelete(`/stories/${storyId}`);
 
 export const uploadStoryImage = async (asset) => {
   const formData = new FormData();

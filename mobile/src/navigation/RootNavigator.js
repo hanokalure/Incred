@@ -102,7 +102,16 @@ export default function RootNavigator() {
             <Stack.Screen name="MySubmissions" component={MySubmissionsScreen} />
             <Stack.Screen name="PlaceApprovals" component={PlaceApprovalScreen} />
             <Stack.Screen name="CreateStory" component={CreateStoryScreen} />
-            <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
+            <Stack.Screen
+              name="StoryViewer"
+              component={StoryViewerScreen}
+              options={{
+                presentation: "fullScreenModal",
+                animation: "fade",
+                headerShown: false,
+                contentStyle: { backgroundColor: "#000" },
+              }}
+            />
             <Stack.Screen name="StoryArchive" component={StoryArchiveScreen} />
             <Stack.Screen name="ReviewsList" component={ReviewsListScreen} />
             <Stack.Screen name="ReviewSubmit" component={ReviewSubmitScreen} />

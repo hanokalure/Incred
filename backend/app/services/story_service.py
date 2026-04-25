@@ -275,9 +275,7 @@ async def delete_story(story_id: int, user_id: str, actor_role: str | None = Non
     if not result:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Story delete failed")
     
-    data = result.data if result.data else [await _get_story_for_read(story_id)]
-    enriched = await _enrich_stories(data, viewer_user_id=user_id)
-    return enriched[0]
+    return {"id": story_id, "status": "deleted"}
 
 
 async def list_story_reports() -> List[Dict[str, Any]]:

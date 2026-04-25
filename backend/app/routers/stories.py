@@ -63,7 +63,7 @@ async def update_story_highlight_api(story_id: int, payload: StoryHighlightUpdat
     return await set_story_highlight(story_id, user_id=user["id"], is_highlighted=payload.is_highlighted)
 
 
-@router.delete("/stories/{story_id}", response_model=StoryOut)
+@router.delete("/stories/{story_id}")
 async def delete_story_api(story_id: int, user=Depends(get_current_user)):
     return await delete_story(story_id, user_id=user["id"], actor_role=user.get("role"))
 

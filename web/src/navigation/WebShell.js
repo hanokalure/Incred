@@ -32,6 +32,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { getBrowserLocation } from "../utils/browserLocation";
 import { reverseGeocodeLocation } from "../services/locationApi";
 import { toDisplayMediaUrl } from "../services/mediaUrl";
+import { useResponsive } from "../hooks/useResponsive";
 
 const Stack = createNativeStackNavigator();
 
@@ -60,7 +61,7 @@ const ROUTE_TO_SECTION = {
 };
 
 export default function WebShell() {
-  const { width } = useWindowDimensions();
+  const { width, isMobile, isTablet } = useResponsive();
   const role = useSelector((state) => state.auth.role);
   const user = useSelector((state) => state.auth.user);
   const notifications = useSelector((state) => state.notifications.notifications) || [];
@@ -92,13 +93,14 @@ export default function WebShell() {
   const homeRoute = role === "admin" ? "Dashboard" : "Explore";
 
   const [active, setActive] = useState(homeRoute);
-  const [collapsed, setCollapsed] = useState(width < 1024);
+  const [collapsed, setCollapsed] = useState(isTablet);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [locationText, setLocationText] = useState(t("locating"));
   const [showNotifs, setShowNotifs] = useState(false);
 
   useEffect(() => {
-    setCollapsed(width < 1024);
-  }, [width]);
+    setCollapsed(isTablet);
+  }, [isTablet]);
 
   useEffect(() => {
     setActive(homeRoute);
@@ -134,6 +136,7 @@ export default function WebShell() {
 
   const go = (key, params = {}) => {
     setActive(ROUTE_TO_SECTION[key] || key);
+    setMobileMenuOpen(false);
     navRef.current?.navigate(key, params);
   };
 
@@ -179,39 +182,47 @@ export default function WebShell() {
     }
   };
 
-  const sidebarWidth = collapsed ? STRIP_WIDTH : SIDEBAR_WIDTH;
+  const sidebarWidth = isMobile ? 0 : collapsed ? STRIP_WIDTH : SIDEBAR_WIDTH;
+  const actualSidebarWidth = isMobile ? 280 : sidebarWidth;
 
   return (
     <View style={styles.shell}>
-      <View style={styles.header}>
+      <View style={[styles.header, isMobile && styles.headerMobile]}>
         <View style={styles.headerLeft}>
-          <Pressable onPress={() => setCollapsed((value) => !value)} style={styles.hamburger}>
+          <Pressable 
+            onPress={() => isMobile ? setMobileMenuOpen(true) : setCollapsed((value) => !value)} 
+            style={styles.hamburger}
+          >
             <Text style={styles.hamburgerText}>≡</Text>
           </Pressable>
           <Pressable onPress={handleBrandPress} style={styles.brandCluster}>
-            <Text style={styles.brandTitle}>Incredible Karnataka</Text>
-            <Text style={styles.brandSubtitle}>{locationText}</Text>
+            <Text style={[styles.brandTitle, isMobile && styles.brandTitleMobile]}>
+              {isMobile ? "Karnataka" : "Incredible Karnataka"}
+            </Text>
+            {!isMobile && <Text style={styles.brandSubtitle}>{locationText}</Text>}
           </Pressable>
         </View>
 
-        <View style={styles.headerRight}>
-          <View style={styles.langSwitch}>
-            {[
-              { code: "en", label: "EN" },
-              { code: "kn", label: "ಕ" },
-              { code: "hi", label: "हि" },
-            ].map((item) => (
-              <Pressable
-                key={item.code}
-                onPress={() => setLanguage(item.code)}
-                style={[styles.langPill, language === item.code && styles.langPillActive]}
-              >
-                <Text style={[styles.langText, language === item.code && styles.langTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+        <View style={[styles.headerRight, isMobile && styles.headerRightMobile]}>
+          {!isMobile && (
+            <View style={styles.langSwitch}>
+              {[
+                { code: "en", label: "EN" },
+                { code: "kn", label: "ಕ" },
+                { code: "hi", label: "हि" },
+              ].map((item) => (
+                <Pressable
+                  key={item.code}
+                  onPress={() => setLanguage(item.code)}
+                  style={[styles.langPill, language === item.code && styles.langPillActive]}
+                >
+                  <Text style={[styles.langText, language === item.code && styles.langTextActive]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <View style={styles.headerActions}>
             <Pressable 
               onPress={() => go("ProfileSub", { title: "Notifications" })} 
@@ -237,8 +248,20 @@ export default function WebShell() {
         </View>
       </View>
 
-      <View style={[styles.sidebarWrap, { width: sidebarWidth }]}>
-        <View style={[styles.sidebar, collapsed && styles.sidebarCollapsed]}>
+      {isMobile && mobileMenuOpen && (
+        <Pressable 
+          style={styles.mobileBackdrop} 
+          onPress={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <View style={[
+        styles.sidebarWrap, 
+        { width: actualSidebarWidth },
+        isMobile && styles.sidebarWrapMobile,
+        isMobile && !mobileMenuOpen && styles.sidebarHidden
+      ]}>
+        <View style={[styles.sidebar, !isMobile && collapsed && styles.sidebarCollapsed]}>
           <View style={styles.navList}>
             {navItems.map((item) => (
               <Pressable
@@ -253,7 +276,7 @@ export default function WebShell() {
                     color={active === item.key ? colors.text : colors.textSecondary}
                   />
                 </View>
-                {!collapsed ? (
+                {isMobile || !collapsed ? (
                   <Text style={[styles.navText, active === item.key && styles.navTextActive]}>
                     {item.label}
                   </Text>
@@ -331,6 +354,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
+  headerMobile: {
+    paddingHorizontal: 12,
+    height: 60,
+  },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -340,6 +367,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  headerRightMobile: {
+    gap: 8,
   },
   headerActions: {
     flexDirection: "row",
@@ -473,6 +503,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: -0.5,
   },
+  brandTitleMobile: {
+    fontSize: 16,
+  },
   brandSubtitle: {
     fontSize: 12,
     fontWeight: "700",
@@ -534,6 +567,23 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
     zIndex: 20,
+  },
+  sidebarWrapMobile: {
+    top: 0,
+    zIndex: 100,
+    height: "100%",
+  },
+  sidebarHidden: {
+    transform: [{ translateX: -300 }],
+  },
+  mobileBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 90,
   },
   sidebar: {
     flex: 1,
